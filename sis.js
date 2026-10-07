@@ -6,7 +6,7 @@
    ・本番用（qoo-ai/sis-bo-tools）＝先方に渡すツールだけ。テスト用（qoo-ai/sis-bo-tools-test）＝全部 */
 (function(){
 var ENABLED=true;
-var VERSION='3.0-test';
+var VERSION='3.0.1-test';
 var ME=(document.currentScript&&document.currentScript.src)||'';
 var REF=(ME.match(/@([0-9a-f]{40}|main)\//)||[])[1]||'main';
 var CDN='https://cdn.jsdelivr.net/gh/qoo-ai/sis-bo-tools-test@'+REF+'/';
