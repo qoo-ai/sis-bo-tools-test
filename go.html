@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SISツール起動中</title>
+<style>body{margin:0;font:13px/1.5 sans-serif;color:#344054;background:#fff;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center}</style>
+</head><body><div id="m">SISツールを準備しています…</div>
+<script>
+/* SIS BO tools 起動役（GitHub Pages）
+   ブックマークが開く小窓。GitHubに「今の最新コミット」を直接聞いて、開いた画面（BO／Liny）に渡すだけ。
+   BOの外で動くので、BOの読み込み制限とjsDelivrのブランチキャッシュ（12時間）を受けない。 */
+(function(){
+var M=document.getElementById('m');
+var REPO=location.pathname.split('/')[1];                       // sis-bo-tools / sis-bo-tools-test
+var OWNER=location.hostname.split('.')[0];                      // qoo-ai
+var to=decodeURIComponent((location.hash||'').slice(1));        // 開いた画面のorigin
+var OK=/^https:\/\/(office\.[a-z0-9.-]+\.mercart-(stg|bo)\.net|manager\.liny\.jp)$/;
+function done(msg){M.textContent=msg;setTimeout(function(){window.close();},msg?2500:0);}
+if(!window.opener||!OK.test(to)){done('BO（管理画面）またはLinyでブックマークを押してください。');return;}
+function send(o){o.repo=OWNER+'/'+REPO;try{window.opener.postMessage({sis:o},to);}catch(e){}}
+var ctl=new AbortController();setTimeout(function(){ctl.abort();},4000);
+fetch('https://api.github.com/repos/'+OWNER+'/'+REPO+'/commits/main',{cache:'no-store',signal:ctl.signal,headers:{Accept:'application/vnd.github.sha'}})
+ .then(function(r){if(!r.ok)throw new Error(r.status);return r.text();})
+ .then(function(sha){sha=sha.trim();if(!/^[0-9a-f]{40}$/.test(sha))throw new Error('sha');send({sha:sha});done('');})
+ .catch(function(){send({sha:null});done('');});
+})();
+</script></body></html>

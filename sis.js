@@ -1,19 +1,23 @@
-/* SIS BO tools テスト用 loader v2.2（qoo-ai/sis-bo-tools-test）
+/* SIS BO tools テスト用 menu v3.0（qoo-ai/sis-bo-tools-test）
+   ブックマーク → 小窓(go.html)がGitHubに最新コミットを聞く → このファイルをそのコミットで読む → ツールも同じコミットで読む
+   ＝コミットした瞬間に反映（jsDelivrのブランチキャッシュを通らない）。小窓が使えない時だけ @main（最大12時間遅れ）で動く。
    ・ENABLED=false で全ツール停止（契約終了時）。ツール単位は TOOLS の on を false
-   ・ツールを足す／直す：tools/<id>.js をコミット → そのコミットIDを sha に書く → sis.js をコミット → sis.js だけ jsDelivr で purge
-   ・本番用（qoo-ai/sis-bo-tools）＝先方に渡すツールだけ。テスト用（qoo-ai/sis-bo-tools-test）＝全部。テストで固まったら本番へ同じファイルと1行を移す */
+   ・ツールを足す／直す：tools/<id>.js をコミットし、足す場合は TOOLS に1行。sha の書き換えもキャッシュ消しも不要
+   ・本番用（qoo-ai/sis-bo-tools）＝先方に渡すツールだけ。テスト用（qoo-ai/sis-bo-tools-test）＝全部 */
 (function(){
 var ENABLED=true;
-var VERSION='2.2-test';
-var CDN='https://cdn.jsdelivr.net/gh/qoo-ai/sis-bo-tools-test@';
+var VERSION='3.0-test';
+var ME=(document.currentScript&&document.currentScript.src)||'';
+var REF=(ME.match(/@([0-9a-f]{40}|main)\//)||[])[1]||'main';
+var CDN='https://cdn.jsdelivr.net/gh/qoo-ai/sis-bo-tools-test@'+REF+'/';
 var TOOLS=[
- {id:"stock", name:"在庫更新", desc:"在庫更新シートの「取込用」→ 商品在庫の取込（［取込］の手前まで）", where:'bo', grp:'release', on:true, path:'stock.js', sha:'41d4dc532be19910af7a5eebf1c63acc7ae69150'},
- {id:"banner", name:"バナー反映", desc:"バナー依頼シートの「バナー一覧」→ BOのバナー設定", where:'bo', grp:'release', on:true, path:'tools/banner.js', sha:'8194e02980094b6c67f8d80b7b11a0c4ae5a3641'},
- {id:"mailmag", name:"メルマガ", desc:"メルマガの予約画面に流し込む", where:'bo', grp:'release', on:true, path:'tools/mailmag.js', sha:'4497c42ae9eb6f9e2076295bcd9f420949cde13b'},
- {id:"line", name:"LINE配信", desc:"Linyの配信作成画面に流し込む", where:'liny', grp:'release', on:true, path:'tools/line.js', sha:'4497c42ae9eb6f9e2076295bcd9f420949cde13b'},
- {id:"sale", name:"セール1ボタン", desc:"セール指示書 → メルカート取込ファイル一式（T-19）", where:'bo', grp:'test', on:true, path:'tools/sale.js', sha:'4497c42ae9eb6f9e2076295bcd9f420949cde13b'},
- {id:"yoyaku", name:"予約取込", desc:"商品インポート画面で、決めた時刻に［取込］を押す", where:'bo', grp:'test', on:true, path:'tools/yoyaku.js', sha:'4497c42ae9eb6f9e2076295bcd9f420949cde13b'},
- {id:"sanrio", name:"サンリオ掲載終了日延長（1回限り）", desc:"サンリオ14件の掲載終了日を2027/12/01に（在庫・状態はそのまま）。［取込］の手前まで", where:'bo', grp:'test', on:true, path:'tools/sanrio_end.js', sha:'4497c42ae9eb6f9e2076295bcd9f420949cde13b'}
+ {id:"stock", name:"在庫更新", desc:"在庫更新シートの「取込用」→ 商品在庫の取込（［取込］の手前まで）", where:'bo', grp:'release', on:true, path:'stock.js'},
+ {id:"banner", name:"バナー反映", desc:"バナー依頼シートの「バナー一覧」→ BOのバナー設定", where:'bo', grp:'release', on:true, path:'tools/banner.js'},
+ {id:"mailmag", name:"メルマガ", desc:"メルマガの予約画面に流し込む", where:'bo', grp:'release', on:true, path:'tools/mailmag.js'},
+ {id:"line", name:"LINE配信", desc:"Linyの配信作成画面に流し込む", where:'liny', grp:'release', on:true, path:'tools/line.js'},
+ {id:"sale", name:"セール1ボタン", desc:"セール指示書 → メルカート取込ファイル一式（T-19）", where:'bo', grp:'test', on:true, path:'tools/sale.js'},
+ {id:"yoyaku", name:"予約取込", desc:"商品インポート画面で、決めた時刻に［取込］を押す", where:'bo', grp:'test', on:true, path:'tools/yoyaku.js'},
+ {id:"sanrio", name:"サンリオ掲載終了日延長（1回限り）", desc:"サンリオ14件の掲載終了日を2027/12/01に（在庫・状態はそのまま）。［取込］の手前まで", where:'bo', grp:'test', on:true, path:'tools/sanrio_end.js'}
 ];
 var D=document;
 function bar(msg,bg){var d=D.createElement('div');d.textContent=msg;d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483647;padding:12px;background:'+(bg||'#344054')+';color:#fff;font:15px/1.5 sans-serif;text-align:center';D.body.appendChild(d);setTimeout(function(){d.remove();},8000);}
@@ -22,7 +26,7 @@ var site=/(^|\.)manager\.liny\.jp$/.test(location.hostname)?'liny':(/\/(opipwy|d
 if(!site){bar('BO（管理画面）またはLinyの画面を開いた状態で押してください。','#b42318');return;}
 function load(t){
  var m=D.getElementById('sisMenu');if(m)m.remove();
- var s=D.createElement('script');s.src=CDN+t.sha+'/'+t.path;s.charset='utf-8';
+ var s=D.createElement('script');s.src=CDN+t.path;s.charset='utf-8';
  s.onerror=function(){bar('「'+t.name+'」を読み込めませんでした。時間をおいてもう一度押してください。','#b42318');};
  D.body.appendChild(s);}
 var list=TOOLS.filter(function(t){return t.where===site;});
@@ -47,6 +51,6 @@ function group(label,arr){
   if(t.on)b.onclick=function(){load(t);};else b.disabled=true;
   box.appendChild(b);});}
 group('本番にも出しているもの',list.filter(function(t){return t.grp==='release';}));group('テスト中（本番には未公開）',list.filter(function(t){return t.grp!=='release';}));
-var f=D.createElement('div');f.textContent='v'+VERSION;f.style.cssText='padding:4px 14px 8px;font-size:11px;color:#98a2b3;text-align:right';box.appendChild(f);
+var f=D.createElement('div');f.textContent='v'+VERSION+(REF==='main'?'（予備経路）':' · '+REF.slice(0,7));f.style.cssText='padding:4px 14px 8px;font-size:11px;color:#98a2b3;text-align:right';box.appendChild(f);
 D.body.appendChild(box);
 })();
