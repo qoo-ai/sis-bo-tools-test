@@ -5,8 +5,8 @@
    ・ツールを足す／直す：tools/<id>.js をコミットし、足す場合は TOOLS に1行。sha の書き換えもキャッシュ消しも不要
    ・本番用（qoo-ai/sis-bo-tools）＝先方に渡すツールだけ。テスト用（qoo-ai/sis-bo-tools-test）＝全部 */
 (function(){
-var ENABLED=true;
-var VERSION='3.0.1-test';
+var ENABLED=false;
+var VERSION='3.0.2-test-OFF';
 var ME=(document.currentScript&&document.currentScript.src)||'';
 var REF=(ME.match(/@([0-9a-f]{40}|main)\//)||[])[1]||'main';
 var CDN='https://cdn.jsdelivr.net/gh/qoo-ai/sis-bo-tools-test@'+REF+'/';
