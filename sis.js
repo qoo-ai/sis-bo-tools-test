@@ -8,7 +8,7 @@ var VERSION='2.2-test';
 var CDN='https://cdn.jsdelivr.net/gh/qoo-ai/sis-bo-tools-test@';
 var TOOLS=[
  {id:"stock", name:"在庫更新", desc:"在庫更新シートの「取込用」→ 商品在庫の取込（［取込］の手前まで）", where:'bo', grp:'release', on:true, path:'stock.js', sha:'41d4dc532be19910af7a5eebf1c63acc7ae69150'},
- {id:"banner", name:"バナー反映", desc:"バナー依頼シートの「バナー一覧」→ BOのバナー設定", where:'bo', grp:'release', on:true, path:'tools/banner.js', sha:'4497c42ae9eb6f9e2076295bcd9f420949cde13b'},
+ {id:"banner", name:"バナー反映", desc:"バナー依頼シートの「バナー一覧」→ BOのバナー設定", where:'bo', grp:'release', on:true, path:'tools/banner.js', sha:'7ef7a63828c77fa9a23544ce83e568836e7fc484'},
  {id:"mailmag", name:"メルマガ", desc:"メルマガの予約画面に流し込む", where:'bo', grp:'release', on:true, path:'tools/mailmag.js', sha:'4497c42ae9eb6f9e2076295bcd9f420949cde13b'},
  {id:"line", name:"LINE配信", desc:"Linyの配信作成画面に流し込む", where:'liny', grp:'release', on:true, path:'tools/line.js', sha:'4497c42ae9eb6f9e2076295bcd9f420949cde13b'},
  {id:"sale", name:"セール1ボタン", desc:"セール指示書 → メルカート取込ファイル一式（T-19）", where:'bo', grp:'test', on:true, path:'tools/sale.js', sha:'4497c42ae9eb6f9e2076295bcd9f420949cde13b'},
