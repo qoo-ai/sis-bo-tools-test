@@ -16,22 +16,35 @@ function ask(){var p=el('div','margin:40px auto;width:560px;max-width:92vw;font:
  p.appendChild(el('b',null,'メルマガ依頼シートの「BO入力データ」セルをコピーしてから、ここに貼り付け'));
  var ta=el('textarea','display:block;width:100%;height:160px;margin:10px 0;font:12px monospace');var go=el('button','padding:8px 18px','流し込む');
  p.appendChild(ta);p.appendChild(go);box.appendChild(p);ta.focus();
- go.onclick=function(){try{var d=parse(ta.value);p.remove();run(d);}catch(e){say2('⛔ 失敗：'+e.message,'この後の流れ：画面の赤字を直して手で続ける、または［閉じる］→ もう一度ブックマークを押す。送信・登録はされていません','ng');}};}
+ go.onclick=function(){try{var d=parse(ta.value);p.remove();run(d);}catch(e){say2('⛔ 失敗[v2.3]：'+e.message,'この後の流れ：画面の赤字を直して手で続ける、または［閉じる］→ もう一度ブックマークを押す。送信・登録はされていません','ng');}};}
 function run(d){
  say('予約配信の画面を開いています…');
- var f=el('iframe','flex:1;border:0;width:100%');box.appendChild(f);var stage=0,tries=0;
+ var f=el('iframe','flex:1;border:0;width:100%');box.appendChild(f);var stage=0,tries=0,filled=false;
  f.onload=function(){var g;try{g=f.contentDocument;if(!g||!g.body)throw 0;}catch(e){say('BOの画面を読み込めません（ログイン切れの可能性）。ログインし直して、もう一度押してください。','ng');return;}
   var q=function(s){return g.querySelector(s);};
   try{
-   if(q('#mail_body')){step2(g,q,d);return;}
+   if(q('#mail_body')){
+    if(filled&&q('#mail_body').value){say2('🧪 テスト配信後の画面です（まだ登録はされていません）','この後の流れ：①届いたテストメールを確認 → ②［次へ］→ 確認画面で［登録する］ ｜ 手で直した箇所はそのまま残しています');return;}
+    step2(g,q,d);filled=true;return;}
+   if(filled){after(g,d);return;}
    if(q('input[name=delivery_name]')){
     if(stage>0&&++tries>2)throw new Error('基本設定から先に進めません。画面の赤字エラーを確認してください');
     stage=1;step1(g,q,d);return;}
    if(q('input[type=password]'))throw new Error('ログイン画面です。BOにログインしてから押してください');
    if(stage==0){stage=-1;f.src=URL1;return;}
    throw new Error('予約配信の画面を開けませんでした（'+g.title+'）。BOのトップ画面で押し直してください');
-  }catch(e){say2('⛔ 失敗：'+e.message,'この後の流れ：画面の赤字を直して手で続ける、または［閉じる］→ もう一度ブックマークを押す。送信・登録はされていません','ng');}};
+  }catch(e){say2('⛔ 失敗[v2.3]：'+e.message,'この後の流れ：画面の赤字を直して手で続ける、または［閉じる］→ もう一度ブックマークを押す。送信・登録はされていません','ng');}};
  f.src=URL1;}
+function after(g,d){
+ var tx=(g.body.innerText||'').replace(/\s+/g,'');
+ var rb0=[].slice.call(g.querySelectorAll('input[type=button],input[type=submit],button')).filter(function(b){return (b.value||b.textContent).replace(/\s/g,'')==='登録する';})[0];
+ if(rb0){
+  var hh=String(+d.time.slice(0,2))+'時00分',miss=[];
+  if(tx.indexOf(d.name.replace(/\s+/g,''))<0)miss.push('予約名');if(tx.indexOf(d.date)<0)miss.push('配信日 '+d.date);if(tx.indexOf(hh)<0)miss.push('配信時刻 '+hh);
+  var rb=rb0;rb.style.outline='4px solid #f79009';
+  if(miss.length){say2('⚠ 確認画面：シートと違う項目があります（'+miss.join('・')+'）','この後の流れ：［戻る］で直してから［登録する］。まだ登録はされていません','ng');return;}
+  say2('👀 確認画面です（まだ登録はされていません）','この後の流れ：内容を見て、オレンジ枠の［登録する］を押す ｜ 予約名・'+d.date+'・'+hh+' はシートと一致しています','ok');return;}
+ say2('ℹ 入力は済んでいます（登録の確定はBOの画面で確認してください）','この後の流れ：［登録する］を押した後なら ①予約一覧で「配信待ち」を確認 → ②シート「メルマガ出力」の［予約した☑］にチェック → ③この帯は［閉じる］');}
 function btn(g,label){return [].slice.call(g.querySelectorAll('input[type=button],input[type=submit],button')).filter(function(b){return (b.value||b.textContent).trim()===label;})[0];}
 function step1(g,q,d){
  var n=q('input[name=delivery_name]'),dt=q('input[name=delivery_estimate_date]'),tm=q('select[name=delivery_estimate_time]');
