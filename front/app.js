@@ -307,7 +307,7 @@
     '.sis-hs-code{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;border-radius:999px;background:#fff;border:2px dashed var(--sis-c)}.sis-hs-code code{font-family:inherit;font-size:18px;font-weight:800;letter-spacing:.06em;color:var(--sis-cd)}',
     '.sis-hs-code button{min-height:34px;padding:0 14px;border-radius:999px;border:0;background:var(--sis-c);color:#fff;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit}',
     '.sis-hsplit-sp{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;background:var(--sis-pl)}.sis-hsplit-sp .sis-hs-t{font-size:11px;line-height:1.3}.sis-hsplit-sp .sis-hs-code{padding:3px 4px 3px 10px;gap:6px}.sis-hsplit-sp .sis-hs-code code{font-size:14px}.sis-hsplit-sp .sis-tiles b{min-width:24px;font-size:13px;padding:1px 2px}.sis-hsplit-sp .sis-tiles small{font-size:9px}.sis-hsplit-sp .sis-tiles i{padding-bottom:14px}',
-    '.sis-hs-code button{white-space:nowrap;flex:none}',
+    '.sis-hs-code button{white-space:nowrap;flex:none}.sis-tk-r button{white-space:nowrap;flex:none}.sis-tk-r>span{min-width:0}',
     /* v4：左の「現在のランク」の下に特典と次のランクまでの金額 */
     '.sis-rkbox{margin:8px 0 12px;padding:10px 10px 12px;border-radius:10px;background:var(--sis-pl);font-size:12px;line-height:1.5}',
     '.sis-rkbox dl{margin:0 0 8px}.sis-rkbox dt{font-size:11px;color:var(--sis-mu)}.sis-rkbox dd{margin:0 0 4px;font-weight:700}',
