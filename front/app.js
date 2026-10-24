@@ -503,7 +503,7 @@
           for (var i = 0; i < prizes.length; i++) { r -= prizes[i].weight || 1; if (r <= 0) { win = prizes[i]; break; } }
           b.classList.add('sis-open'); b.textContent = '🎉';
           setTimeout(function () {
-            m.querySelector('#sis-kuji-r').innerHTML = '<p><b style="font-size:18px;color:#c4561a">' + esc(win.value || 'クーポン') + ' があたりました</b></p><p>' + ticket(win) + '</p><p class="sis-note">ご注文手続きの画面でコードを入力してください</p>';
+            m.querySelector('#sis-kuji-r').innerHTML = '<p><b style="font-size:18px;color:#c4561a">' + esc(win.value || 'クーポン') + ' があたりました</b></p><p>' + ticket(win) + '</p><p class="sis-note">ご注文手続きの画面でコードを入力してください' + (win.expiresLabel ? '（有効期限 ' + esc(win.expiresLabel) + '）' : '') + '</p>';
             track('kuji', 'draw', { sis_label: win.id });
           }, 500);
         };
