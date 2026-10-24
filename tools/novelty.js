@@ -35,7 +35,7 @@
     row('コメント対象', '<select class="ctarget"><option value="all">全商品</option><option value="ev">イベントの商品だけ</option><option value="none">付けない</option></select> <input class="cev" placeholder="イベントコード" style="width:110px">') +
     row('アイコン2', '<label><input type="checkbox" class="icon" checked> novelty を付ける（空いている商品だけ）</label>') +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">' +
-    btn('chk', '1 チェック') + btn('make', '2 ファイルを作る') + btn('goods', '3 ノベルティ商品を取込') + btn('camp', '4 キャンペーン入力') + btn('add', '5 コメント付与') + btn('del', '6 コメント撤去（終了時）') + btn('dl', 'ファイルを保存') +
+    btn('chk', '1 チェック') + btn('make', '2 ファイルを作る') + btn('goods', '3 ノベルティ商品を取込') + btn('camp', '4 キャンペーン入力') + btn('bonus', '4b 特典入力') + btn('add', '5 コメント付与') + btn('del', '6 コメント撤去（終了時）') + btn('dl', 'ファイルを保存') +
     '</div><div class="state" style="margin-top:8px;font-weight:bold"></div>' +
     '<pre class="log" style="white-space:pre-wrap;background:#f9fafb;border:1px solid #eaecf0;border-radius:6px;padding:6px;max-height:260px;overflow:auto;font:11px/1.45 monospace"></pre></div>';
   document.body.appendChild(box);
@@ -51,7 +51,7 @@
   function state(m) { $('.state').textContent = m; }
 
   // ---------------------------------------------------------------- 入力
-  function jp(v) { return v ? v.replace(/-/g, '/').replace('T', ' ') + (v.length === 16 ? ':00' : '') : ''; }
+  function jp(v) { if (!v) return ''; var o = v.replace(/-/g, '/').replace('T', ' '); return v.length === 16 ? o + (/:59$/.test(o) ? ':59' : ':00') : o; } // 23:59 → 23:59:59
   function spec() {
     save();
     var items = $('.items').value.split(/\r?\n/).map(function (l) { return l.split(/\t|\s{2,}|,/).map(function (x) { return x.trim(); }); })
@@ -78,8 +78,8 @@
   }
   function cp932(text) {
     if (!ENC) buildEnc();
-    var out = [], bad = {};
-    for (var ch of text) { var cp = ch.codePointAt(0);
+    var out = [], bad = {}, FIX = { '〜': '～', '−': '－', '‖': '∥', '¢': '￠', '£': '￡', '¬': '￢', '—': '―' };
+    for (var ch of text) { ch = FIX[ch] || ch; var cp = ch.codePointAt(0);
       if (cp < 0x80) out.push(cp); else { var e = ENC.get(ch); if (e) out.push.apply(out, e); else { bad[ch] = 1; out.push(0x3F); } } }
     return { bytes: new Uint8Array(out), bad: Object.keys(bad) };
   }
@@ -250,6 +250,20 @@
     v('promotion', s.cid); v('name', s.cname); v('s_dt', s.start); v('f_dt', s.end); rd('status', '0'); v('seq', '99'); rd('apply', '0'); rd('target', '0');
     log('キャンペーンの小窓に入力しました →［登録する］を押してください。続けて「特典登録」でノベルティ付与：' + s.items.map(function (i) { return i.code; }).sort().join(', ') + '／最低 ' + s.min + '円／不要の選択肢 ' + (s.need ? '出す' : '出さない'));
     state('小窓の［登録する］を押してください'); }); };
+  $('.bonus').onclick = function () { guard(async function () {
+    var s = spec(), w = window.open(BO + '/promotion/detail.aspx?promotion=' + encodeURIComponent(s.cid), 'sisnov_bonus', 'width=820,height=900');
+    if (!w) throw new Error('小窓を開けない（ポップアップを許可してください）');
+    var ready = function (sel) { return new Promise(function (ok, ng) { var n = 0, t = setInterval(function () { try { if (w.document && w.document.readyState === 'complete' && w.document.querySelector(sel)) { clearInterval(t); ok(); } } catch (e) {} if (++n > 60) { clearInterval(t); ng(new Error('特典の画面が開かない（キャンペーンを先に登録）')); } }, 300); }); };
+    await ready('input[name=type]');
+    var d = w.document, t8 = d.querySelector('input[name=type][value="8"]'); if (t8 && !d.querySelector('input[name=novelty_goods1]')) t8.click();
+    await ready('input[name=novelty_goods1]'); d = w.document;
+    var v = function (n, x) { var e = d.querySelector('[name="' + n + '"]'); if (e) { e.value = x; e.dispatchEvent(new Event('change', { bubbles: true })); } };
+    s.items.slice().sort(function (a, b) { return a.code < b.code ? -1 : 1; }).forEach(function (i, k) { v('novelty_goods' + (k + 1), i.code); });
+    var rq = d.querySelector('input[name=required_novelty]'); if (rq) rq.checked = !s.need;
+    var ga = d.querySelector('input[name=goods_type][value=all]'); if (ga) ga.click();
+    v('min_price', s.min);
+    log('特典の小窓に入力しました（ノベルティ付与・' + s.items.length + '種・最低 ' + s.min + '円・不要の選択肢 ' + (s.need ? '出す' : '出さない') + '）→［登録する］を押してください');
+    state('特典の小窓の［登録する］を押してください'); }); };
   $('.add').onclick = function () { guard(async function () {
     var s = spec(); if (s.ctarget === 'none') { log('コメント対象＝付けない'); return; }
     var c = await commentRows(s, 'add'); if (c.out.length < 2) { log('付ける対象がありません'); return; }
