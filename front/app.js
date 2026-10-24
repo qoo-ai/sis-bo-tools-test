@@ -1597,8 +1597,9 @@
     var slot = C.topSlot || {};
     if (PAGE === 'top' && slot.mode === 'one' && !Q.get('sis_only')) { // トップの「あなた向け枠」は優先順に1つだけ出す
       var so = (slot.order || ['interestTop', 'newRepeat', 'catBanner', 'ranking']).filter(function (k) { return F[k] !== false && FX[k]; });
+      var soOn = so.filter(function (k) { return featureOn(k); });
       order = order.filter(function (k) { return so.indexOf(k) < 0; });
-      so.reduce(function (pr, k) { return pr.then(function (done) { if (done) return true; try { return Promise.resolve(FX[k](false)).then(function (r) { return !!r; }); } catch (e) { return false; } }); }, Promise.resolve(false));
+      soOn.reduce(function (pr, k) { return pr.then(function (done) { if (done) return true; try { return Promise.resolve(FX[k](false)).then(function (r) { return !!r; }); } catch (e) { return false; } }); }, Promise.resolve(false));
     }
     var only = (Q.get('sis_only') || '').split(',').filter(Boolean);
     stockMap();
