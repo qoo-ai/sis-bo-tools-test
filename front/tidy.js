@@ -17,6 +17,26 @@
   if (CFG.on === false) return;
   var CDN = window.SIS_CDN || '';
   var D = document, L = location;
+  var KOMONO0 = (CFG.komonoWords || []).map(function (w) { return w.toLowerCase(); });
+  /* トップページ：各イベント枠の中で小物を最後に回す（並びはそれ以外そのまま） */
+  if (/^\/(shop\/?)?(default\.aspx)?$/i.test(L.pathname)) {
+    var top = function () {
+      var n = 0;
+      D.querySelectorAll('.block-top-event--goods').forEach(function (sec) {
+        var cards = [].slice.call(sec.querySelectorAll('dl.block-goods-detail-j--goods'));
+        var isK = function (dl) { var t = ((dl.querySelector('.block-goods-detail-j--goods-name') || {}).textContent || '').toLowerCase(); return KOMONO0.some(function (w) { return t.indexOf(w) >= 0; }); };
+        var k = cards.filter(isK); if (!k.length) return;
+        var order = cards.filter(function (dl) { return !isK(dl); }).concat(k); n += k.length;
+        // 行（li）ごとの枚数はそのままに、小物を最後の行へ詰め直す
+        var rows = cards.map(function (dl) { return dl.parentNode; }).filter(function (r, i, a) { return a.indexOf(r) === i; });
+        var counts = rows.map(function (r) { return r.querySelectorAll('dl.block-goods-detail-j--goods').length; }), j = 0;
+        rows.forEach(function (r, ri) { for (var c = 0; c < counts[ri]; c++) r.appendChild(order[j++]); });
+      });
+      window.SIS_TIDY = { page: 'top', komonoMoved: n };
+    };
+    if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', top); else top();
+    return;
+  }
   var m = L.pathname.match(/^\/shop\/e\/e([^_\/]+)(_[^\/]*)?\/?$/i);
   if (!m) return;
   var EV = m[1], SUF = m[2] || '';

@@ -362,11 +362,19 @@
         var hiI = instRows.findIndex(function (r) { return r && r.some(function (v) { return cellStr(v) === 'イベントページ'; }); });
         var ipI = hiI >= 0 ? instRows[hiI].map(cellStr).indexOf('イベントページ') : -1;
         var SALEW = /セール|スペシャル|フェア|感謝祭|バザー|記念/; // 全体の購入グループはフェア（セール側）の行だけ。新作・定番などには付けない
+        // 「キャンセル不可」列（任意）：空欄＝自動（セール側の行は付ける）／○・あり・TRUE＝付ける／×・なし・FALSE＝付けない
+        var cxI = hiI >= 0 ? instRows[hiI].map(cellStr).findIndex(function (v) { return /キャンセル不可/.test(v); }) : -1, nCx = { on: 0, off: 0 };
         instRows.slice(hiI + 1).forEach(function (r) {
           if (!r || !r[0]) return;
           var want = st.per[r[0]] != null ? groupCode(st.per[r[0]]) : (ipI >= 0 && SALEW.test(cellStr(r[ipI])) ? g0 : '');
+          if (cxI >= 0 && st.per[r[0]] == null) {
+            var cx = cellStr(r[cxI]).trim();
+            if (/^(○|〇|あり|有|true|1|✓|☑)$/i.test(cx)) { if (!want) nCx.on++; want = g0; }
+            else if (/^(×|✕|なし|無|false|0|☐)$/i.test(cx)) { if (want) nCx.off++; want = ''; }
+          }
           if (want === null) badg.push(r[0] + '（' + st.per[r[0]] + '）'); else if (want) targets[r[0]] = want;
         });
+        if (cxI >= 0) log('キャンセル不可の手動指定：付ける ' + nCx.on + '件／外す ' + nCx.off + '件（ほかは自動）');
         if (badg.length) extraNeed.push('・購入グループが分からない ' + badg.length + '件: ' + badg.slice(0, 10).join(', '));
         st.targets = targets;
         if (Object.keys(targets).length) log('購入グループを付ける商品 ' + Object.keys(targets).length + '件（' + ($('.gwhen').value === 'start' ? '開始時刻' : '前日すぐ') + '）');
