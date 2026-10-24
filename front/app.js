@@ -286,7 +286,7 @@
     '.sis-sp .sis-tk-r code{font-size:16px}',
     '.sis-sp .sis-toast{flex-wrap:wrap;padding:12px 44px 12px 12px;gap:10px}.sis-sp .sis-toast .sis-thumbs img{width:48px;height:48px}.sis-sp .sis-toast .sis-tb{flex:1 1 calc(100% - 120px)}.sis-sp .sis-toast>.sis-btn{width:100%}',
     '.sis-sp .sis-sh-t h4{font-size:16px}.sis-sp .sis-sh{gap:10px}.sis-sp .sis-sh-ic{width:36px;height:36px}',
-    '.sis-sp .sis-ship-t{white-space:nowrap}.sis-sp .sis-trk-l{font-size:10px}',
+    '.sis-sp .sis-ship-t{white-space:normal;font-size:12.5px}.sis-sp .sis-trk-l{font-size:10px}.sis-ship .sis-btn{flex:none;white-space:nowrap}',
     /* v4：見出し・帯のアイコンを外す（作り物っぽさを消す）。くじのボタンだけ残す */
     '.sis-root .sis-ic{display:none}.sis-fab .sis-ic{display:inline-block}',
     '.sis-bnr-ic,.sis-sh-ic,.sis-mic,.sis-ship-ic{display:none!important}',
