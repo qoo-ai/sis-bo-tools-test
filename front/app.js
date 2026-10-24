@@ -1240,7 +1240,7 @@
     var n = 0, io = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); mark(e.target); } }); }, { rootMargin: '200px' }) : null;
     function mark(img) {
       var a = img.closest('a'), code = a && codeOf(a.getAttribute('href')); if (!code) return;
-      Promise.all([quickStock(code), stockMap()]).then(function (r) {
+      stockMap().then(function () { return stockCount(code) ? ['○'] : Promise.all([quickStock(code)]); }).then(function (r) { // 在庫数が分かっている色・サイズは読みに行かずにすぐ出す
         var s = r[0], lbl = s === '×' ? 'この色・サイズは在庫なし' : stockText(code, s === '△'); if (!lbl) return;
         var wrap = img.parentNode; if (wrap.querySelector('.sis-stk')) return;
         if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
