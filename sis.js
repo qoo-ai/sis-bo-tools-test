@@ -12,6 +12,7 @@ var REF=(ME.match(/@([0-9a-f]{40}|main)\//)||[])[1]||'main';
 var CDN='https://cdn.jsdelivr.net/gh/qoo-ai/sis-bo-tools-test@'+REF+'/';
 var TOOLS=[
  {id:"stock", name:"在庫更新", desc:"在庫更新シートの「取込用」→ 商品在庫の取込（［取込］の手前まで）", where:'bo', grp:'release', on:true, path:'stock.js'},
+ {id:"stock2", name:"在庫更新（Excelそのまま）", desc:"関様の在庫データを丸ごとコピー → 在庫数・公開の予約（掲載開始日／終了日）・完売の収納をまとめて「在庫と状態」に（［取込］の手前まで。#SP-1R）", where:'bo', grp:'test', on:true, path:'tools/stock2.js'},
  {id:"banner", name:"バナー反映", desc:"バナー依頼シートの「バナー一覧」→ BOのバナー設定", where:'bo', grp:'release', on:true, path:'tools/banner.js'},
  {id:"mailmag", name:"メルマガ", desc:"メルマガの予約画面に流し込む", where:'bo', grp:'release', on:true, path:'tools/mailmag.js'},
  {id:"line", name:"LINE配信", desc:"Linyの配信作成画面に流し込む", where:'liny', grp:'release', on:true, path:'tools/line.js'},
