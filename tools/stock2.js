@@ -95,7 +95,7 @@ function live(o,now){return o.st==='0'&&!(o.start&&o.start>now)&&!(o.end&&o.end<
 
 /* ---------- 突き合わせ ---------- */
 function plan(inp,M,opt){
- var now=new Date(),P={err:[],un:[],amb:[],rows:{},touchedGrp:{},ev:0,qtyChg:0,dateChg:0,newNow:[],newLater:{},vanish:[],hide:[],unhide:[],zeroNew:[],keptNon0:[],missResv:[],partial:[],qtySkip:0};
+ var now=new Date(),P={err:[],un:[],amb:[],rows:{},touchedGrp:{},gtot:{},ev:0,qtyChg:0,dateChg:0,newNow:[],newLater:{},vanish:[],hide:[],unhide:[],zeroNew:[],keptNon0:[],missResv:[],partial:[],qtySkip:0};
  inp.rows.forEach(function(r){
   var code=null,cands=r.codes.filter(Boolean);
   for(var i=0;i<cands.length&&!code;i++){var c=cands[i];if(M.by[c])code=c;else{var l=M.dg[digits(c)];if(l&&l.length==1)code=l[0];else if(l&&l.length>1){P.amb.push([c,l.join(' ')]);return;}}}
@@ -114,6 +114,7 @@ function plan(inp,M,opt){
   var mem=M.grp[g]||[],tot=0,future=false,inFile=0;
   mem.forEach(function(o){var t=P.rows[o.code];var w=t?t.want:{q:o.q,st:o.st,start:o.start,end:o.end};
    if(w.st==='0'||w.st===HIDE)tot+=w.q;if(w.start&&w.start>now&&w.st!==HIDE)future=true;if(t)inFile++;});
+  P.gtot[g]=tot;
   mem.forEach(function(o){var t=P.rows[o.code];
    if(!t&&(o.st==='0'||o.st===HIDE)&&inFile)P.partial.push(o);
    if(!opt.kanbai)return;
@@ -132,8 +133,9 @@ function plan(inp,M,opt){
   if(!(dq||ds||dS||dE))return;
   if(dq)P.qtyChg++;if(dS||dE)P.dateChg++;
   var wasLive=live(o,now),willLive=w.st==='0'&&!(w.end&&w.end<now);
-  if(willLive&&!wasLive){if(w.start&&w.start>now){var k=w.start.getTime();(P.newLater[k]=P.newLater[k]||[]).push(o);}else P.newNow.push(o);
-   if(w.q===0&&P.zeroNew.indexOf(o)<0)P.zeroNew.push(o);}
+  if(willLive&&w.start&&w.start>now){var k=w.start.getTime();(P.newLater[k]=P.newLater[k]||[]).push(o);}   /* 予約で出る（いま出ていて一度消える商品も含む） */
+  else if(willLive&&!wasLive)P.newNow.push(o);
+  if(willLive&&!wasLive&&P.gtot[o.grp]===0&&P.zeroNew.indexOf(o)<0)P.zeroNew.push(o);   /* 新しく出すのに、その商品の色・サイズが全部在庫0 */
   var liveNow=w.st==='0'&&!(w.start&&w.start>now)&&!(w.end&&w.end<now);
   if(wasLive&&!liveNow&&w.st!==HIDE)P.vanish.push(o);   /* 今出ているのに、掲載開始日が先・掲載終了日が過去になって消える */
   if(t.inFile&&w.st!=='0'&&w.st!==HIDE&&w.q>0)P.keptNon0.push(o);
