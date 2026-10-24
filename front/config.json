@@ -255,6 +255,17 @@
   "listMinSold": 5
  },
  "dataUrl": "/js/usr/sis_data.js",
+ "strips": {
+  "_readme": "上部の帯（流入元・期限・会員ランク・クーポン）は優先順に max 本だけ出す",
+  "max": 2,
+  "order": [
+   "source",
+   "countdown",
+   "rank",
+   "coupon",
+   "shipbar"
+  ]
+ },
  "features": {
   "welcome": true,
   "exit": true,

@@ -280,9 +280,12 @@
     var old = D.getElementById('sis-s-' + id); if (old) old.remove();
     var html = typeof o === 'string' ? o : '<span class="sis-bnr-ic">' + ic(o.icon || 'spark') + '</span><div class="sis-bnr-tx">' + (o.kicker ? '<div class="sis-bnr-k">' + o.kicker + '</div>' : '') + '<div class="sis-bnr-t">' + o.title + '</div>' + (o.sub ? '<div class="sis-bnr-s">' + o.sub + '</div>' : '') + '</div>' + (o.right ? '<div class="sis-bnr-r">' + o.right + '</div>' : '');
     var el = h('<div class="sis-bnr sis-tone-' + ((o && o.tone) || 'sale') + '" id="sis-s-' + id + '">' + html + '</div>');
-    var order = ['countdown', 'coupon', 'source', 'rank', 'shipbar'];
+    var order = (C.strips || {}).order || ['source', 'countdown', 'rank', 'coupon', 'shipbar']; // 上にあるほど優先
     var after = null; [].slice.call(stripBox.children).forEach(function (c) { if (order.indexOf(c.id.replace('sis-s-', '')) < order.indexOf(id)) after = c; });
-    stripBox.insertBefore(el, after ? after.nextSibling : stripBox.firstChild); SIS.active[id] = 'on'; return el;
+    stripBox.insertBefore(el, after ? after.nextSibling : stripBox.firstChild); SIS.active[id] = 'on';
+    var max = (C.strips || {}).max || 2; // 上部の帯は優先順に最大◯本（多すぎると邪魔になるため）
+    [].slice.call(stripBox.children).forEach(function (c, i) { c.style.display = i < max ? '' : 'none'; if (i >= max) SIS.active[c.id.replace('sis-s-', '')] = '枠の上限で非表示'; });
+    return el;
   }
   function tiles(end) { return '<span class="sis-tiles" data-end="' + (+end) + '"></span>'; }
   function runTiles(root) { // カウントダウンのタイルを1秒ごとに更新
