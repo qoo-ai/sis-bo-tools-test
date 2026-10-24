@@ -947,7 +947,11 @@
     return dataP || (dataP = fetch((C.dataUrl || '/js/usr/sis_data.js'), { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.text(); })
       .then(function (t) { return JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); }).catch(function () { return null; }));
   }
-  function popular() { return siteData().then(function (d) { return d && d.popular; }); }
+  function popular() { return siteData().then(function (d) {
+    var p = d && d.popular; if (!p) return null;
+    if (typeof p.items === 'string') { var m = {}; p.items.split(';').forEach(function (s) { var kv = s.split(':'); if (kv[1]) m[kv[0]] = kv[1].split(',').map(Number); }); p.items = m; } // 「番号:閲覧,カート,購入;…」の形でも読む
+    return p;
+  }); }
   function rankData() { return siteData().then(function (d) { return d && d.ranking; }); }
   function familyCodes() { // この商品の色・サイズ違いの番号（ページ内のリンクから）
     var set = {}; set[codeOf(P)] = 1;
