@@ -38,7 +38,7 @@ javascript:(function(){var R='sis-bo-tools-test',G='https://qoo-ai.github.io',d=
 
 BOの約5分の自動ログアウトを、作業中だけ防ぐ（シーズプランニング様承認済み・SIS自分用）。
 
-- メニュー →「セッション維持」でON。画面を枠に入れ、延長の確認（`#login_expiration_extension_continue_button`）が出たら自動で押す。画面を移動しても続く
+- メニュー →「セッション維持」でON。画面を枠に入れ、2分ごとに公式の「続けて使用する」（`#login_expiration_extension_continue_button`→`command.aspx?cmd=cmdExtend`）を先回りで押すので、「まもなくログアウト」の警告・通知が出ない。画面を移動しても続く
 - 右下の緑の表示を押す／もう一度メニューから選ぶ／タブを閉じる でOFF。ログアウト画面を検知したら自動でOFF
 - ON中にブックマークを押すと、メニューは枠の中で開く（他のツールも枠の中の画面に効く）
 - 注意：F5（再読み込み）すると枠が外れてOFFになる

@@ -6,10 +6,11 @@
  * 枠の中で開いたメニュー（sis.js）からの他ツールは、枠の中の画面に対して動く。
  */
 (() => {
-  const VERSION = '2.0.0';
+  const VERSION = '2.1.0';
   const BTN = '#login_expiration_extension_continue_button';
   const STOP = /\/(logout|default|login)\.aspx/i;
   const COOLDOWN_MS = 10000;
+  const EXTEND_EVERY_MS = 120000; // 警告（期限1分前）が出る前に、2分ごとに先回りで延長する
 
   if (window.top !== window) { try { window.top.__boKeeper && window.top.__boKeeper.off(); } catch (e) {} return; }
   if (window.__boKeeper) { window.__boKeeper.off(); return; }
@@ -38,7 +39,7 @@
   pill.title = 'クリックでOFF（元の画面に戻ります）';
   document.body.appendChild(pill);
 
-  let clicks = 0, lastClick = 0, lastAt = '—', timer = null;
+  let clicks = 0, lastClick = Date.now(), lastAt = '—', timer = null;
   const render = () => { pill.textContent = `延長ON（OFFにするまで）｜延長${clicks}回・最後 ${lastAt}`; };
 
   // 3) 枠の中（入れ子フレーム含む）から継続ボタンを探して押す
@@ -52,9 +53,11 @@
     try { inner = frame.contentWindow.location; } catch (e) { return; }
     if (STOP.test(inner.pathname)) { off('ログアウトを検知したので停止しました'); return; }
     if (Date.now() - lastClick < COOLDOWN_MS) return;
+    const due = Date.now() - lastClick >= EXTEND_EVERY_MS; // 先回り延長の時刻か
     for (const d of docs(frame.contentWindow)) {
       const el = d.querySelector(BTN);
-      if (visible(el)) {
+      // 警告が出ていれば即、出ていなくても2分ごとに、公式の「続けて使用する」を押す（隠れていても延長リクエストが飛ぶ）
+      if (el && (visible(el) || due)) {
         el.click(); clicks++; lastClick = Date.now(); lastAt = new Date().toLocaleTimeString();
         console.log('[BO Session Keeper] 継続ボタンを押しました', lastAt); render(); break;
       }
@@ -68,6 +71,12 @@
     for (const d of docs(frame.contentWindow)) {
       if (!d || !d.documentElement || watched.has(d)) continue;
       watched.add(d);
+      // 念のため：ON中は「まもなくログアウト」のデスクトップ通知を出さない
+      try {
+        const N = function () { return { close() {}, addEventListener() {} }; };
+        N.permission = 'denied'; N.requestPermission = () => Promise.resolve('denied');
+        d.defaultView.Notification = N;
+      } catch (e) {}
       new MutationObserver(tick).observe(d.documentElement, {
         childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'open']
       });
