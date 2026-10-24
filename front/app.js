@@ -171,8 +171,14 @@
   function toast(id, html) {
     var old = D.getElementById('sis-t-' + id); if (old) old.remove();
     var el = h('<div class="sis-root sis-toast" id="sis-t-' + id + '"><button class="sis-x" aria-label="閉じる">×</button>' + html + '</div>');
-    el.querySelector('.sis-x').onclick = function () { el.remove(); track(id, 'close'); };
-    D.body.appendChild(el); SIS.active[id] = 'on'; track(id, 'impression'); return el;
+    function fix(show) { var f = D.getElementById('sis-shipfix'); if (f) f.style.visibility = show ? '' : 'hidden'; } // 下部の送料バーと重ねない（トーストにも送料の残額が出る）
+    el.querySelector('.sis-x').onclick = function () { el.remove(); fix(true); track(id, 'close'); };
+    var n = 0;
+    (function place() { // ポップアップが開いている間は出さず、閉じてから出す
+      if (D.querySelector('.sis-modal') && n++ < 120) return setTimeout(place, 1000);
+      D.body.appendChild(el); fix(false); SIS.active[id] = 'on'; track(id, 'impression');
+    })();
+    return el;
   }
   function section(id, html, where, pos) {
     var old = D.getElementById('sis-sec-' + id); if (old) old.remove();
