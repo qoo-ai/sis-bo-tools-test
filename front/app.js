@@ -514,6 +514,8 @@
     function fire() {
       if ((ss('exitShown') || popupRecent()) && !forced) return; ss('exitShown', 1); ls('popupAt', Date.now());
       Promise.all([cart(), saleCount()]).then(function (r) {
+        return Promise.all(r[0].items.slice(0, 3).map(function (i) { return i.img || !i.code ? Promise.resolve(null) : goodsInfo(i.code); })).then(function (gs) { gs.forEach(function (g, k) { if (g && g.img) r[0].items[k].img = g.img; }); return r; });
+      }).then(function (r) {
         var c = r[0], n = r[1], body;
         if (c.count > 0) {
           var rest = (SHOP.freeShipping || 0) - c.total;
