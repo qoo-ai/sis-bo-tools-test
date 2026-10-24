@@ -18,6 +18,36 @@
   var CDN = window.SIS_CDN || '';
   var D = document, L = location;
   var KOMONO0 = (CFG.komonoWords || []).map(function (w) { return w.toLowerCase(); });
+  /* NEWアイコン：メルカートは「掲載開始日が最近」でNEWを出すため、セールで掲載し直した商品にもNEWが付く（2026-10-24 stg実測）。
+     新作ページ（発売日で自動更新）に載っている商品だけNEWを残し、それ以外のNEWは隠す。どのページでも動く */
+  (function fixNew() {
+    if (CFG.newOnlyFromNewPage === false) return;
+    function apply(set) {
+      var go = function () {
+        D.querySelectorAll('.block-icon--auto-new').forEach(function (ic) {
+          var box = ic.closest('dl') || D, a = box.querySelector && box.querySelector('a[href*="/shop/g/g"]');
+          var code = a ? (a.getAttribute('href').match(/\/shop\/g\/g([^/?#]+)/) || [])[1] : (L.pathname.match(/\/shop\/g\/g([^/?#]+)/) || [])[1];
+          var p = code && code.split('-'), k = p && p.length >= 4 ? p[0] + '-' + p[1].slice(0, -1) + '-' + p[2] : code;
+          if (k && !set[k]) ic.style.display = 'none';
+        });
+      };
+      if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', go); else go();
+      setTimeout(go, 2500);   // tidy の並べ替え後のカードにも
+    }
+    var c = null; try { c = JSON.parse(sessionStorage.getItem('sis_tidy_newset') || 'null'); } catch (e) {}
+    if (c && Date.now() - c.t < 30 * 60e3) return apply(c.d);
+    var set = {}, pageOf = function (n) { return fetch('/shop/e/enew' + (n > 1 ? '_p' + n : '') + '/', { credentials: 'include' }).then(function (r) { return r.ok ? r.text() : ''; }); };
+    pageOf(1).then(function (h) {
+      var last = 1, re = /\/shop\/e\/enew_p(\d+)\//g, mm; while ((mm = re.exec(h))) last = Math.max(last, +mm[1]);
+      var hs = [h]; var more = []; for (var n = 2; n <= Math.min(last, 10); n++) more.push(pageOf(n));
+      return Promise.all(more).then(function (r) { return hs.concat(r); });
+    }).then(function (hs) {
+      hs.forEach(function (h) { var re = /\/shop\/g\/g([0-9]+-[0-9]+-[0-9]+)-?[^/"']*\//g, mm; while ((mm = re.exec(h))) { var p = mm[0].match(/g\/g([^/]+)\//)[1].split('-'); if (p.length >= 4) set[p[0] + '-' + p[1].slice(0, -1) + '-' + p[2]] = 1; } });
+      if (!Object.keys(set).length) return;               // 新作ページが読めないときは何もしない
+      try { sessionStorage.setItem('sis_tidy_newset', JSON.stringify({ t: Date.now(), d: set })); } catch (e) {}
+      apply(set);
+    }).catch(function () {});
+  })();
   /* トップページ：各イベント枠の中で小物を最後に回す（並びはそれ以外そのまま） */
   if (/^\/(shop\/?)?(default\.aspx)?$/i.test(L.pathname)) {
     var top = function () {
