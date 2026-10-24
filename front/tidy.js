@@ -207,8 +207,8 @@
           cur.appendChild(g.el);
         });
         oldRows.forEach(function (row) { if (!row.querySelector('dl.block-goods-detail-j--goods')) row.parentNode.removeChild(row); });
-        D.querySelectorAll('.pager, [class*="pager-"]').forEach(function (p) { if (!/pager-count/.test(p.className) && !p.querySelector('.pager-count')) p.style.display = 'none'; });
-        D.querySelectorAll('.pager-count').forEach(function (c) { var x = c; while (x && x !== D.body) { if (x.style && x.style.display === 'none') x.style.display = ''; x = x.parentNode; } });
+        // ページ番号（.pagination）だけ隠し、「◯件あります」は残す
+        D.querySelectorAll('.pager .pagination, .pagination').forEach(function (p) { p.style.display = 'none'; });
         var cnt = D.querySelector('.pager-count'); if (cnt) cnt.textContent = sorted.length + '件あります';
         D.documentElement.setAttribute('data-sis-tidy', RULE);
         if (window.SIS && window.SIS.active) window.SIS.active.tidy = RULE + '・' + sorted.length + '件（隠す' + report.hidden + '／差替' + report.swapped + '）';
