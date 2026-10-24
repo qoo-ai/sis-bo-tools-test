@@ -341,6 +341,7 @@
     '#sis-s-rank{display:block;padding:0;margin:0;background:none;border:0;box-shadow:none}#sis-s-rank:before,#sis-s-rank:after{display:none}.sis-rkbox-sp{margin:8px 12px;padding:12px 14px}.sis-rk-hd{display:flex;justify-content:space-between;align-items:center;margin:0 0 6px;font-size:13px}.sis-rk-hd b{color:var(--sis-p);font-size:15px}.sis-rk-hd a{font-size:12px;color:var(--sis-p)}',
     '.sis-alert-m{flex-direction:column;align-items:stretch;padding:12px 40px 12px 12px}.sis-alert-m .sis-tb{display:flex;flex-direction:column;gap:8px}.sis-alert-m .sis-ts{font-size:12px;font-weight:700;color:var(--sis-mu)}',
     '.sis-am{display:flex;gap:10px;align-items:center}.sis-am img{width:48px;height:48px}.sis-am .sis-tt{font-size:12px;font-weight:700;margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}.sis-t-n{background:#f1eef3;color:var(--sis-mu)}.sis-alert-m .sis-btn{margin-top:2px}',
+    '.sis-ship-k{display:inline-block;margin:0 0 2px;padding:1px 8px;border-radius:999px;background:#e7f8ee;color:#05964a;font-size:11px;font-weight:800}',
     '.sis-hs-code button{white-space:nowrap;flex:none}.sis-tk-r button{white-space:nowrap;flex:none}.sis-tk-r>span{min-width:0}',
     /* v4：左の「現在のランク」の下に特典と次のランクまでの金額 */
     '.sis-rkbox{margin:8px 0 12px;padding:10px 10px 12px;border-radius:10px;background:var(--sis-pl);font-size:12px;line-height:1.5}',
@@ -780,8 +781,8 @@
       var rankBar = '';
       if (rest <= 0 && rs && rs.up && rs.amt != null) { // 送料無料を越えたら、次の会員ランクまでのバーに切り替える（この注文も足して計算）
         var after = rs.amt + c.total, need = Math.max(0, rs.up.min - after), rp = Math.min(100, Math.round(after / rs.up.min * 100));
-        rankBar = need > 0 ? '<div class="sis-ship-t">送料無料ライン達成。あと <b>' + yen(need) + '</b>（' + rs.nextLabel + 'の判定まで）で「' + esc(rs.up.name) + '」</div><div class="sis-trk"><i style="width:' + rp + '%;background:var(--sis-p)"></i><u style="left:' + rp + '%;border-color:var(--sis-p)"></u></div><div class="sis-trk-l"><span>3ヶ月の累計 ' + yen(after) + '（この注文を含む）</span><span>' + yen(rs.up.min) + '</span></div>'
-          : '<div class="sis-ship-t">送料無料ライン達成。この注文で' + rs.nextLabel + 'に「' + esc(rs.up.name) + '」へ</div>';
+        rankBar = need > 0 ? '<div class="sis-ship-k">送料無料 達成</div><div class="sis-ship-t">あと <b>' + yen(need) + '</b> で「' + esc(rs.up.name) + '」</div><div class="sis-trk"><i style="width:' + rp + '%;background:var(--sis-p)"></i><u style="left:' + rp + '%;border-color:var(--sis-p)"></u></div><div class="sis-trk-l"><span>' + rs.nextLabel + 'の判定まで（この注文込み ' + yen(after) + '）</span><span>' + yen(rs.up.min) + '</span></div>'
+          : '<div class="sis-ship-k">送料無料 達成</div><div class="sis-ship-t">この注文で' + rs.nextLabel + 'に「' + esc(rs.up.name) + '」へ</div>';
       }
       var html = '<div class="sis-ship-m">' +
         (rest > 0 ? '<div class="sis-ship-t">あと <b>' + yen(rest) + '</b> で送料無料</div><div class="sis-trk"><i style="width:' + pct + '%"></i><u style="left:' + pct + '%"></u></div><div class="sis-trk-l"><span>カート ' + yen(c.total) + '</span><span>' + yen(free) + '</span></div>'
