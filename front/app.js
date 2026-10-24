@@ -423,10 +423,11 @@
   function parseCartPage(d) { // カート画面（PC・スマホ共通の部品名）から読む
     var items = [];
     d.querySelectorAll('.block-cart--goods-list-item').forEach(function (it) {
+      var li = it.closest('.js-enhanced-ecommerce-item, li'); // スマホ版は数量の入力欄が商品名の枠の外（li の中）にある
       var box = it.closest('.block-cart--goods-list-item-container, .js-enhanced-ecommerce-item') || it.parentNode;
       var a = box.querySelector('a[href*="/shop/g/g"]') || (box.parentNode && box.parentNode.querySelector('a[href*="/shop/g/g"]'));
       var img = (box.parentNode || box).querySelector('.block-cart--goods-list-image img, img[src*="/img/goods/"]');
-      var qEl = it.querySelector('.block-cart--goods-list-item-qty, input[name*="qty"], select');
+      var qEl = it.querySelector('.block-cart--goods-list-item-qty input, input[name*="qty"], select') || (li && li.querySelector('.block-cart--goods-list-item-qty input, input[name^="qty"]'));
       var vEl = it.querySelector('.block-cart--goods-list-item-comment');
       var price = num((it.querySelector('.block-cart--goods-list-item-price') || {}).textContent);
       var qty = qEl ? (num(qEl.value || qEl.textContent) || 1) : 1;
@@ -456,7 +457,8 @@
       if (!hc) return { items: [], total: 0, count: 0 };
       var snap = ls('cartSnap');
       if (snap && snap.count === hc && Date.now() - snap.at < 6 * 3600e3) return snap;
-      return get('/shop/cart/cart.aspx', 8000).then(function (h2) { return parseCartPage(parseDoc(h2)); });
+      return get('/shop/cart/cart.aspx', 8000).then(function (h2) { return parseCartPage(parseDoc(h2)); })
+        .catch(function () { return snap && Date.now() - snap.at < 6 * 3600e3 ? snap : { items: [], total: 0, count: hc, error: true }; }); // カート画面が重いときは、前に読んだ中身を使う
     }).catch(function () { return { items: [], total: 0, count: 0, error: true }; });
     return cartP;
   }
