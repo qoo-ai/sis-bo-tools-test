@@ -572,6 +572,7 @@
             var sec = function (t) { return t + (t.length === 16 ? ':00' : ''); };
             var pick = c2x.slice(1).filter(function (r) { return pub[r[0]]; }).map(function (r) { var x = r.slice(); if (si >= 0) x[si] = sec(a.start); if (fi >= 0) x[fi] = sec(a.end); if (ki >= 0) x[ki] = 0; return x; });
             st.files['14_公開予約_掲載期間.csv'] = await toCp932([H2].concat(pick));
+            st.pubRestore = [H2].concat(c2x.slice(1).filter(function (r) { return pub[r[0]]; }));
             log('公開予約：' + pick.length + '商品の掲載期間をセール期間（' + a.start + '〜' + a.end + '）に・状態0（開始まで見えず、終了後は自動で隠れる）' + (pick.length < nPub ? '／BOに無い ' + (nPub - pick.length) + '件' : ''));
           }
         }
@@ -681,7 +682,7 @@
   };
   $('.undo').onclick = async function () {
     if (!st.restore) { alert('戻し用のデータがありません（このタブで「全部やる」を実行したあとに使えます）'); return; }
-    if (!confirm('商品価格' + (st.groupRestore && st.groupRestore.length > 1 ? '・購入グループ' : '') + (st.couponRestore && st.couponRestore.length ? '・クーポンの除外期間' : '') + 'を取込前に戻します（' + (st.restore.length - 1) + '行）。予約も取り消します。')) return;
+    if (!confirm('商品価格' + (st.groupRestore && st.groupRestore.length > 1 ? '・購入グループ' : '') + (st.couponRestore && st.couponRestore.length ? '・クーポンの除外期間' : '') + (st.pubRestore && st.pubRestore.length > 1 ? '・公開予約の掲載期間' : '') + 'を取込前に戻します（' + (st.restore.length - 1) + '行）。予約も取り消します。')) return;
     stopTimers();
     var b = await toCp932(st.restore);
     var r = await importFile('/import/imp_goods.aspx', 'tmpgoodsprice', '戻し_取込前の商品価格.csv', b);
@@ -689,6 +690,10 @@
     if (st.groupRestore && st.groupRestore.length > 1) {
       var r4 = await importFile('/import/imp_goods.aspx', 'tmpgoodscustom3', '戻し_購入グループ.csv', await toCp932(st.groupRestore));
       log((r4.ok ? '✅' : '⚠') + ' 元に戻す（購入グループ）: ' + r4.msg.slice(0, 120));
+    }
+    if (st.pubRestore && st.pubRestore.length > 1) {
+      var r5 = await importFile('/import/imp_goods.aspx', 'tmpgoodscustom2', '戻し_公開予約_掲載期間.csv', await toCp932(st.pubRestore));
+      log((r5.ok ? '✅' : '⚠') + ' 元に戻す（公開予約の掲載期間・状態）: ' + r5.msg.slice(0, 120));
     }
     for (var k = 0; k < (st.couponRestore || []).length; k++) {
       var x = st.couponRestore[k];
