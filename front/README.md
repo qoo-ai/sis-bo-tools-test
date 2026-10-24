@@ -14,7 +14,7 @@
 | app.js | 施策（popup＝優先順ポップアップ / interestAlert＝気になる商品のお知らせ / eventOrder＝イベント枠並べ替え / exit / source / coupon / shipbar / countdown / kuji / rank / newRepeat / catBanner / sizeMemo / modelSize / lowStock / ranking / extraOff / coord / cartReminder / crossSell / ab / ga4） |
 | config.json | 送料条件・クーポン・期限・ランク表・施策のオンオフ |
 | data/coords.json | スタッフコーデ索引（`python3 front/tools/build_coords.py` で再作成） |
-| data/ranking.json | 売れ筋（GA4 eコマース購入数から作成） |
+| （貴社サイト）/js/usr/sis_data.js | 売れ筋・人気の実数（GA4）。貴社のデータは公開のGitHubに置かず、BO＞JavaScript管理に置く |
 
 確認用パラメータは app.js 冒頭のコメント参照（`sis_show` `sis_src` `sis_rank` `sis_visit` `sis_now` `sis_ab` `sis_demo` `sis_debug` `sis_only` `sis_chip=0` `sis_noanim=1`）。
 

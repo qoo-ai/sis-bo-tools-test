@@ -46,9 +46,9 @@
     return fetch(url, { credentials: 'include', signal: ac.signal }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); });
   }
   function codeOf(href) { var m = String(href || '').match(/\/shop\/g\/g([^/?#]+)\/?/); return m ? m[1] : null; }
-  function pkey(code) { var p = String(code).split('-'); return p.length < 4 ? code : p[0] + '-' + p[1].slice(0, -1) + '-' + p[2]; }
+  function pkey(code) { var p = String(code).split('-'); return p.length < 4 ? code : p[0] + '-' + p[1] + '-' + p[2]; } // 色違いをまとめた番号（商品番号-サイズ番号-シーズン）
   function uniqProduct(arr) { var s = {}; return arr.filter(function (g) { var k = pkey(g.code); if (s[k]) return false; s[k] = 1; return true; }); }
-  function stem(code) { var p = String(code).split('-'); if (p.length < 4) return code; return p[0] + '-' + p[1].slice(0, -1) + '-' + p[2] + '-' + p[3]; }
+  function stem(code) { return pkey(code); }
 
   /* ---------- 訪問・セッション ---------- */
   var vid = ls('vid'); if (!vid) { vid = Math.random().toString(36).slice(2) + Date.now().toString(36); ls('vid', vid); }
@@ -77,89 +77,222 @@
     if (F.ga4 && (!staff || (C.ga4 || {}).sendInStaffMode)) { try { (window.dataLayer = window.dataLayer || []).push(e); } catch (x) {} }
   }
 
-  /* ---------- 見た目 ---------- */
-  var ORANGE = '#ee7832';
+  /* ---------- 見た目（drug store's の紫・コーラルに合わせた部品） ---------- */
+  var ICON = {
+    truck: '<path d="M3 6h11v9H3z"/><path d="M14 9h4l3 3v3h-7z"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    ticket: '<path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M9 6v12" stroke-dasharray="2 2"/>',
+    gift: '<path d="M4 11h16v9H4z"/><path d="M3 7h18v4H3z"/><path d="M12 7v13"/><path d="M12 7c-2-3-6-3-6-1s4 1 6 1zm0 0c2-3 6-3 6-1s-4 1-6 1z"/>',
+    fire: '<path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/>',
+    eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    cart: '<path d="M3 4h2l2 11h11l2-8H6"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>',
+    check: '<path d="M5 12l4 4 10-10"/>',
+    chat: '<path d="M4 5h16v11H9l-5 4z"/>',
+    spark: '<path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>',
+    crown: '<path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/>',
+    ruler: '<path d="M3 15L15 3l6 6L9 21z"/><path d="M7 11l2 2M10 8l2 2M13 5l2 2"/>',
+    heart: '<path d="M12 20s-8-5-8-11a4 4 0 0 1 8-1 4 4 0 0 1 8 1c0 6-8 11-8 11z"/>',
+    tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
+    bag: '<path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/>',
+    store: '<path d="M4 10v10h16V10"/><path d="M3 10l2-6h14l2 6z"/><path d="M10 20v-5h4v5"/>',
+    arrow: '<path d="M9 5l7 7-7 7"/>',
+    down: '<path d="M12 4v14M6 13l6 6 6-6"/>',
+    shirt: '<path d="M8 3l-5 3 2 4 3-1v12h8V9l3 1 2-4-5-3a4 4 0 0 1-8 0z"/>'
+  };
+  function ic(n, cls) { return '<svg class="sis-ic' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICON[n] || '') + '</svg>'; }
   var css = [
+    ':root{--sis-p:#633783;--sis-pd:#4E2A69;--sis-pl:#F5F0F9;--sis-pm:#E6DBEF;--sis-c:#FF8363;--sis-cd:#E8613F;--sis-cl:#FFF2EC;--sis-cm:#FFD9CB;--sis-r:#D8361F;--sis-rl:#FDEDEA;--sis-g:#06C755;--sis-gl:#E7F8EE;--sis-y:#F0A800;--sis-yl:#FFF6D9;--sis-ink:#2E2433;--sis-mu:#6F6677;--sis-ln:#ECE5F1;--sis-sh:0 8px 28px rgba(46,36,51,.14);--sis-sh2:0 2px 8px rgba(46,36,51,.08)}',
     '.sis-root,.sis-root *{box-sizing:border-box}',
-    '.sis-root{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",Meiryo,sans-serif;color:#333;line-height:1.6;letter-spacing:.02em}',
-    '.sis-strip{display:flex;align-items:center;gap:12px;justify-content:center;flex-wrap:wrap;margin:0 auto;padding:10px 16px;font-size:14px;background:#fff7f0;border-bottom:1px solid #f6d3b8;text-align:center}',
-    '.sis-strip b{color:' + ORANGE + '}',
-    '.sis-strip a.sis-btn{padding:4px 14px;font-size:13px}',
-    '.sis-btn{display:inline-block;padding:12px 22px;border-radius:999px;background:' + ORANGE + ';color:#fff!important;font-weight:bold;text-decoration:none!important;border:0;cursor:pointer;font-size:15px;line-height:1.3}',
-    '.sis-btn:hover{opacity:.88}',
-    '.sis-btn.sis-ghost{background:#fff;color:#666!important;border:1px solid #ccc;font-weight:normal}',
-    '.sis-btn.sis-line{background:#06c755}',
-    '.sis-tag{display:inline-block;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:bold;background:#fde7d7;color:#c4561a}',
-    '.sis-ov{position:fixed;inset:0;z-index:2147483000;background:rgba(40,30,25,.45);display:flex;align-items:center;justify-content:center;padding:16px;animation:sisfade .2s}',
-    '.sis-modal{position:relative;width:100%;max-width:440px;background:#fff;border-radius:16px;padding:28px 24px 22px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.18);animation:sispop .25s}',
-    '.sis-modal h3{margin:6px 0 8px;font-size:21px;line-height:1.4;color:#333}',
-    '.sis-modal p{margin:6px 0;font-size:14px}',
-    '.sis-x{position:absolute;top:8px;right:10px;width:36px;height:36px;border:0;background:none;font-size:24px;color:#999;cursor:pointer}',
-    '.sis-list{list-style:none;margin:14px 0;padding:0;text-align:left}',
-    '.sis-list li{position:relative;padding:8px 10px 8px 34px;margin:6px 0;background:#fff7f0;border-radius:8px;font-size:14px}',
-    '.sis-list li:before{content:"✓";position:absolute;left:12px;top:8px;color:' + ORANGE + ';font-weight:bold}',
-    '.sis-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:2147482000;width:calc(100% - 24px);max-width:560px;background:#fff;border:1px solid #f0c9a8;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.15);padding:14px 44px 14px 16px;display:flex;gap:12px;align-items:center;animation:sisup .3s}',
-    '.sis-toast img{width:56px;height:56px;object-fit:cover;border-radius:8px;flex:none}',
-    '.sis-toast .sis-x{top:4px;right:4px}',
-    '.sis-sec{margin:24px auto;max-width:1200px;padding:18px;border:1px solid #f0d8c4;border-radius:14px;background:#fffaf6}',
-    '.sis-sec h4{margin:0 0 12px;font-size:17px;color:#333;display:flex;align-items:center;gap:8px;flex-wrap:wrap}',
-    '.sis-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}',
+    '.sis-root{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic",Meiryo,sans-serif;color:var(--sis-ink);line-height:1.6;letter-spacing:.02em;-webkit-font-smoothing:antialiased}',
+    '.sis-ic{width:20px;height:20px;flex:none;display:inline-block;vertical-align:middle}',
+    /* ボタン */
+    '.sis-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 22px;border-radius:999px;background:var(--sis-c);color:#fff!important;font-weight:700;text-decoration:none!important;border:0;cursor:pointer;font-size:15px;line-height:1.2;box-shadow:0 4px 12px rgba(255,131,99,.35);transition:transform .15s ease-out,background .15s ease-out,box-shadow .15s}',
+    '.sis-btn:hover{background:var(--sis-cd);transform:translateY(-1px)}.sis-btn:active{transform:translateY(0);box-shadow:none}.sis-btn:focus-visible{outline:3px solid var(--sis-pm);outline-offset:2px}',
+    '.sis-btn[disabled]{opacity:.6;cursor:default;transform:none}',
+    '.sis-btn.sis-sm{min-height:36px;padding:0 16px;font-size:13px;box-shadow:none}',
+    '.sis-btn.sis-block{display:flex;width:100%;min-height:52px;font-size:16px;border-radius:14px}',
+    '.sis-btn.sis-line{background:var(--sis-g);box-shadow:0 4px 12px rgba(6,199,85,.3)}.sis-btn.sis-line:hover{background:#05b04b}',
+    '.sis-btn.sis-pur{background:var(--sis-p);box-shadow:0 4px 12px rgba(99,55,131,.3)}.sis-btn.sis-pur:hover{background:var(--sis-pd)}',
+    '.sis-btn.sis-ghost{background:#fff;color:var(--sis-ink)!important;border:1px solid var(--sis-ln);box-shadow:none;font-weight:500}.sis-btn.sis-ghost:hover{background:var(--sis-pl)}',
+    '.sis-link{background:none;border:0;color:var(--sis-mu);font-size:13px;cursor:pointer;padding:10px;text-decoration:underline;font-family:inherit}',
+    '.sis-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;background:var(--sis-cl);color:var(--sis-cd);line-height:1.4;white-space:nowrap}',
+    '.sis-tag.sis-t-p{background:var(--sis-pl);color:var(--sis-p)}.sis-tag.sis-t-r{background:var(--sis-r);color:#fff}.sis-tag.sis-t-g{background:var(--sis-gl);color:#05964a}.sis-tag.sis-t-y{background:var(--sis-yl);color:#8a5d00}',
+    '.sis-tag .sis-ic{width:14px;height:14px}',
+    /* 上部のバナー列 */
+    '#sis-strips{display:flex;flex-direction:column;gap:8px;max-width:1200px;margin:12px auto;padding:0 12px}',
+    '.sis-bnr{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:14px;background:#fff;border:1px solid var(--sis-ln);box-shadow:var(--sis-sh2);position:relative;overflow:hidden}',
+    '.sis-bnr:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--sis-tone,var(--sis-c))}',
+    '.sis-bnr-ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;background:var(--sis-tonel,var(--sis-cl));color:var(--sis-tone,var(--sis-c))}.sis-bnr-ic .sis-ic{width:24px;height:24px}',
+    '.sis-bnr-tx{flex:1;min-width:0}.sis-bnr-k{font-size:12px;font-weight:700;color:var(--sis-tone,var(--sis-cd))}.sis-bnr-t{font-size:15px;font-weight:700;line-height:1.45}.sis-bnr-t b{color:var(--sis-cd)}.sis-bnr-s{font-size:12px;color:var(--sis-mu)}',
+    '.sis-bnr-r{display:flex;align-items:center;gap:12px;flex:none}',
+    '.sis-tone-sale{--sis-tone:var(--sis-c);--sis-tonel:var(--sis-cl)}.sis-tone-p{--sis-tone:var(--sis-p);--sis-tonel:var(--sis-pl)}.sis-tone-g{--sis-tone:var(--sis-g);--sis-tonel:var(--sis-gl)}.sis-tone-r{--sis-tone:var(--sis-r);--sis-tonel:var(--sis-rl)}.sis-tone-y{--sis-tone:var(--sis-y);--sis-tonel:var(--sis-yl)}',
+    /* カウントダウンのタイル */
+    '.sis-tiles{display:inline-flex;align-items:flex-end;gap:4px;font-variant-numeric:tabular-nums}',
+    '.sis-tiles span{display:flex;flex-direction:column;align-items:center}',
+    '.sis-tiles b{display:block;min-width:36px;padding:4px 4px;border-radius:8px;background:var(--sis-p);color:#fff;font-size:20px;line-height:1.2;text-align:center;font-weight:700}',
+    '.sis-tiles small{font-size:10px;color:var(--sis-mu);margin-top:2px}',
+    '.sis-tiles i{font-style:normal;font-weight:700;color:var(--sis-p);padding-bottom:18px}',
+    /* クーポン券 */
+    '.sis-tk{display:inline-flex;align-items:stretch;border-radius:12px;background:var(--sis-c);color:#fff;position:relative;filter:drop-shadow(0 4px 10px rgba(255,131,99,.3));text-align:left;max-width:100%}',
+    '.sis-tk:before,.sis-tk:after{content:"";position:absolute;left:calc(var(--sis-tkw,96px) - 9px);width:18px;height:18px;border-radius:50%;background:var(--sis-holebg,#fff)}.sis-tk:before{top:-9px}.sis-tk:after{bottom:-9px}',
+    '.sis-tk-l{width:var(--sis-tkw,96px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 10px;border-right:2px dashed rgba(255,255,255,.7);flex:none}',
+    '.sis-tk-l b{font-size:28px;line-height:1;font-weight:800;letter-spacing:0}.sis-tk-l small{font-size:12px;font-weight:700}.sis-tk-l b.sis-tk-txt{font-size:17px}',
+    '.sis-tk-r{display:flex;align-items:center;gap:10px;padding:8px 12px 8px 16px;background:#fff;color:var(--sis-ink);border-radius:0 12px 12px 0;margin:2px 2px 2px 0}',
+    '.sis-tk-r small{display:block;font-size:11px;color:var(--sis-mu);line-height:1.2}.sis-tk-r code{display:block;font-family:inherit;font-size:19px;font-weight:800;letter-spacing:.06em;color:var(--sis-cd);line-height:1.3}',
+    '.sis-tk-r button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--sis-c);background:#fff;color:var(--sis-cd);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit}.sis-tk-r button:hover{background:var(--sis-cl)}',
+    '.sis-pending{color:var(--sis-mu)!important;font-size:13px!important;font-weight:500!important;letter-spacing:0!important}',
+    /* ポップアップ */
+    '.sis-ov{position:fixed;inset:0;z-index:2147483000;background:rgba(46,36,51,.55);display:flex;align-items:center;justify-content:center;padding:16px;animation:sisfade .2s ease-out}',
+    '.sis-modal{position:relative;width:100%;max-width:420px;max-height:calc(100vh - 32px);overflow:auto;background:#fff;border-radius:22px;text-align:center;box-shadow:0 20px 60px rgba(46,36,51,.3);animation:sispop .28s cubic-bezier(.2,.9,.3,1.2)}',
+    '.sis-mhd{position:relative;padding:28px 24px 20px;background:var(--sis-tonel,var(--sis-cl));overflow:hidden}',
+    '.sis-mhd:after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;border-radius:50%;background:var(--sis-tone,var(--sis-c));opacity:.12}',
+    '.sis-mhd:before{content:"";position:absolute;left:-20px;bottom:-40px;width:90px;height:90px;border-radius:50%;background:var(--sis-tone,var(--sis-c));opacity:.08}',
+    '.sis-mic{width:64px;height:64px;border-radius:20px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;background:var(--sis-tone,var(--sis-c));color:#fff;box-shadow:0 8px 18px rgba(46,36,51,.18);position:relative;z-index:1}.sis-mic .sis-ic{width:34px;height:34px}',
+    '.sis-mhd .sis-tag{position:relative;z-index:1;background:#fff;color:var(--sis-tone,var(--sis-cd))}',
+    '.sis-modal h3{margin:8px 0 0;font-size:22px;line-height:1.4;color:var(--sis-ink);font-weight:800;position:relative;z-index:1}',
+    '.sis-modal h3 em{font-style:normal;color:var(--sis-tone,var(--sis-cd))}',
+    '.sis-mbd{padding:20px 24px 16px}.sis-mbd p{margin:8px 0;font-size:14px}',
+    '.sis-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.9);font-size:20px;line-height:36px;color:var(--sis-mu);cursor:pointer;z-index:3;padding:0}.sis-x:hover{background:#fff;color:var(--sis-ink)}',
+    '.sis-perks{list-style:none;margin:0 0 16px;padding:0;text-align:left;display:flex;flex-direction:column;gap:8px}',
+    '.sis-perks li{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--sis-pl);font-size:14px;font-weight:500}',
+    '.sis-perks li .sis-ic{color:var(--sis-tone,var(--sis-p));width:22px;height:22px}',
+    '.sis-x2{font-size:10px;color:#b3abb9;margin-top:4px}',
+    '.sis-items{display:flex;flex-direction:column;gap:8px;margin:0 0 14px;text-align:left}',
+    '.sis-item{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;border:1px solid var(--sis-ln)}.sis-item img{width:52px;height:52px;border-radius:8px;object-fit:cover;flex:none;background:#f4f1f6}',
+    '.sis-item div{font-size:13px;line-height:1.45;min-width:0}.sis-item small{color:var(--sis-mu)}',
+    /* くじ */
+    '.sis-kuji{display:flex;gap:12px;justify-content:center;margin:6px 0 14px;perspective:800px}',
+    '.sis-kc{width:96px;height:128px;border:0;padding:0;background:none;cursor:pointer;position:relative}',
+    '.sis-kc-in{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.3,.8,.3,1)}',
+    '.sis-kc.sis-open .sis-kc-in{transform:rotateY(180deg)}',
+    '.sis-kc-f,.sis-kc-b{position:absolute;inset:0;border-radius:14px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}',
+    '.sis-kc-f{background:var(--sis-p);color:#fff;box-shadow:0 6px 16px rgba(99,55,131,.35);background-image:radial-gradient(rgba(255,255,255,.16) 2px,transparent 2px);background-size:14px 14px}',
+    '.sis-kc-f b{font-size:40px;line-height:1;color:#ffd36b}.sis-kc-f small{font-size:11px;letter-spacing:.1em}',
+    '.sis-kc:not(.sis-open):hover .sis-kc-in{transform:translateY(-6px) rotate(-2deg)}',
+    '.sis-kc-b{transform:rotateY(180deg);background:#fff;border:3px solid var(--sis-y);color:var(--sis-ink)}',
+    '.sis-kc-b b{font-size:22px;line-height:1.1;color:var(--sis-cd);font-weight:800}.sis-kc-b small{font-size:11px;color:var(--sis-mu)}',
+    '.sis-kc.sis-dim .sis-kc-b{border-color:var(--sis-ln);opacity:.55}.sis-kc.sis-win .sis-kc-b{box-shadow:0 0 0 6px rgba(240,168,0,.25),0 8px 20px rgba(240,168,0,.35)}',
+    '.sis-kc .sis-kc-win{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--sis-y);color:#fff;font-size:11px;font-weight:800;padding:2px 10px;border-radius:999px;white-space:nowrap}',
+    '.sis-conf{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}.sis-conf i{position:absolute;top:-12px;width:8px;height:14px;border-radius:2px;animation:sisfall 1.6s ease-in forwards}',
+    '.sis-res{animation:sisup2 .35s ease-out}.sis-res h4{margin:4px 0 10px;font-size:18px;font-weight:800;color:var(--sis-cd)}',
+    '.sis-fab{position:fixed;right:16px;bottom:96px;z-index:2147481000;width:72px;height:72px;border-radius:50%;background:var(--sis-p);border:3px solid #fff;color:#fff;cursor:pointer;box-shadow:0 8px 20px rgba(99,55,131,.4);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0;font-family:inherit}',
+    '.sis-fab .sis-ic{width:30px;height:30px;color:#ffd36b}.sis-fab span{font-size:12px;font-weight:800;line-height:1.1}',
+    '.sis-fab em{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:var(--sis-c);color:#fff;font-style:normal;font-size:10px;font-weight:700;padding:1px 8px;border-radius:999px;white-space:nowrap}',
+    '.sis-fab:before{content:"";position:absolute;inset:-3px;border-radius:50%;border:3px solid var(--sis-p);animation:sisring 2s ease-out infinite}',
+    /* 下部の送料バー */
+    '.sis-shipfix{position:fixed;left:0;right:0;bottom:0;z-index:2147481500;background:#fff;border-top:1px solid var(--sis-ln);box-shadow:0 -6px 20px rgba(46,36,51,.1);animation:sisup3 .3s ease-out}',
+    '.sis-ship{display:flex;align-items:center;gap:14px;max-width:1200px;margin:0 auto;padding:10px 56px 10px 16px}',
+    '.sis-ship-ic{width:44px;height:44px;border-radius:50%;background:var(--sis-cl);color:var(--sis-cd);display:flex;align-items:center;justify-content:center;flex:none}.sis-ship-ic .sis-ic{width:24px;height:24px}',
+    '.sis-ship-ic.sis-done{background:var(--sis-gl);color:#05964a}',
+    '.sis-ship-m{flex:1;min-width:0}.sis-ship-t{font-size:15px;font-weight:700;line-height:1.4}.sis-ship-t b{color:var(--sis-cd);font-size:19px}',
+    '.sis-trk{position:relative;height:8px;border-radius:99px;background:var(--sis-cl);margin:6px 0 2px}.sis-trk i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:var(--sis-c)}',
+    '.sis-trk u{position:absolute;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:#fff;border:3px solid var(--sis-c);text-decoration:none}',
+    '.sis-trk-l{display:flex;justify-content:space-between;font-size:11px;color:var(--sis-mu)}',
+    '.sis-shipfix .sis-x{top:50%;transform:translateY(-50%);right:8px;background:transparent}',
+    /* 画面下・右下のお知らせ */
+    '.sis-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:2147482000;width:calc(100% - 24px);max-width:560px;background:#fff;border-radius:18px;box-shadow:var(--sis-sh);padding:14px 48px 14px 14px;display:flex;gap:12px;align-items:center;animation:sisup .3s ease-out;border:1px solid var(--sis-ln)}',
+    '.sis-thumbs{display:flex;flex:none}.sis-thumbs img{width:56px;height:56px;object-fit:cover;border-radius:12px;border:2px solid #fff;box-shadow:var(--sis-sh2);background:#f4f1f6}.sis-thumbs img+img{margin-left:-22px}',
+    '.sis-tb{flex:1;min-width:0;font-size:13px;line-height:1.5}.sis-tb .sis-tt{font-size:15px;font-weight:800}.sis-tb .sis-ts{color:var(--sis-mu)}',
+    '.sis-low{display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 8px;border-radius:6px;background:var(--sis-rl);color:var(--sis-r);font-size:12px;font-weight:700}.sis-low .sis-ic{width:14px;height:14px}',
+    '.sis-alert{position:fixed;right:16px;bottom:16px;z-index:2147482500;width:340px;max-width:calc(100% - 24px);background:#fff;border-radius:18px;box-shadow:var(--sis-sh);padding:12px 40px 14px 12px;display:flex;gap:12px;align-items:center;animation:sisslide .35s cubic-bezier(.2,.9,.3,1.2);transition:opacity .4s,transform .4s;border:1px solid var(--sis-ln);overflow:hidden;text-decoration:none!important;color:var(--sis-ink)!important}',
+    '.sis-alert img{width:64px;height:64px;object-fit:cover;border-radius:12px;flex:none;background:#f4f1f6}',
+    '.sis-alert .sis-tb .sis-tt{font-size:13px;font-weight:700;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}',
+    '.sis-alert .sis-why{font-size:14px;font-weight:800;margin-top:2px}.sis-alert .sis-why.r{color:var(--sis-r)}.sis-alert .sis-why.c{color:var(--sis-cd)}.sis-alert .sis-why.g{color:#05964a}',
+    '.sis-alert .sis-timer{position:absolute;left:0;bottom:0;height:3px;background:var(--sis-c);animation:sistimer linear forwards}',
+    '.sis-alert .sis-x{top:6px;right:6px;width:32px;height:32px;line-height:32px;font-size:18px}',
+    /* セクション・商品カード */
+    '.sis-sec{margin:24px auto;max-width:1200px;padding:20px;border-radius:20px;background:#fff;border:1px solid var(--sis-ln);box-shadow:var(--sis-sh2)}',
+    '.sis-sh{display:flex;align-items:center;gap:12px;margin:0 0 14px}',
+    '.sis-sh-ic{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;background:var(--sis-tonel,var(--sis-cl));color:var(--sis-tone,var(--sis-cd))}.sis-sh-ic .sis-ic{width:22px;height:22px}',
+    '.sis-sh-t{flex:1;min-width:0}.sis-sh-t h4{margin:0;font-size:18px;font-weight:800;line-height:1.4;color:var(--sis-ink)}.sis-sh-t small{display:block;font-size:12px;color:var(--sis-mu)}',
+    '.sis-more{display:inline-flex;align-items:center;gap:2px;font-size:13px;font-weight:700;color:var(--sis-p)!important;text-decoration:none!important;white-space:nowrap;min-height:44px}.sis-more .sis-ic{width:16px;height:16px}',
+    '.sis-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}',
     '.sis-grid.sis-4>:nth-child(n+5){display:none}',
-    '.sis-card{display:block;background:#fff;border-radius:10px;overflow:hidden;text-decoration:none!important;color:#333!important;border:1px solid #eee;font-size:12px}',
-    '.sis-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#f6f6f6}',
-    '.sis-card .sis-cn{padding:6px 8px 2px;height:3.2em;overflow:hidden;line-height:1.6}',
-    '.sis-card .sis-cp{padding:0 8px 8px;font-weight:bold;color:#c4561a;font-size:14px}',
-    '.sis-card .sis-add{display:block;margin:0 8px 8px;padding:6px;border-radius:999px;border:1px solid ' + ORANGE + ';color:' + ORANGE + ';background:#fff;font-size:12px;cursor:pointer;width:calc(100% - 16px)}',
-    '.sis-bar{height:8px;background:#f1e4da;border-radius:99px;overflow:hidden;min-width:140px;flex:1;max-width:260px}',
-    '.sis-bar i{display:block;height:100%;background:linear-gradient(90deg,#f6a463,' + ORANGE + ');border-radius:99px}',
-    '.sis-fab{position:fixed;right:16px;bottom:88px;z-index:2147481000;width:76px;height:76px;border-radius:50%;background:#fff;border:3px solid ' + ORANGE + ';color:' + ORANGE + ';font-weight:bold;font-size:13px;line-height:1.2;cursor:pointer;box-shadow:0 6px 18px rgba(238,120,50,.35);animation:sisbob 2.4s infinite}',
-    '.sis-ticket{display:inline-flex;align-items:center;gap:10px;border:2px dashed ' + ORANGE + ';border-radius:10px;padding:8px 14px;background:#fff;font-weight:bold}',
-    '.sis-ticket code{font-size:18px;letter-spacing:.08em;color:#c4561a;font-family:inherit}',
-    '.sis-pending{color:#999!important;font-size:13px!important;font-weight:normal;letter-spacing:0!important}',
-    '.sis-badge{display:inline-block;margin:6px 0;padding:3px 10px;border-radius:4px;background:#e8473b;color:#fff;font-size:13px;font-weight:bold}',
-    '.sis-note{font-size:12px;color:#888;margin-top:8px}',
-    '.sis-chip{position:fixed;left:10px;bottom:10px;z-index:2147483600;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid #ccc;font-size:12px;color:#555;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}',
-    '.sis-panel{position:fixed;left:10px;bottom:46px;z-index:2147483600;width:340px;max-height:70vh;overflow:auto;background:#fff;border:1px solid #ddd;border-radius:12px;padding:12px;font-size:12px;box-shadow:0 6px 24px rgba(0,0,0,.15)}',
-    '.sis-panel table{width:100%;border-collapse:collapse}.sis-panel td{padding:3px 4px;border-bottom:1px solid #f1f1f1;vertical-align:top}',
-    '.sis-cd{font-variant-numeric:tabular-nums;font-weight:bold;color:#c4561a;font-size:16px}',
-    '.sis-rank{display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:999px;background:#fde7d7;color:#a2481a;font-weight:bold}',
-    '.sis-coord{display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:start}',
-    '.sis-coord>img{width:100%;border-radius:10px}',
+    '.sis-card{display:flex;flex-direction:column;background:#fff;border-radius:14px;overflow:hidden;text-decoration:none!important;color:var(--sis-ink)!important;font-size:12px;position:relative;transition:transform .15s ease-out,box-shadow .15s}',
+    '.sis-card:hover{transform:translateY(-3px);box-shadow:var(--sis-sh)}',
+    '.sis-card .sis-im{position:relative;border-radius:14px;overflow:hidden;background:#f4f1f6}',
+    '.sis-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}',
+    '.sis-card .sis-bd{position:absolute;left:8px;top:8px;display:flex;flex-direction:column;gap:4px;align-items:flex-start}',
+    '.sis-medal{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;background:var(--sis-p);box-shadow:var(--sis-sh2)}.sis-medal.m1{background:#E0A800}.sis-medal.m2{background:#9AA3AE}.sis-medal.m3{background:#C07A45}',
+    '.sis-card .sis-cn{padding:8px 2px 0;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:3em}',
+    '.sis-card .sis-cp{padding:2px 2px 0;font-weight:800;font-size:15px;color:var(--sis-ink)}.sis-card .sis-cp.sale{color:var(--sis-r)}.sis-card .sis-cp s{font-size:11px;color:var(--sis-mu);font-weight:400;margin-left:4px}',
+    '.sis-card .sis-why2{font-size:11px;font-weight:700;color:var(--sis-p);padding:6px 2px 0}',
+    '.sis-card .sis-add{display:flex;align-items:center;justify-content:center;gap:4px;margin:8px 0 2px;min-height:40px;border-radius:999px;border:1.5px solid var(--sis-c);color:var(--sis-cd);background:#fff;font-size:13px;font-weight:700;cursor:pointer;width:100%;font-family:inherit}.sis-card .sis-add:hover{background:var(--sis-c);color:#fff}',
+    '.sis-guide{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}',
+    '.sis-gc{display:flex;gap:12px;align-items:flex-start;padding:16px;border-radius:16px;background:var(--sis-pl);text-decoration:none!important;color:var(--sis-ink)!important;transition:transform .15s}.sis-gc:hover{transform:translateY(-2px)}',
+    '.sis-gc .sis-sh-ic{background:#fff;color:var(--sis-p)}.sis-gc b{display:block;font-size:15px}.sis-gc span{font-size:13px;color:var(--sis-mu)}',
+    /* 商品ページの案内 */
+    '.sis-hint{display:flex;align-items:center;gap:10px;margin:8px 0;padding:10px 12px;border-radius:12px;background:var(--sis-pl);font-size:13px;line-height:1.5;color:var(--sis-ink)}',
+    '.sis-hint .sis-ic{color:var(--sis-p);width:22px;height:22px}.sis-hint b{color:var(--sis-p)}.sis-hint a{color:var(--sis-cd);font-weight:700}',
+    '.sis-hint.sis-hc{background:var(--sis-cl)}.sis-hint.sis-hc .sis-ic,.sis-hint.sis-hc b{color:var(--sis-cd)}',
+    '.sis-hint.sis-hr{background:var(--sis-rl)}.sis-hint.sis-hr .sis-ic,.sis-hint.sis-hr b{color:var(--sis-r)}',
+    '.sis-memo-on{box-shadow:0 0 0 3px var(--sis-c)!important;border-radius:4px}',
+    '.sis-badge{display:inline-flex;align-items:center;gap:6px;margin:6px 0;padding:4px 12px;border-radius:999px;background:var(--sis-r);color:#fff;font-size:13px;font-weight:800}',
+    '.sis-badge:before{content:"";width:8px;height:8px;border-radius:50%;background:#fff;animation:sisblink 1.2s infinite}',
+    '.sis-proof{margin:12px 0;border-radius:16px;border:1px solid var(--sis-ln);overflow:hidden;background:#fff}',
+    '.sis-proof-h{display:flex;align-items:center;gap:6px;padding:8px 14px;background:var(--sis-pl);font-size:12px;font-weight:800;color:var(--sis-p)}',
+    '.sis-proof ul{list-style:none;margin:0;padding:6px 14px}.sis-proof li{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:14px;border-bottom:1px dashed var(--sis-ln)}.sis-proof li:last-child{border-bottom:0}',
+    '.sis-proof li .sis-ic{width:22px;height:22px;color:var(--sis-p)}.sis-proof li b{font-size:17px;color:var(--sis-ink)}.sis-proof li.hot .sis-ic,.sis-proof li.hot b{color:var(--sis-r)}',
+    '.sis-proof-f{padding:0 14px 8px;font-size:11px;color:var(--sis-mu)}',
+    '.sis-coord{display:grid;grid-template-columns:240px 1fr;gap:20px;align-items:start}',
+    '.sis-coord>a img{width:100%;border-radius:16px;display:block}',
     '.sis-coord .sis-grid{grid-template-columns:repeat(3,1fr)}',
-    '.sis-size-hint{margin:8px 0;padding:8px 12px;border-radius:8px;background:#fff7f0;border:1px solid #f6d3b8;font-size:13px}',
-    '.sis-size-hint a{color:#c4561a;font-weight:bold}',
-    '.sis-memo-on{outline:3px solid ' + ORANGE + '!important;outline-offset:2px}',
-    '.sis-kuji{display:flex;gap:10px;justify-content:center;margin:16px 0}',
-    '.sis-kuji button{width:96px;height:120px;border-radius:12px;border:2px solid ' + ORANGE + ';background:#fff7f0;font-size:34px;cursor:pointer;transition:transform .5s}',
-    '.sis-kuji button.sis-open{transform:rotateY(180deg);background:#fff}',
-    '.sis-x2{text-align:right;font-size:11px;color:#aaa}',
-    '@keyframes sisfade{from{opacity:0}to{opacity:1}}@keyframes sispop{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}',
-    '@keyframes sisup{from{transform:translate(-50%,20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}',
-    '@keyframes sisbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}',
-    '.sis-shipfix{position:fixed;left:0;right:0;bottom:0;z-index:2147481500;background:#fff7f0;border-top:1px solid #f6d3b8;box-shadow:0 -2px 10px rgba(0,0,0,.06);padding-right:40px}',
-    '.sis-alert{position:fixed;right:16px;bottom:16px;z-index:2147482500;width:320px;max-width:calc(100% - 24px);background:#fff;border:1px solid #f0c9a8;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.15);padding:12px 36px 12px 12px;display:flex;gap:10px;align-items:center;animation:sisslide .3s;transition:opacity .4s}',
-    '.sis-alert img{width:60px;height:60px;object-fit:cover;border-radius:8px;flex:none}',
-    '@keyframes sisslide{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}',
-    '.sis-sp .sis-grid{grid-template-columns:repeat(2,1fr)}',
-    '.sis-sp .sis-sec{margin:16px 10px;padding:14px}',
-    '.sis-sp .sis-strip{font-size:13px;padding:8px 10px;gap:8px}',
-    '.sis-sp .sis-coord{grid-template-columns:1fr}',
-    '.sis-sp .sis-coord .sis-grid{grid-template-columns:repeat(3,1fr)}',
-    '.sis-sp .sis-modal h3{font-size:19px}',
-    '.sis-sp .sis-fab{bottom:76px;width:68px;height:68px;font-size:12px}'
+    '.sis-sum{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:16px 0 0;padding:14px 16px;border-radius:16px;background:var(--sis-cl)}',
+    '.sis-sum .sis-sum-p{font-size:13px}.sis-sum .sis-sum-p b{font-size:24px;color:var(--sis-cd);font-weight:800}',
+    '.sis-xoff{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:4px 10px;border-radius:8px;background:var(--sis-rl);color:var(--sis-r);font-size:12px;font-weight:800}',
+    '.sis-rank{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;background:var(--sis-p);color:#fff;font-weight:800;font-size:13px}.sis-rank .sis-ic{width:16px;height:16px;color:#ffd36b}',
+    '.sis-note{font-size:12px;color:var(--sis-mu);margin-top:8px}',
+    '.sis-chip{position:fixed;left:10px;bottom:10px;z-index:2147483600;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid var(--sis-ln);font-size:12px;color:var(--sis-mu);cursor:pointer;box-shadow:var(--sis-sh2)}',
+    '.sis-panel{position:fixed;left:10px;bottom:46px;z-index:2147483600;width:340px;max-height:70vh;overflow:auto;background:#fff;border:1px solid var(--sis-ln);border-radius:14px;padding:12px;font-size:12px;box-shadow:var(--sis-sh)}',
+    '.sis-panel table{width:100%;border-collapse:collapse}.sis-panel td{padding:3px 4px;border-bottom:1px solid #f1f1f1;vertical-align:top}',
+    '@keyframes sisfade{from{opacity:0}to{opacity:1}}@keyframes sispop{from{transform:scale(.9) translateY(10px);opacity:0}to{transform:none;opacity:1}}',
+    '@keyframes sisup{from{transform:translate(-50%,24px);opacity:0}to{transform:translate(-50%,0);opacity:1}}@keyframes sisup2{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}@keyframes sisup3{from{transform:translateY(100%)}to{transform:none}}',
+    '@keyframes sisring{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.35);opacity:0}}@keyframes sisblink{50%{opacity:.25}}',
+    '@keyframes sisslide{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}@keyframes sistimer{from{width:100%}to{width:0}}',
+    '@keyframes sisfall{0%{transform:translateY(0) rotate(0)}100%{transform:translateY(520px) rotate(540deg);opacity:.2}}',
+    /* スマホ */
+    '.sis-sp #sis-strips{margin:8px auto;padding:0 10px;gap:6px}',
+    '.sis-sp .sis-bnr{padding:10px 12px;gap:10px;flex-wrap:wrap;border-radius:12px}.sis-sp .sis-bnr-ic{width:36px;height:36px;border-radius:10px}.sis-sp .sis-bnr-t{font-size:14px}',
+    '.sis-sp .sis-bnr-r{width:100%;justify-content:space-between;padding-left:46px}',
+    '.sis-sp .sis-tiles b{min-width:32px;font-size:17px}',
+    '.sis-sp .sis-sec{margin:16px 10px;padding:16px 12px;border-radius:16px}',
+    '.sis-sp .sis-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;margin:0 -12px;padding:0 12px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}',
+    '.sis-sp .sis-grid::-webkit-scrollbar{display:none}.sis-sp .sis-grid>*{flex:0 0 42%;scroll-snap-align:start}.sis-sp .sis-grid.sis-4>:nth-child(n+5){display:flex}',
+    '.sis-sp .sis-guide{grid-template-columns:1fr}',
+    '.sis-sp .sis-coord{grid-template-columns:1fr}.sis-sp .sis-coord .sis-grid>*{flex-basis:38%}',
+    '.sis-sp .sis-modal h3{font-size:20px}.sis-sp .sis-kc{width:88px;height:118px}',
+    '.sis-sp .sis-fab{bottom:88px;width:64px;height:64px}.sis-sp .sis-fab .sis-ic{width:26px;height:26px}',
+    '.sis-sp .sis-ship{padding:8px 44px 8px 12px;gap:10px}.sis-sp .sis-ship-ic{width:36px;height:36px}.sis-sp .sis-ship-t{font-size:13px}.sis-sp .sis-ship-t b{font-size:16px}.sis-sp .sis-ship .sis-btn{min-height:40px;padding:0 14px;font-size:13px}',
+    '.sis-sp .sis-alert{left:12px;right:12px;width:auto}',
+    '.sis-sp .sis-tk-r code{font-size:16px}'
   ].join('\n');
-  function style() { if (D.getElementById('sis-css')) return; var s = D.createElement('style'); s.id = 'sis-css'; s.textContent = css + (Q.get('sis_noanim') === '1' ? '\n.sis-root,.sis-root *{animation:none!important;transition:none!important}' : ''); D.head.appendChild(s); D.documentElement.classList.add(SP ? 'sis-sp' : 'sis-pc'); }
+  function style() { if (D.getElementById('sis-css')) return; var s = D.createElement('style'); s.id = 'sis-css'; s.textContent = css + (Q.get('sis_noanim') === '1' ? '\n.sis-root,.sis-root *,.sis-root:before,.sis-fab:before{animation:none!important;transition:none!important}' : ''); D.head.appendChild(s); D.documentElement.classList.add(SP ? 'sis-sp' : 'sis-pc'); }
 
   /* ---------- 部品 ---------- */
   var mainEl = function () { return D.querySelector('main.pane-main, main, .pane-main, #main, .pane-contents') || D.body; };
   var stripBox;
-  function strip(id, html) {
+  function strip(id, o) { // 上部のバナー（o: tone, icon, kicker, title, sub, right）
     if (!stripBox) { stripBox = h('<div class="sis-root" id="sis-strips"></div>'); var m = mainEl(); m.insertBefore(stripBox, m.firstChild); }
     var old = D.getElementById('sis-s-' + id); if (old) old.remove();
-    var el = h('<div class="sis-strip" id="sis-s-' + id + '">' + html + '</div>');
-    stripBox.appendChild(el); SIS.active[id] = 'on'; return el;
+    var html = typeof o === 'string' ? o : '<span class="sis-bnr-ic">' + ic(o.icon || 'spark') + '</span><div class="sis-bnr-tx">' + (o.kicker ? '<div class="sis-bnr-k">' + o.kicker + '</div>' : '') + '<div class="sis-bnr-t">' + o.title + '</div>' + (o.sub ? '<div class="sis-bnr-s">' + o.sub + '</div>' : '') + '</div>' + (o.right ? '<div class="sis-bnr-r">' + o.right + '</div>' : '');
+    var el = h('<div class="sis-bnr sis-tone-' + ((o && o.tone) || 'sale') + '" id="sis-s-' + id + '">' + html + '</div>');
+    var order = ['countdown', 'coupon', 'source', 'rank', 'shipbar'];
+    var after = null; [].slice.call(stripBox.children).forEach(function (c) { if (order.indexOf(c.id.replace('sis-s-', '')) < order.indexOf(id)) after = c; });
+    stripBox.insertBefore(el, after ? after.nextSibling : stripBox.firstChild); SIS.active[id] = 'on'; return el;
+  }
+  function tiles(end) { return '<span class="sis-tiles" data-end="' + (+end) + '"></span>'; }
+  function runTiles(root) { // カウントダウンのタイルを1秒ごとに更新
+    [].slice.call(root.querySelectorAll('.sis-tiles[data-end]')).forEach(function (t) {
+      var end = +t.getAttribute('data-end');
+      function tk() {
+        var s = Math.max(0, Math.floor((end - now()) / 1000)), d = Math.floor(s / 86400), p = function (n) { return String(n).padStart(2, '0'); };
+        t.innerHTML = (d ? '<span><b>' + d + '</b><small>日</small></span>' : '') + '<span><b>' + p(Math.floor(s % 86400 / 3600)) + '</b><small>時間</small></span><i>:</i><span><b>' + p(Math.floor(s % 3600 / 60)) + '</b><small>分</small></span><i>:</i><span><b>' + p(s % 60) + '</b><small>秒</small></span>';
+      }
+      tk(); setInterval(tk, 1000);
+    });
   }
   var modalOpen = false;
+  function mhead(tone, icon, tag, title) { return '<div class="sis-mhd sis-tone-' + tone + '"><div class="sis-mic">' + ic(icon) + '</div>' + (tag ? '<span class="sis-tag">' + tag + '</span>' : '') + '<h3>' + title + '</h3></div>'; }
   function modal(id, html, opt) {
     if (modalOpen && !(opt && opt.force)) return null;
     modalOpen = true; SIS.active[id] = 'on';
@@ -168,7 +301,7 @@
     ov.addEventListener('click', function (e) { if (e.target === ov) close('outside'); });
     ov.querySelector('.sis-x').onclick = function () { close('x'); };
     ov.querySelectorAll('[data-sis-close]').forEach(function (b) { b.onclick = function () { close(b.getAttribute('data-sis-close')); }; });
-    D.body.appendChild(ov); track(id, 'impression'); ov.sisClose = close; return ov;
+    D.body.appendChild(ov); runTiles(ov); bindCopy(ov, id); track(id, 'impression'); ov.sisClose = close; return ov;
   }
   function toast(id, html) {
     var old = D.getElementById('sis-t-' + id); if (old) old.remove();
@@ -182,6 +315,10 @@
     })();
     return el;
   }
+  function shead(o) { // セクションの見出し（o: tone, icon, title, sub, more:{href,label}）
+    return '<div class="sis-sh sis-tone-' + (o.tone || 'sale') + '"><span class="sis-sh-ic">' + ic(o.icon || 'spark') + '</span><div class="sis-sh-t"><h4>' + o.title + '</h4>' + (o.sub ? '<small>' + o.sub + '</small>' : '') + '</div>' +
+      (o.more ? '<a class="sis-more" href="' + esc(o.more.href) + '">' + esc(o.more.label || 'すべて見る') + ic('arrow') + '</a>' : '') + '</div>';
+  }
   function section(id, html, where, pos) {
     var old = D.getElementById('sis-sec-' + id); if (old) old.remove();
     var el = h('<section class="sis-root sis-sec" id="sis-sec-' + id + '">' + html + '</section>');
@@ -190,9 +327,18 @@
     SIS.active[id] = 'on'; track(id, 'impression'); return el;
   }
   function card(g, opt) {
-    return '<a class="sis-card" href="' + esc(g.href) + '" data-sis-goods="' + esc(g.code) + '">' + (g.img ? '<img src="' + esc(g.img) + '" alt="" onerror="var c=this.closest(\'.sis-card\');if(c)c.remove()">' : '<img alt="">') +
-      '<div class="sis-cn">' + esc(g.name) + '</div><div class="sis-cp">' + (g.price ? yen(g.price) : '') + '</div>' +
-      (opt && opt.add ? '<button type="button" class="sis-add" data-sis-add="' + esc(g.code) + '">カートに入れる</button>' : '') + '</a>';
+    opt = opt || {};
+    var bd = (opt.rank ? '<span class="sis-medal' + (opt.rank <= 3 ? ' m' + opt.rank : '') + '">' + opt.rank + '</span>' : '') + (opt.badge || '') + (g.low && !/残りわずか/.test(opt.badge || '') ? '<span class="sis-tag sis-t-r">残りわずか</span>' : '');
+    var sale = g.orig && g.orig > g.price;
+    return '<a class="sis-card" href="' + esc(g.href) + '" data-sis-goods="' + esc(g.code) + '"><div class="sis-im">' + (g.img ? '<img src="' + esc(g.img) + '" alt="' + esc(g.name) + '" loading="lazy" onerror="var c=this.closest(\'.sis-card\');if(c)c.remove()">' : '<img alt="">') + (bd ? '<div class="sis-bd">' + bd + '</div>' : '') + '</div>' +
+      (opt.why ? '<div class="sis-why2">' + esc(opt.why) + '</div>' : '') +
+      '<div class="sis-cn">' + esc(g.name) + '</div><div class="sis-cp' + (sale ? ' sale' : '') + '">' + (g.price ? yen(g.price) : '') + (sale ? '<s>' + yen(g.orig) + '</s>' : '') + '</div>' +
+      (opt.add ? '<button type="button" class="sis-add" data-sis-add="' + esc(g.code) + '">' + ic('cart') + 'カートに入れる</button>' : '') + '</a>';
+  }
+  function bindCopy(root, id) {
+    [].slice.call(root.querySelectorAll('[data-sis-copy]')).forEach(function (b) {
+      b.onclick = function (e) { e.preventDefault(); var v = b.getAttribute('data-sis-copy'); try { navigator.clipboard.writeText(v); } catch (x) {} b.textContent = 'コピー済み'; b.disabled = true; track(id, 'copy', { sis_label: v }); };
+    });
   }
 
   /* ---------- 店舗データ（実データ） ---------- */
@@ -251,10 +397,10 @@
       var txt = box.textContent.replace(/\s+/g, ' ');
       var nameEl = box.querySelector('[class*="goods-name"], [class*="--name"]');
       var name = (nameEl ? nameEl.textContent : img.getAttribute('alt') || '').replace(/\s+/g, ' ').trim();
-      var price = 0, re = /(通常価格\s*)?[￥¥]\s?([\d,]+)/g, m;
-      while ((m = re.exec(txt))) { if (!m[1]) { price = num(m[2]); break; } }
+      var price = 0, orig = 0, re = /(通常価格\s*)?[￥¥]\s?([\d,]+)/g, m;
+      while ((m = re.exec(txt))) { if (m[1]) orig = orig || num(m[2]); else if (!price) price = num(m[2]); }
       seen[code] = 1;
-      out.push({ code: code, href: '/shop/g/g' + code + '/', name: name, price: price, img: img.getAttribute('data-src') || img.getAttribute('src'), sale: /通常価格/.test(txt) });
+      out.push({ code: code, href: '/shop/g/g' + code + '/', name: name, price: price, orig: orig, img: img.getAttribute('data-src') || img.getAttribute('src'), sale: /通常価格/.test(txt) });
     });
     return out;
   }
@@ -271,7 +417,7 @@
       var size = ((d.querySelector('.block-size--item.active') || {}).textContent || '').trim();
       var stock = ((d.querySelector('#spec_stock_msg') || {}).textContent || '').trim();
       return { code: code, href: '/shop/g/g' + code + '/', name: name, color: color, size: size, img: img,
-        price: num((d.querySelector('.block-goods-price--price') || {}).textContent), stock: stock, soldout: /×|在庫なし|売り切れ/.test(stock) };
+        price: num((d.querySelector('.block-goods-price--price') || {}).textContent), orig: num((d.querySelector('.block-goods-price--default-price') || {}).textContent), stock: stock, low: /△|残りわずか/.test(stock), soldout: /×|在庫なし|売り切れ/.test(stock) };
     }).catch(function () { return null; });
     return goodsCache[code];
   }
@@ -318,25 +464,26 @@
   var POP = {
     line: function (r) {
       var v = ab('welcome');
-      var head = v === 'B' ? '新作とシークレットセールを<br>LINEでいち早く' : 'LINE友だち追加で<br>500円OFFクーポン';
-      return { html: '<span class="sis-tag">' + esc(r.tag || 'はじめての方へ') + '</span><h3>' + head + '</h3>' +
-        '<ul class="sis-list"><li>' + esc(SHOP.linePerk || '') + '</li><li>お誕生月にバースデークーポン</li><li>友だち限定シークレットセールのご案内</li></ul>' +
-        '<p><a class="sis-btn sis-line" href="' + esc(SHOP.lineUrl) + '" target="_blank" rel="noopener" data-sis="go">LINEで友だち追加</a></p>' +
-        '<div class="sis-x2">ABテスト ' + v + '</div>', goal: 'line_click' };
+      var head = v === 'B' ? '新作とシークレットセールを<br><em>LINEでいち早く</em>' : 'LINE友だち追加で<br><em>500円OFFクーポン</em>';
+      return { tone: 'g', html: mhead('g', 'chat', esc(r.tag || 'はじめての方へ'), head) + '<div class="sis-mbd">' +
+        '<ul class="sis-perks"><li>' + ic('ticket') + esc(SHOP.linePerk || '') + '</li><li>' + ic('gift') + 'お誕生月にバースデークーポン</li><li>' + ic('spark') + '友だち限定シークレットセールのご案内</li></ul>' +
+        '<a class="sis-btn sis-line sis-block" href="' + esc(SHOP.lineUrl) + '" target="_blank" rel="noopener" data-sis="go">' + ic('chat') + 'LINEで友だち追加</a>' +
+        '<button class="sis-link" data-sis-close="later">今はしない</button><div class="sis-x2">ABテスト ' + v + '</div></div>', goal: 'line_click' };
     },
     sale: function (r) {
       var dl = deadlineById(r.deadline), end = dl ? dl.end : null;
       var endTxt = end ? (end.getHours() === 0 ? (new Date(end - 1).getMonth() + 1) + '/' + new Date(end - 1).getDate() + ' 23:59' : (end.getMonth() + 1) + '/' + end.getDate() + ' ' + end.toTimeString().slice(0, 5)) : '';
-      return { html: '<span class="sis-tag">' + esc(r.tag || '開催中') + '</span><h3>' + esc(r.title || SHOP.saleName) + '</h3>' +
-        (endTxt ? '<p>' + endTxt + ' まで　残り <span class="sis-cd" data-end="' + (+end) + '">--:--:--</span></p>' : '') +
+      return { html: mhead('sale', 'tag', esc(r.tag || '開催中'), esc(r.title || SHOP.saleName)) + '<div class="sis-mbd">' +
+        (endTxt ? '<p style="margin:0 0 8px;font-weight:700">' + endTxt + ' まで　終了まであと</p><p style="margin:0 0 16px">' + tiles(end) + '</p>' : '') +
         (r.text ? '<p>' + esc(r.text) + '</p>' : '') +
-        '<p style="margin-top:14px"><a class="sis-btn" href="' + esc(r.url || SHOP.salePage) + '" data-sis="go">セール会場を見る</a></p>', goal: 'click' };
+        '<a class="sis-btn sis-block" href="' + esc(r.url || SHOP.salePage) + '" data-sis="go">セール会場を見る' + ic('arrow') + '</a>' +
+        '<button class="sis-link" data-sis-close="later">閉じる</button></div>', goal: 'click' };
     },
     coupon: function (r) {
       var c = coupon(r.coupon);
-      return { html: '<span class="sis-tag">' + esc(r.tag || 'あなたへのクーポン') + '</span><h3>' + esc(r.title || c.title || 'クーポン') + '</h3>' +
-        '<p style="margin:12px 0">' + ticket(c) + '</p>' + (c.expiresLabel ? '<p class="sis-note">有効期限 ' + esc(c.expiresLabel) + '</p>' : '') +
-        '<p style="margin-top:10px"><a class="sis-btn" href="' + esc(r.url || SHOP.salePage) + '" data-sis="go">お買い物を続ける</a></p>', goal: 'click' };
+      return { html: mhead('sale', 'ticket', esc(r.tag || 'あなたへのクーポン'), esc(r.title || c.title || 'クーポン')) + '<div class="sis-mbd">' +
+        '<p style="margin:0 0 12px">' + ticket(c) + '</p>' + (c.expiresLabel ? '<p class="sis-note" style="margin:0 0 14px">有効期限 ' + esc(c.expiresLabel) + '</p>' : '') +
+        '<a class="sis-btn sis-block" href="' + esc(r.url || SHOP.salePage) + '" data-sis="go">お買い物を続ける' + ic('arrow') + '</a><button class="sis-link" data-sis-close="later">閉じる</button></div>', goal: 'click' };
     }
   };
   FX.popup = function (forced) {
@@ -350,10 +497,9 @@
       setTimeout(function () {
         SIS.popupPending = false;
         var c = POP[r.type](r);
-        var m = modal('popup', c.html + '<p><button class="sis-btn sis-ghost" data-sis-close="later" style="padding:8px 18px;font-size:13px">閉じる</button></p>', { force: !!forced });
+        var m = modal('popup', c.html, { force: !!forced });
         if (!m) return; ls('popupAt', Date.now()); track('popup', 'show', { sis_label: r.id });
         var go = m.querySelector('[data-sis="go"]'); if (go) go.onclick = function () { track('popup', c.goal, { sis_label: r.id }); };
-        var cd = m.querySelector('.sis-cd[data-end]'); if (cd) { var tk = function () { var ms = +cd.getAttribute('data-end') - now(); if (ms < 0) ms = 0; var s = Math.floor(ms / 1000); cd.textContent = (s >= 86400 ? Math.floor(s / 86400) + '日 ' : '') + String(Math.floor(s % 86400 / 3600)).padStart(2, '0') + ':' + String(Math.floor(s % 3600 / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }; tk(); setInterval(tk, 1000); }
       }, forced ? 0 : (PC.delaySec || 3) * 1000);
     }).catch(function () { SIS.popupPending = false; });
   };
@@ -368,16 +514,16 @@
         var c = r[0], n = r[1], body;
         if (c.count > 0) {
           var rest = (SHOP.freeShipping || 0) - c.total;
-          body = '<span class="sis-tag">お買い忘れはありませんか？</span><h3>カートに' + c.count + '点<br>（' + yen(c.total) + '）入っています</h3>' +
-            '<p>' + c.items.slice(0, 2).map(function (i) { return esc(i.name) + ' <span style="color:#888;font-size:12px">' + esc(i.variation.trim()) + '</span>'; }).join('<br>') + (c.items.length > 2 ? '<br>ほか' : '') + '</p>' +
-            (rest > 0 ? '<p>あと<b style="color:#c4561a">' + yen(rest) + '</b>で送料無料です</p>' : '<p><b style="color:#c4561a">送料無料ライン達成中</b>です</p>') +
-            '<p style="margin-top:14px"><a class="sis-btn" href="/shop/cart/cart.aspx" data-sis="go">カートを見る</a></p>';
+          body = mhead('p', 'cart', 'お買い忘れはありませんか？', 'カートに<em>' + c.count + '点</em>入っています') + '<div class="sis-mbd"><div class="sis-items">' +
+            c.items.slice(0, 3).map(function (i) { return '<div class="sis-item">' + (i.img ? '<img src="' + esc(i.img) + '" alt="">' : '') + '<div>' + esc(i.name) + '<br><small>' + esc((i.variation || '').trim()) + '</small></div></div>'; }).join('') + '</div>' +
+            (rest > 0 ? '<p style="margin:0 0 14px;font-weight:700">あと<b style="color:var(--sis-cd);font-size:20px"> ' + yen(rest) + ' </b>で送料無料</p>' : '<p style="margin:0 0 14px;font-weight:700;color:#05964a">送料無料ライン達成中です</p>') +
+            '<a class="sis-btn sis-block" href="/shop/cart/cart.aspx" data-sis="go">' + ic('cart') + 'カートを見る（' + yen(c.total) + '）</a><button class="sis-link" data-sis-close="later">閉じる</button></div>';
         } else {
-          body = '<span class="sis-tag">開催中</span><h3>' + esc(SHOP.saleName) + '</h3>' +
-            (n ? '<p>ただいま<b style="color:#c4561a;font-size:20px"> ' + n + '点 </b>がセール価格です</p>' : '') +
-            '<p style="margin-top:14px"><a class="sis-btn" href="' + esc(SHOP.salePage) + '" data-sis="go">セール会場を見る</a></p>';
+          body = mhead('sale', 'tag', '開催中', esc(SHOP.saleName)) + '<div class="sis-mbd">' +
+            (n ? '<p style="margin:0 0 16px">ただいま <b style="color:var(--sis-cd);font-size:26px">' + n + '</b> 点がセール価格です</p>' : '') +
+            '<a class="sis-btn sis-block" href="' + esc(SHOP.salePage) + '" data-sis="go">セール会場を見る' + ic('arrow') + '</a><button class="sis-link" data-sis-close="later">閉じる</button></div>';
         }
-        var m = modal('exit', body + '<p><button class="sis-btn sis-ghost" data-sis-close="later" style="padding:8px 18px;font-size:13px">閉じる</button></p>', { force: forced });
+        var m = modal('exit', body, { force: forced });
         if (m) m.querySelector('[data-sis="go"]').onclick = function () { track('exit', 'click', { sis_label: c.count ? 'cart' : 'sale' }); };
       });
     }
@@ -397,13 +543,13 @@
     return st && Date.now() - st.t < ttl ? st.s : 'other';
   }
   FX.source = function () {
-    var s = source(), msg = {
-      line: '<span class="sis-tag">LINEからお越しの方へ</span> <b>' + esc(SHOP.saleName) + '</b> 開催中。トークでお知らせした商品もこちらから <a class="sis-btn" href="' + esc(SHOP.salePage) + '">セール会場へ</a>',
-      instagram: '<span class="sis-tag">Instagramからお越しの方へ</span> 投稿で紹介したコーデは <b>スタッフおすすめコーデ</b> にまとめています <a class="sis-btn" href="' + esc(SHOP.coordPage) + '">コーデを見る</a>',
-      qr: '<span class="sis-tag">店舗からお越しの方へ</span> WEBSHOPは <b>' + yen(SHOP.freeShipping) + '（税込）以上で送料無料</b>。店頭にないサイズ・カラーもこちらで <a class="sis-btn" href="' + esc(SHOP.newPage) + '">新作を見る</a>'
+    var s = source(), o = {
+      line: { tone: 'g', icon: 'chat', kicker: 'LINEからお越しの方へ', title: '<b>' + esc(SHOP.saleName) + '</b> 開催中。トークでお知らせした商品もこちらから', right: '<a class="sis-btn sis-sm sis-line" href="' + esc(SHOP.salePage) + '">セール会場へ</a>' },
+      instagram: { tone: 'p', icon: 'shirt', kicker: 'Instagramからお越しの方へ', title: '投稿で紹介したコーデは<b>スタッフおすすめコーデ</b>にまとめています', right: '<a class="sis-btn sis-sm sis-pur" href="' + esc(SHOP.coordPage) + '">コーデを見る</a>' },
+      qr: { tone: 'p', icon: 'store', kicker: '店舗からお越しの方へ', title: 'WEBSHOPは<b>' + yen(SHOP.freeShipping) + '（税込）以上で送料無料</b>。店頭にないサイズ・カラーもこちらで', right: '<a class="sis-btn sis-sm sis-pur" href="' + esc(SHOP.newPage) + '">新作を見る</a>' }
     }[s];
-    if (!msg) return;
-    var el = strip('source', msg); track('source', 'impression', { sis_label: s });
+    if (!o) return;
+    var el = strip('source', o); track('source', 'impression', { sis_label: s });
     el.querySelectorAll('a').forEach(function (a) { a.onclick = function () { track('source', 'click', { sis_label: s }); }; });
   };
 
@@ -412,10 +558,11 @@
     var c = (C.coupons || []).filter(function (x) { return x.id === id; })[0];
     if (!c) return null; if (c.code) return c; return DEMO ? c : null;
   }
-  function ticket(c) {
-    return '<span class="sis-ticket">' + (c.value ? esc(c.value) + ' ' : '') + 'クーポンコード ' +
-      (c.code ? '<code>' + esc(c.code) + '</code><button type="button" class="sis-btn sis-ghost" style="padding:3px 10px;font-size:12px" data-sis-copy="' + esc(c.code) + '">コピー</button>'
-        : '<code class="sis-pending">BOで発行後に表示</code>') + '</span>';
+  function ticket(c) { // クーポン券（左に割引額、右にコード）
+    var v = String(c.value || ''), m = v.match(/^(\d[\d,]*)(.*)$/);
+    var left = m ? '<b>' + esc(m[1]) + '</b><small>' + esc(m[2] || '') + '</small>' : '<b class="sis-tk-txt">' + esc(v || 'クーポン') + '</b>';
+    return '<span class="sis-tk"><span class="sis-tk-l">' + left + '</span><span class="sis-tk-r"><span><small>クーポンコード</small>' +
+      (c.code ? '<code>' + esc(c.code) + '</code></span><button type="button" data-sis-copy="' + esc(c.code) + '">コピー</button>' : '<code class="sis-pending">BOで発行後に表示</code></span>') + '</span></span>';
   }
   FX.coupon = function (forced) {
     if (PAGE === 'order') return;
@@ -428,8 +575,8 @@
     });
     if (!list.length) return;
     var c = list[0];
-    var el = strip('coupon', '<span class="sis-tag">ご来店クーポン</span> <span>' + esc(c.title || '') + '</span> ' + ticket(c) + (c.expiresLabel ? ' <span style="font-size:12px;color:#888">有効期限 ' + esc(c.expiresLabel) + '</span>' : ''));
-    var b = el.querySelector('[data-sis-copy]'); if (b) b.onclick = function () { try { navigator.clipboard.writeText(b.getAttribute('data-sis-copy')); } catch (e) {} b.textContent = 'コピーしました'; track('coupon', 'copy', { sis_label: c.code }); };
+    var el = strip('coupon', { tone: 'sale', icon: 'ticket', kicker: 'ご来店クーポン', title: esc(c.title || ''), sub: c.expiresLabel ? '有効期限 ' + esc(c.expiresLabel) + '・ご注文手続きでコードを入力' : '', right: ticket(c) });
+    bindCopy(el, 'coupon');
     track('coupon', 'impression', { sis_label: c.code || c.id });
   };
 
@@ -451,14 +598,15 @@
       if (c.error || (!c.count && !cfg.showWhenEmpty)) return;
       var free = SHOP.freeShipping || 0, nov = C.novelty || {};
       var rest = free - c.total, pct = Math.min(100, Math.round(c.total / free * 100));
-      var html = rest > 0 ? '<span>🚚 あと <b>' + yen(rest) + '</b> で送料無料</span><span class="sis-bar"><i style="width:' + pct + '%"></i></span><span style="font-size:12px;color:#888">カート ' + yen(c.total) + '</span>'
-        : '<span>🎉 <b>送料無料ライン達成</b>（カート ' + yen(c.total) + '）</span>';
-      if (nov.on) { var nr = nov.threshold - c.total; html += nr > 0 ? ' <span>／ あと <b>' + yen(nr) + '</b> で ' + esc(nov.label) + '</span>' : ' <span>／ <b>' + esc(nov.label) + '</b> 対象</span>'; }
-      html += ' <a class="sis-btn" href="/shop/cart/cart.aspx" style="padding:4px 12px;font-size:12px">カートへ</a>';
-      if (cfg.position === 'top') { strip('shipbar', html); }
+      var html = '<span class="sis-ship-ic' + (rest > 0 ? '' : ' sis-done') + '">' + ic(rest > 0 ? 'truck' : 'check') + '</span><div class="sis-ship-m">' +
+        (rest > 0 ? '<div class="sis-ship-t">あと <b>' + yen(rest) + '</b> で送料無料</div><div class="sis-trk"><i style="width:' + pct + '%"></i><u style="left:' + pct + '%"></u></div><div class="sis-trk-l"><span>カート ' + yen(c.total) + '</span><span>' + yen(free) + '</span></div>'
+          : '<div class="sis-ship-t" style="color:#05964a">送料無料ライン達成！</div><div class="sis-trk-l"><span>カート ' + yen(c.total) + '（' + yen(free) + '以上）</span></div>');
+      if (nov.on) { var nr = nov.threshold - c.total; html += '<div class="sis-trk-l"><span>' + (nr > 0 ? 'あと ' + yen(nr) + ' で ' + esc(nov.label) : esc(nov.label) + ' 対象') + '</span></div>'; }
+      html += '</div><a class="sis-btn sis-sm" href="/shop/cart/cart.aspx">' + ic('cart') + 'カートを見る</a>';
+      if (cfg.position === 'top') { strip('shipbar', '<div class="sis-ship" style="padding:0;width:100%">' + html + '</div>'); }
       else {
         var old = D.getElementById('sis-shipfix'); if (old) old.remove();
-        var el = h('<div class="sis-root sis-shipfix" id="sis-shipfix"><div class="sis-strip" style="border:0;background:transparent">' + html + '</div><button class="sis-x" aria-label="閉じる" style="top:50%;transform:translateY(-50%)">×</button></div>');
+        var el = h('<div class="sis-root sis-shipfix" id="sis-shipfix"><div class="sis-ship">' + html + '</div><button class="sis-x" aria-label="閉じる">×</button></div>');
         el.querySelector('.sis-x').onclick = function () { el.remove(); ss('shipbarClosed', 1); track('shipbar', 'close'); };
         D.body.appendChild(el); el.style.bottom = bottomOffset() + 'px'; SIS.active.shipbar = 'on';
         if (parseInt(el.style.bottom)) var iv = setInterval(function () { var cb = D.getElementById('cookieBox'); if (!cb || getComputedStyle(cb).display === 'none') { clearInterval(iv); setTimeout(function () { el.style.bottom = bottomOffset() + 'px'; }, 400); } }, 1500); // Cookie同意バーが消えたら下まで下げる
@@ -488,14 +636,10 @@
     var x = list[0];
     var md = (x.end.getMonth() + 1) + '/' + x.end.getDate();
     var endLabel = x.end.getHours() === 0 ? (new Date(x.end - 1).getMonth() + 1) + '/' + new Date(x.end - 1).getDate() + ' 23:59' : md + ' ' + x.end.toTimeString().slice(0, 5);
-    var el = strip('countdown', '<span>⏰ <b>' + esc(x.d.text) + '</b>は ' + endLabel + ' まで</span><span>残り <span class="sis-cd">--:--:--</span></span>' + (x.d.url ? ' <a class="sis-btn" href="' + esc(x.d.url) + '">詳しく</a>' : ''));
-    var cd = el.querySelector('.sis-cd');
-    function tick() {
-      var ms = x.end - now(); if (ms <= 0) { el.remove(); return; }
-      var s = Math.floor(ms / 1000), dd = Math.floor(s / 86400), hh = Math.floor(s % 86400 / 3600), mm = Math.floor(s % 3600 / 60), sc = s % 60;
-      cd.textContent = (dd ? dd + '日 ' : '') + String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0') + ':' + String(sc).padStart(2, '0');
-    }
-    tick(); setInterval(tick, 1000); track('countdown', 'impression', { sis_label: x.d.id });
+    var el = strip('countdown', { tone: 'sale', icon: 'clock', kicker: '終了まであと少し', title: esc(x.d.text) + '<span style="font-weight:500;color:var(--sis-mu)">　' + endLabel + ' まで</span>', right: tiles(x.end) + (x.d.url ? '<a class="sis-btn sis-sm" href="' + esc(x.d.url) + '">会場へ</a>' : '') });
+    runTiles(el);
+    var iv = setInterval(function () { if (x.end - now() <= 0) { el.remove(); clearInterval(iv); } }, 1000);
+    track('countdown', 'impression', { sis_label: x.d.id });
   };
 
   /* 7. くじ演出 */
@@ -504,25 +648,40 @@
     if (!prizes.length) return;
     var today = now().toISOString().slice(0, 10);
     if (!forced && (PAGE === 'order' || ls('kujiDay') === today)) return;
+    function face(p) { var m = String(p.value || '').match(/^(\d[\d,]*)(.*)$/); return m ? '<b>' + esc(m[1]) + '<span style="font-size:13px">' + esc(m[2]) + '</span></b>' : '<b style="font-size:18px">' + esc(p.value) + '</b>'; }
+    function confetti(box) {
+      var cols = ['#FF8363', '#633783', '#F0A800', '#06C755', '#FFD36B', '#E6DBEF'], c = h('<div class="sis-conf"></div>');
+      for (var i = 0; i < 36; i++) { var e = D.createElement('i'); e.style.left = Math.random() * 100 + '%'; e.style.background = cols[i % cols.length]; e.style.animationDelay = (Math.random() * .5) + 's'; e.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)'; c.appendChild(e); }
+      box.appendChild(c); setTimeout(function () { c.remove(); }, 2600);
+    }
     function open() {
-      var m = modal('kuji', '<span class="sis-tag">1日1回</span><h3>ご来店くじ</h3><p>どれか1枚えらんでください</p><div class="sis-kuji"><button>？</button><button>？</button><button>？</button></div><div id="sis-kuji-r"></div>', { force: true });
+      var cards = [0, 1, 2].map(function () { return '<button type="button" class="sis-kc" aria-label="くじを引く"><span class="sis-kc-in"><span class="sis-kc-f"><b>?</b><small>TAP</small></span><span class="sis-kc-b"></span></span></button>'; }).join('');
+      var m = modal('kuji', mhead('y', 'gift', '本日1回', 'ご来店<em>くじ</em>') + '<div class="sis-mbd"><p style="margin:0 0 12px">気になる1枚をえらんでください。<b>ハズレなし</b>です</p><div class="sis-kuji">' + cards + '</div><div id="sis-kuji-r"></div></div>', { force: true });
       if (!m) return; var fab = D.getElementById('sis-fab-kuji'); if (fab) fab.remove();
-      m.querySelectorAll('.sis-kuji button').forEach(function (b) {
+      var box = m.querySelector('.sis-modal');
+      var btns = [].slice.call(m.querySelectorAll('.sis-kc'));
+      btns.forEach(function (b, bi) {
         b.onclick = function () {
           if (m.dataset.done) return; m.dataset.done = 1; ls('kujiDay', today);
           var sum = prizes.reduce(function (s, p) { return s + (p.weight || 1); }, 0), r = Math.random() * sum, win = prizes[0];
           for (var i = 0; i < prizes.length; i++) { r -= prizes[i].weight || 1; if (r <= 0) { win = prizes[i]; break; } }
-          b.classList.add('sis-open'); b.textContent = '🎉';
+          var others = prizes.filter(function (p) { return p !== win; });
+          b.querySelector('.sis-kc-b').innerHTML = face(win) + '<small>あたり</small>'; b.classList.add('sis-open', 'sis-win');
+          b.insertAdjacentHTML('beforeend', '<span class="sis-kc-win">あなたの賞</span>');
+          setTimeout(function () { btns.forEach(function (o, oi) { if (o === b) return; var p = others.shift() || win; o.querySelector('.sis-kc-b').innerHTML = face(p) + '<small>ほかの賞</small>'; o.classList.add('sis-open', 'sis-dim'); }); }, 700);
           setTimeout(function () {
-            m.querySelector('#sis-kuji-r').innerHTML = '<p><b style="font-size:18px;color:#c4561a">' + esc(win.value || 'クーポン') + ' があたりました</b></p><p>' + ticket(win) + '</p><p class="sis-note">ご注文手続きの画面でコードを入力してください' + (win.expiresLabel ? '（有効期限 ' + esc(win.expiresLabel) + '）' : '') + '</p>';
-            track('kuji', 'draw', { sis_label: win.id });
-          }, 500);
+            confetti(box);
+            m.querySelector('#sis-kuji-r').innerHTML = '<div class="sis-res"><h4>おめでとうございます！ ' + esc(win.value || 'クーポン') + '</h4><p style="margin:0 0 10px">' + ticket(win) + '</p><p class="sis-note" style="margin:0 0 14px">ご注文手続きの画面でコードを入力してください' + (win.expiresLabel ? '（有効期限 ' + esc(win.expiresLabel) + '）' : '') + '</p>' +
+              '<a class="sis-btn sis-block" href="' + esc(SHOP.salePage) + '">このクーポンでお買い物' + ic('arrow') + '</a><button class="sis-link" data-sis-close="later">閉じる</button></div>';
+            var cl = m.querySelector('#sis-kuji-r [data-sis-close]'); if (cl) cl.onclick = function () { m.sisClose('later'); };
+            bindCopy(m, 'kuji'); track('kuji', 'draw', { sis_label: win.id });
+          }, 900);
         };
       });
     }
     if (forced) return open();
     if ((ss('pv') || 1) < 2) return;
-    var fab = h('<button class="sis-root sis-fab" id="sis-fab-kuji">ご来店<br>くじ</button>');
+    var fab = h('<button class="sis-root sis-fab" id="sis-fab-kuji" aria-label="ご来店くじを引く">' + ic('gift') + '<span>くじ</span><em>1日1回</em></button>');
     fab.onclick = function () { track('kuji', 'fab_click'); open(); };
     D.body.appendChild(fab); SIS.active.kuji = 'on'; track('kuji', 'impression');
   };
@@ -547,13 +706,12 @@
       if (i < 0) return;
       var me = ranks[i], up = ranks[i - 1];
       var perks = [];
-      if (me.monthly) perks.push('毎月の特別クーポン <b>' + esc(me.monthly) + '</b>');
-      if (me.pointDay) perks.push('22・23日はポイント <b>' + esc(me.pointDay) + '</b>');
-      perks.push('お誕生日クーポン <b>' + esc(me.birthday) + '</b>');
-      var html = '<span class="sis-rank">🐷 ' + esc(me.name) + '</span><span>' + perks.join('／') + '</span>' +
-        (up ? '<span style="font-size:12px;color:#888">次は「' + esc(up.name) + '」（3ヶ月で' + yen(up.min) + '以上）</span>' : '') +
-        ' <a class="sis-btn" href="' + esc(SHOP.rankPage) + '">特典を見る</a>';
-      strip('rank', html); track('rank', 'impression', { sis_label: me.name });
+      if (me.monthly) perks.push('毎月のクーポン <b>' + esc(me.monthly) + '</b>');
+      if (me.pointDay) perks.push('22・23日ポイント <b>' + esc(me.pointDay) + '</b>');
+      perks.push('誕生日 <b>' + esc(me.birthday) + '</b>');
+      var amt = r.amount, sub = up ? (amt != null ? '次の「' + esc(up.name) + '」まであと <b>' + yen(Math.max(0, up.min - amt)) + '</b>（3ヶ月の累計 ' + yen(amt) + '）' : '次は「' + esc(up.name) + '」（3ヶ月で' + yen(up.min) + '以上）') : '最上位ランクです';
+      strip('rank', { tone: 'p', icon: 'crown', kicker: '<span class="sis-rank">' + ic('crown') + esc(me.name) + '</span>', title: perks.join('　'), sub: sub, right: '<a class="sis-btn sis-sm sis-pur" href="' + esc(SHOP.rankPage) + '">特典を見る</a>' });
+      track('rank', 'impression', { sis_label: me.name });
     });
   };
 
@@ -562,11 +720,11 @@
     if (PAGE !== 'top') return Promise.resolve(false);
     var slider = D.getElementById('block_of_top_body') || mainEl().firstElementChild;
     if (isNew) {
-      section('newRepeat', '<h4><span class="sis-tag">はじめての方へ</span>drug store\'s WEBSHOPのお買い物ガイド</h4>' +
-        '<div class="sis-grid" style="grid-template-columns:repeat(' + (SP ? 1 : 3) + ',1fr)">' +
-        '<a class="sis-card" style="padding:14px;font-size:14px" href="/shop/pages/guide.aspx#guide_07"><b style="color:#c4561a">🚚 送料</b><br>商品代金' + yen(SHOP.freeShipping) + '（税込）以上で送料無料</a>' +
-        '<a class="sis-card" style="padding:14px;font-size:14px" href="' + esc(SHOP.rankPage) + '"><b style="color:#c4561a">🐷 会員ランク</b><br>お買い物金額に応じてクーポン・ポイントがアップ</a>' +
-        '<a class="sis-card" style="padding:14px;font-size:14px" href="' + esc(SHOP.linePage) + '"><b style="color:#c4561a">💬 LINE</b><br>' + esc(SHOP.linePerk) + '</a>' +
+      section('newRepeat', shead({ tone: 'p', icon: 'spark', title: 'はじめての方へ　お買い物ガイド', sub: 'drug store\'s WEBSHOPで知っておくとお得な3つ' }) +
+        '<div class="sis-guide">' +
+        '<a class="sis-gc" href="/shop/pages/guide.aspx#guide_07"><span class="sis-sh-ic">' + ic('truck') + '</span><div><b>' + yen(SHOP.freeShipping) + '以上で送料無料</b><span>商品代金（税込）の合計で判定します</span></div></a>' +
+        '<a class="sis-gc" href="' + esc(SHOP.rankPage) + '"><span class="sis-sh-ic">' + ic('crown') + '</span><div><b>会員ランクで毎月クーポン</b><span>お買い物金額に応じてクーポン・ポイントがアップ</span></div></a>' +
+        '<a class="sis-gc" href="' + esc(SHOP.linePage) + '"><span class="sis-sh-ic">' + ic('chat') + '</span><div><b>LINEで500円OFF</b><span>' + esc(SHOP.linePerk) + '</span></div></a>' +
         '</div>', slider, 'after');
       return Promise.resolve(true);
     } else {
@@ -576,7 +734,7 @@
       return Promise.all(mine.map(function (g) { return goodsInfo(g.code); })).then(function (arr) {
         arr = arr.filter(function (g) { return g && g.price && !g.soldout; });
         if (!arr.length) return false;
-        var el = section('newRepeat', '<h4><span class="sis-tag">おかえりなさい</span>前回チェックした商品（最新の価格・在庫）</h4><div class="sis-grid">' + arr.map(function (g) { return card(g); }).join('') + '</div>', slider, 'after');
+        var el = section('newRepeat', shead({ tone: 'p', icon: 'eye', title: 'おかえりなさい　前回チェックした商品', sub: '最新の価格・在庫で表示しています' }) + '<div class="sis-grid">' + arr.map(function (g) { return card(g); }).join('') + '</div>', slider, 'after');
         el.querySelectorAll('a').forEach(function (a) { a.onclick = function () { track('newRepeat', 'click'); }; });
         return true;
       });
@@ -602,7 +760,7 @@
       var items = uniqProduct(listItems(parseDoc(html)).filter(function (g) { return g.price; })).slice(0, 8);
       if (!items.length) return false;
       var anchor = D.getElementById('block_of_event') || D.getElementById('block_of_top_free2');
-      var el = section('catBanner', '<h4><span class="sis-tag">よく見ているカテゴリ</span>「' + esc(best.name) + '」の新着<span style="font-size:12px;color:#888;font-weight:normal">直近' + (CB.windowDays || 14) + '日で' + best.n + '回</span></h4><div class="sis-grid sis-4">' + items.map(function (g) { return card(g); }).join('') + '</div><p style="text-align:right;margin:10px 0 0"><a href="/shop/c/' + best.code + '/" style="color:#c4561a">「' + esc(best.name) + '」をすべて見る ›</a></p>', anchor, 'before');
+      var el = section('catBanner', shead({ tone: 'sale', icon: 'shirt', title: 'よく見ている「' + esc(best.name) + '」の新着', sub: '直近' + (CB.windowDays || 14) + '日で' + best.n + '回ご覧になったカテゴリです', more: { href: '/shop/c/' + best.code + '/', label: 'すべて見る' } }) + '<div class="sis-grid sis-4">' + items.map(function (g, i) { return card(g, { badge: i < 2 ? '<span class="sis-tag">NEW</span>' : '' }); }).join('') + '</div>', anchor, 'before');
       el.querySelectorAll('a').forEach(function (a) { a.onclick = function () { track('catBanner', 'click', { sis_label: best.code }); }; });
       return true;
     }).catch(function () { return false; });
@@ -646,15 +804,15 @@
     target.classList.add('sis-memo-on');
     var hint;
     var fromSw = ss('szFrom');
-    if (active && label(active) === memo && fromSw && fromSw.to === code) { hint = h('<div class="sis-root sis-size-hint">✓ いつものサイズ「<b>' + esc(memo) + '</b>」に切り替えました <a href="' + esc(fromSw.from) + '?sis_szback=1">「' + esc(fromSw.size || '元のサイズ') + '」に戻す</a></div>'); ss('szFrom', null); }
-    else if (active && label(active) === memo) hint = h('<div class="sis-root sis-size-hint">✓ いつものサイズ「<b>' + esc(memo) + '</b>」を選んでいます（' + esc(cat) + '）</div>');
+    if (active && label(active) === memo && fromSw && fromSw.to === code) { hint = h('<div class="sis-root sis-hint">' + ic('check') + '<span>いつものサイズ「<b>' + esc(memo) + '</b>」に切り替えました　<a href="' + esc(fromSw.from) + '?sis_szback=1">「' + esc(fromSw.size || '元のサイズ') + '」に戻す</a></span></div>'); ss('szFrom', null); }
+    else if (active && label(active) === memo) hint = h('<div class="sis-root sis-hint">' + ic('check') + '<span>いつものサイズ「<b>' + esc(memo) + '</b>」を選んでいます（' + esc(cat) + '）</span></div>');
     else {
       var a = target.querySelector('a'), oc = (target.querySelector('[onclick]') || target).getAttribute('onclick') || '';
       var href = a ? a.getAttribute('href') : (oc.match(/location\.href\s*=\s*['"]([^'"]+)['"]/) || [])[1];
       var dis = /disable|soldout|nostock/.test(target.className);
       var auto = (C.sizeMemo || {}).autoSwitch, done = ss('szAuto') || {};
       if (auto && href && !dis && !done[pkey(code)]) { done[pkey(code)] = 1; ss('szAuto', done); ss('szFrom', { to: codeOf(href), from: P, size: label(active || {}), memo: memo }); track('sizeMemo', 'auto_switch', { sis_label: memo }); L.replace(href + (href.indexOf('?') < 0 ? '?' : '&') + 'sis_sz=1' + (L.search.indexOf('sis_') >= 0 ? '&' + L.search.slice(1).split('&').filter(function (kv) { return /^sis_/.test(kv) && !/^sis_sz/.test(kv); }).join('&') : '')); return; }
-      hint = h('<div class="sis-root sis-size-hint">いつものサイズは「<b>' + esc(memo) + '</b>」です。' + (href && !dis ? ' <a href="' + esc(href) + '">「' + esc(memo) + '」に切り替える ›</a>' : '（このカラーは「' + esc(memo) + '」の在庫がありません）') + '</div>');
+      hint = h('<div class="sis-root sis-hint">' + ic('ruler') + '<span>いつものサイズは「<b>' + esc(memo) + '</b>」です。' + (href && !dis ? '　<a href="' + esc(href) + '">「' + esc(memo) + '」に切り替える</a>' : '（このカラーは「' + esc(memo) + '」の在庫がありません）') + '</span></div>');
       var link = hint.querySelector('a'); if (link) link.onclick = function () { track('sizeMemo', 'switch', { sis_label: memo }); };
     }
     list.parentNode.insertBefore(hint, list); SIS.active.sizeMemo = 'on'; track('sizeMemo', 'impression', { sis_label: memo });
@@ -718,9 +876,11 @@
         });
         if (!pick) return;
         var from = { cart: 'カートに入れた', dwell: 'じっくり見ていた', fav: 'お気に入りの' }[pick.x.kind] || '気になっていた';
-        var msg = pick.why === 'low' ? '在庫が<b>残りわずか</b>です' : pick.why === 'saleEnd' ? '<b>セール価格は' + ((saleDl.end.getMonth() + 1) + '/' + new Date(saleDl.end - 1).getDate()) + ' 23:59まで</b>です' : '<b>' + yen(pick.x.price - pick.g.price) + '値下がり</b>しました';
-        var el = h('<a class="sis-root sis-alert" href="' + esc(pick.g.href) + '" style="text-decoration:none;color:#333">' + (pick.g.img ? '<img src="' + esc(pick.g.img) + '" alt="">' : '') +
-          '<div style="font-size:13px;line-height:1.5"><span style="font-size:11px;color:#888">' + from + '商品</span><br>' + esc(pick.g.name.slice(0, 26)) + '<br>' + msg + '</div><button class="sis-x" aria-label="閉じる" style="top:2px;right:2px">×</button></a>');
+        var W = { low: ['r', 'fire', '在庫が残りわずかです', 'sis-t-r', '残りわずか'], saleEnd: ['c', 'clock', 'セール価格は' + (saleDl ? (new Date(saleDl.end - 1).getMonth() + 1) + '/' + new Date(saleDl.end - 1).getDate() : '') + ' 23:59まで', '', 'まもなく終了'], drop: ['g', 'tag', yen(pick.x.price - pick.g.price) + ' 値下がりしました', 'sis-t-g', '値下がり'] }[pick.why];
+        var sec0 = forced ? 0 : (cfg.durationSec == null ? 5 : cfg.durationSec);
+        var el = h('<a class="sis-root sis-alert" href="' + esc(pick.g.href) + '">' + (pick.g.img ? '<img src="' + esc(pick.g.img) + '" alt="">' : '') +
+          '<div class="sis-tb"><span class="sis-tag ' + W[3] + '">' + ic(W[1]) + W[4] + '</span><div class="sis-ts" style="font-size:11px;margin-top:4px">' + from + '商品</div><div class="sis-tt">' + esc(pick.g.name) + '</div><div class="sis-why ' + W[0] + '">' + W[2] + '</div></div><button class="sis-x" aria-label="閉じる">×</button>' +
+          (sec0 > 0 && !Q.get('sis_hold') ? '<span class="sis-timer" style="animation-duration:' + sec0 + 's"></span>' : '') + '</a>');
         el.querySelector('.sis-x').onclick = function (ev) { ev.preventDefault(); el.remove(); track('interestAlert', 'close'); };
         el.addEventListener('click', function () { track('interestAlert', 'click', { sis_label: pick.why }); });
         var waited = 0;
@@ -751,7 +911,7 @@
     if (!rows.length) return;
     rows.sort(function (x, y) { return x.h - y.h; });
     var list = D.querySelector('.block-size--item-list'); if (!list) return;
-    var html = '<div class="sis-root sis-size-hint" id="sis-modelsize">📏 サイズの目安（撮影モデルの着用）：' + rows.map(function (r) { return '身長' + r.h + 'cm → <b>' + esc(r.size) + '</b>'; }).join('／') + '</div>';
+    var html = '<div class="sis-root sis-hint" id="sis-modelsize">' + ic('ruler') + '<span>サイズの目安（撮影モデルの着用）　' + rows.map(function (r) { return '身長' + r.h + 'cm → <b>' + esc(r.size) + '</b>'; }).join('／') + '</span></div>';
     list.parentNode.insertBefore(h(html), list); SIS.active.modelSize = 'on'; track('modelSize', 'impression', { sis_label: rows.length });
   };
 
@@ -763,22 +923,102 @@
     var price = D.querySelector('.block-goods-price');
     if (price) price.insertBefore(h('<div class="sis-root"><span class="sis-badge">残りわずか</span></div>'), price.firstChild);
     var btn = D.querySelector('.block-add-cart');
-    if (btn) btn.insertBefore(h('<div class="sis-root" style="font-size:13px;color:#e8473b;font-weight:bold;margin:0 0 8px">このカラー・サイズは在庫が残りわずかです</div>'), btn.firstChild);
+    if (btn) btn.insertBefore(h('<div class="sis-root sis-hint sis-hr" style="margin:0 0 8px">' + ic('fire') + '<span>このカラー・サイズは<b>在庫が残りわずか</b>です</span></div>'), btn.firstChild);
     SIS.active.lowStock = 'on'; track('lowStock', 'impression', { sis_label: codeOf(P) });
   };
 
-  /* 13. 売れ筋ランキング（data/ranking.json があるときだけ） */
+  /* 12b. 人気の実数（旅行サイト型：見られた回数・カートに入った回数・売れた点数。GA4の実数だけ）
+     数字は貴社サイト側のファイル（BO＞JavaScript管理の sis_data.js）に置き、SISの配信には貴社のデータを置かない */
+  var dataP = null;
+  function siteData() {
+    return dataP || (dataP = fetch((C.dataUrl || '/js/usr/sis_data.js'), { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.text(); })
+      .then(function (t) { return JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); }).catch(function () { return null; }));
+  }
+  function popular() { return siteData().then(function (d) { return d && d.popular; }); }
+  function rankData() { return siteData().then(function (d) { return d && d.ranking; }); }
+  function familyCodes() { // この商品の色・サイズ違いの番号（ページ内のリンクから）
+    var set = {}; set[codeOf(P)] = 1;
+    [].slice.call(D.querySelectorAll('.block-variation--item, .block-color--item, .block-size--item, .block-variation a, .block-color a')).forEach(function (el) {
+      var a = el.tagName === 'A' ? el : el.querySelector('a'), oc = (el.querySelector('[onclick]') || el).getAttribute('onclick') || '';
+      var href = a ? a.getAttribute('href') : (oc.match(/location\.href\s*=\s*['"]([^'"]+)['"]/) || [])[1];
+      var c = codeOf(href); if (c) set[c] = 1;
+    });
+    return Object.keys(set);
+  }
+  function popSum(items, codes) {
+    var keys = {}, s = [0, 0, 0]; codes.forEach(function (c) { keys[pkey(c)] = 1; });
+    Object.keys(keys).forEach(function (k) { var v = items[k]; if (v && v[1] <= v[0]) { s[0] += v[0]; s[1] += v[1]; s[2] += v[2]; } }); // カート数が閲覧数を超える番号（ノベルティ等）は除く
+    return s;
+  }
+  FX.proof = function () {
+    if (PAGE !== 'goods') return;
+    var cfg = C.proof || {}, min = cfg.min || { views: 50, carts: 5, sold: 3 };
+    Promise.all([popular(), rankData()]).then(function (r) {
+      var pop = r[0], rk = r[1]; if (!pop) { SIS.active.proof = 'データ待ち'; return; }
+      var codes = familyCodes(), s = popSum(pop.items || {}, codes), rows = [];
+      var d = pop.days || 7, rank = null;
+      ((rk && rk.items) || []).forEach(function (x, i) { if (!rank && codes.some(function (c) { return pkey(c) === pkey(x.code); })) rank = x.rank || i + 1; });
+      if (s[2] >= min.sold) rows.push('<li class="hot">' + ic('fire') + '<span>この' + d + '日間で <b>' + s[2] + '点</b> 売れています</span></li>');
+      if (s[1] >= min.carts) rows.push('<li>' + ic('cart') + '<span>この' + d + '日間で <b>' + s[1] + '回</b> カートに入りました</span></li>');
+      if (s[0] >= min.views) rows.push('<li>' + ic('eye') + '<span>この' + d + '日間で <b>' + s[0].toLocaleString() + '回</b> 見られています</span></li>');
+      if (rank && rank <= 10) rows.push('<li>' + ic('crown') + '<span>売れ筋ランキング <b>' + rank + '位</b>（' + esc((rk && rk.period) || '') + '）</span></li>');
+      var st = ((D.getElementById('spec_stock_msg') || {}).textContent || '').trim();
+      if (/△|残りわずか/.test(st)) rows.push('<li class="hot">' + ic('fire') + '<span>このカラー・サイズは <b>在庫が残りわずか</b></span></li>');
+      if (!rows.length) return;
+      var box = h('<div class="sis-root sis-proof" id="sis-proof"><div class="sis-proof-h">' + ic('spark') + 'この商品の人気（drug store\'s WEBSHOPの実数）</div><ul>' + rows.join('') + '</ul><div class="sis-proof-f">GA4の集計 ' + esc(pop.period || '') + '・色とサイズの合計</div></div>');
+      var anchor = D.querySelector('.block-add-cart'); if (!anchor) return;
+      anchor.parentNode.insertBefore(box, anchor);
+      SIS.active.proof = rows.length + '行'; track('proof', 'impression', { sis_value: s[2] });
+    });
+  };
+  FX.proofList = function () { // 一覧・トップの商品に「この7日間で◯点売れ」
+    if (PAGE !== 'list' && PAGE !== 'top') return;
+    var min = ((C.proof || {}).listMinSold) || 5;
+    popular().then(function (pop) {
+      if (!pop) return; var n = 0, done = {};
+      [].slice.call(D.querySelectorAll('a[href*="/shop/g/g"]')).forEach(function (a) {
+        if (a.closest('.sis-root') || !a.querySelector('img')) return;
+        var code = codeOf(a.getAttribute('href')), v = code && pop.items[pkey(code)];
+        if (!v || v[2] < min || v[1] > v[0] || done[code]) return; done[code] = 1;
+        var box = a.parentNode, up = 0; while (box && !/[￥¥]\s?[\d,]+/.test(box.textContent) && up++ < 5) box = box.parentNode;
+        if (!box || box.querySelector('.sis-sold')) return;
+        box.appendChild(h('<div class="sis-root sis-sold"><span class="sis-tag sis-t-r" style="margin-top:4px">' + ic('fire') + 'この' + (pop.days || 7) + '日間で' + v[2] + '点売れ</span></div>')); n++;
+      });
+      if (n) { SIS.active.proofList = n + '件'; track('proofList', 'impression', { sis_value: n }); }
+    });
+  };
+
+  /* 12c. トップの「あなた向け枠」：気になっていた商品が残りわずか・値下がり */
+  FX.interestTop = function () {
+    if (PAGE !== 'top') return Promise.resolve(false);
+    var days = ((C.interest || {}).windowDays || 14) * 864e5;
+    var list = (ls('interest') || []).concat(ls('viewed') || []).filter(function (x) { return Date.now() - x.t < days; });
+    var seen = {}; list = list.filter(function (x) { var k = pkey(x.code); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 8);
+    if (!list.length) return Promise.resolve(false);
+    return Promise.all(list.map(function (x) { return goodsInfo(x.code); })).then(function (arr) {
+      var hits = [];
+      arr.forEach(function (g, i) { if (!g || g.soldout || !g.price) return; var x = list[i]; var why = g.low ? '残りわずか' : x.price && g.price < x.price ? yen(x.price - g.price) + '値下がり' : null; if (why) hits.push({ g: g, why: why }); });
+      if (!hits.length) return false;
+      var slider = D.getElementById('block_of_top_body') || mainEl().firstElementChild;
+      var el = section('interestTop', shead({ tone: 'r', icon: 'fire', title: '気になっていた商品が' + (hits.every(function (x) { return x.why === '残りわずか'; }) ? '残りわずかです' : '動いています'), sub: 'あなたが見た・カートに入れた商品の、いまの在庫と価格です' }) +
+        '<div class="sis-grid">' + hits.slice(0, 4).map(function (x) { return card(x.g, { badge: '<span class="sis-tag sis-t-r">' + esc(x.why) + '</span>' }); }).join('') + '</div>', slider, 'after');
+      el.querySelectorAll('a').forEach(function (a) { a.onclick = function () { track('interestTop', 'click'); }; });
+      return true;
+    });
+  };
+
+  /* 13. 売れ筋ランキング（貴社サイト側の sis_data.js があるときだけ） */
   FX.ranking = function () {
     if (PAGE !== 'top' && PAGE !== 'list') return Promise.resolve(false);
-    return fetch(CDN + 'data/ranking.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (rk) {
-      var list = (rk.items || []).slice(0, 8); if (!list.length) return;
+    return rankData().then(function (rk) {
+      if (!rk) throw 0; var list = (rk.items || []).slice(0, 8); if (!list.length) return false;
       return Promise.all(list.map(function (x) { return goodsInfo(x.code); })).then(function (arr) {
         var rows = [];
         arr.forEach(function (g, i) { if (g && g.price && !g.soldout) rows.push({ g: g, rank: list[i].rank || i + 1 }); });
         rows = rows.slice(0, 4); if (!rows.length) return false;
         var anchor = D.getElementById('block_of_event');
-        section('ranking', '<h4><span class="sis-tag">売れ筋</span>' + esc(rk.title || 'いま売れているアイテム') + '<span style="font-size:12px;color:#888;font-weight:normal">' + esc(rk.period || '') + 'の購入数順</span></h4><div class="sis-grid">' +
-          rows.map(function (r) { return card(r.g).replace('<div class="sis-cn">', '<div class="sis-cn"><b style="color:#c4561a">' + r.rank + '位</b> '); }).join('') + '</div>', anchor, 'before');
+        section('ranking', shead({ tone: 'y', icon: 'crown', title: esc(rk.title || 'いま売れているアイテム'), sub: esc(rk.period || '') + 'の購入数順（drug store\'s WEBSHOPの実績）' }) + '<div class="sis-grid">' +
+          rows.map(function (r) { return card(r.g, { rank: r.rank }); }).join('') + '</div>', anchor, 'before');
         return true;
       });
     }).catch(function () { SIS.active.ranking = 'データ待ち'; return false; });
@@ -793,12 +1033,12 @@
     if (PAGE === 'list' && inScope) {
       D.querySelectorAll('.block-goods-detail-j--price-items, .block-thumbnail-t--price-items, [class*="--price-items"]').forEach(function (box) {
         var p = num((box.querySelector('[class*="--price"]:not([class*="default"])') || box).textContent); if (!p) return;
-        box.appendChild(h('<div class="sis-root" style="margin-top:4px;font-size:12px;color:#e8473b;font-weight:bold">' + esc(lab) + ' → ' + yen(Math.floor(p * (100 - rate) / 100)) + '</div>')); n++;
+        box.appendChild(h('<div class="sis-root"><span class="sis-xoff">' + ic('tag') + esc(lab) + ' → ' + yen(Math.floor(p * (100 - rate) / 100)) + '</span></div>')); n++;
       });
     }
     if (PAGE === 'goods' && D.querySelector('.block-goods-price--default-price')) {
       var pr = D.querySelector('.block-goods-price--price'); var p = num(pr && pr.textContent);
-      if (p) { pr.parentNode.appendChild(h('<div class="sis-root" style="margin:6px 0;padding:6px 10px;border-radius:6px;background:#fdecea;color:#e8473b;font-weight:bold;display:inline-block">' + esc(lab) + '　お支払い ' + yen(Math.floor(p * (100 - rate) / 100)) + '</div>')); n++; }
+      if (p) { pr.parentNode.appendChild(h('<div class="sis-root"><span class="sis-xoff" style="font-size:14px;padding:6px 12px">' + ic('tag') + esc(lab) + '　お支払い ' + yen(Math.floor(p * (100 - rate) / 100)) + '</span></div>')); n++; }
     }
     if (n) { SIS.active.extraOff = x.on ? 'on' : 'プレビュー（BO設定待ち）'; track('extraOff', 'impression', { sis_value: n }); }
   };
@@ -819,12 +1059,12 @@
           var inCart = {}; c.items.forEach(function (i) { inCart[i.code] = 1; });
           var add = avail.filter(function (g) { return !inCart[g.code]; });
           var after = c.total + add.reduce(function (s, g) { return s + g.price; }, 0);
-          var ship = after >= SHOP.freeShipping ? '<b style="color:#c4561a">まとめて買うと送料無料（' + yen(SHOP.freeShipping) + '以上）</b>' : 'あと ' + yen(SHOP.freeShipping - after) + ' で送料無料';
+          var ship = after >= SHOP.freeShipping ? '<span class="sis-tag sis-t-g">' + ic('truck') + 'まとめて買うと送料無料</span>' : '<span class="sis-tag">あと ' + yen(SHOP.freeShipping - after) + ' で送料無料</span>';
           var anchor = D.querySelector('.block-add-cart');
-          var el = section('coord', '<h4><span class="sis-tag">スタッフコーデ</span>このアイテムを使ったコーデ<span style="font-size:12px;color:#888;font-weight:normal">' + esc(hit.label) + '</span></h4>' +
-            '<div class="sis-coord"><a href="' + esc(hit.page) + '"><img src="' + esc(hit.img) + '" alt="スタッフコーデ"></a><div><div class="sis-grid">' + arr.map(function (g) { return card(g).replace('</a>', (g.soldout ? '<div style="padding:0 8px 8px;color:#999">在庫なし</div>' : '') + '</a>'); }).join('') + '</div>' +
-            '<p style="margin:12px 0 4px;font-size:15px">' + avail.length + '点合計 <b style="font-size:20px;color:#c4561a">' + yen(sum) + '</b>　' + ship + '</p>' +
-            (add.length ? '<p style="margin:8px 0 0"><button type="button" class="sis-btn" id="sis-coord-all">コーデをまとめてカートへ（' + add.length + '点）</button></p>' : '<p>コーデのアイテムはすべてカートに入っています</p>') + '</div></div>',
+          var el = section('coord', shead({ tone: 'p', icon: 'shirt', title: 'このアイテムを使ったスタッフコーデ', sub: esc(hit.label), more: { href: hit.page, label: 'コーデ一覧' } }) +
+            '<div class="sis-coord"><a href="' + esc(hit.page) + '"><img src="' + esc(hit.img) + '" alt="スタッフコーデ"></a><div><div class="sis-grid">' + arr.map(function (g) { return card(g, { badge: g.soldout ? '<span class="sis-tag sis-t-p">在庫なし</span>' : '' }); }).join('') + '</div>' +
+            '<div class="sis-sum"><div class="sis-sum-p">コーデ' + avail.length + '点の合計<br><b>' + yen(sum) + '</b>　' + ship + '</div>' +
+            (add.length ? '<button type="button" class="sis-btn" id="sis-coord-all">' + ic('cart') + 'まとめてカートへ（' + add.length + '点）</button>' : '<span>コーデのアイテムはすべてカートに入っています</span>') + '</div></div></div>',
             D.querySelector('.block-goods-detail') || anchor, 'after');
           var b = el.querySelector('#sis-coord-all');
           if (b) b.onclick = function () {
@@ -846,11 +1086,11 @@
         var g = gs[0] || (first.img ? { img: first.img } : null), rest = SHOP.freeShipping - c.total;
         var low = gs.filter(function (x) { return x && /△|残りわずか/.test(x.stock); });
         if (low.length) { SIS.active.cartReminder = '在庫△' + low.length; track('cartReminder', 'low_stock', { sis_value: low.length }); }
-        var el = toast('cartReminder', (g && g.img ? '<img src="' + esc(g.img) + '" alt="">' : '') +
-          '<div style="flex:1;font-size:14px"><b>前回のお買い物がカートに残っています</b><br>' + esc(first.name) + (c.items.length > 1 ? ' ほか' : '') + '（' + c.count + '点・' + yen(c.total) + '）' +
-          (low.length ? '<br><span style="font-size:12px;color:#c4561a;font-weight:bold">「' + esc(low[0].name.slice(0, 16)) + '」' + (low.length > 1 ? 'ほか' + (low.length - 1) + '点' : '') + 'の在庫が残りわずかです</span>' : '') +
-          (rest > 0 ? '<br><span style="font-size:12px;color:#888">あと' + yen(rest) + 'で送料無料</span>' : '') + '</div>' +
-          '<a class="sis-btn" style="padding:8px 14px;font-size:13px;flex:none" href="/shop/cart/cart.aspx">カートへ</a>');
+        var imgs = gs.map(function (x, i) { return (x && x.img) || (c.items[i] && c.items[i].img) || ''; }).filter(Boolean).slice(0, 3);
+        var el = toast('cartReminder', (imgs.length ? '<span class="sis-thumbs">' + imgs.map(function (s) { return '<img src="' + esc(s) + '" alt="">'; }).join('') + '</span>' : '') +
+          '<div class="sis-tb"><div class="sis-tt">カートに' + c.count + '点 残っています</div><div class="sis-ts">' + esc(first.name.slice(0, 22)) + (c.items.length > 1 ? ' ほか' : '') + '・' + yen(c.total) + (rest > 0 ? '・あと' + yen(rest) + 'で送料無料' : '・送料無料') + '</div>' +
+          (low.length ? '<span class="sis-low">' + ic('fire') + (low.length > 1 ? low.length + '点が' : '') + '在庫残りわずか</span>' : '') + '</div>' +
+          '<a class="sis-btn sis-sm" style="flex:none" href="/shop/cart/cart.aspx">カートへ</a>');
         el.querySelector('a.sis-btn').onclick = function () { track('cartReminder', 'click'); };
       });
     });
@@ -881,8 +1121,8 @@
         if (!c.count) return; var rest = SHOP.freeShipping - c.total; if (rest <= 0) return;
         var price = num((D.querySelector('.block-goods-price--price') || {}).textContent); var btn = D.querySelector('.block-add-cart');
         if (!price || !btn) return;
-        var msg = price >= rest ? '🚚 この商品を足すと<b>送料無料</b>になります（カート ' + yen(c.total) + '）' : '🚚 この商品を足すと、送料無料まであと<b>' + yen(rest - price) + '</b>';
-        btn.insertBefore(h('<div class="sis-root sis-size-hint" style="margin:0 0 8px">' + msg + '</div>'), btn.firstChild);
+        var msg = price >= rest ? 'この商品を足すと<b>送料無料</b>になります（カート ' + yen(c.total) + '）' : 'この商品を足すと、送料無料まであと<b>' + yen(rest - price) + '</b>';
+        btn.insertBefore(h('<div class="sis-root sis-hint sis-hc" style="margin:0 0 8px">' + ic('truck') + '<span>' + msg + '</span></div>'), btn.firstChild);
         SIS.active.crossSell = 'goods'; track('crossSell', 'goods_hint', { sis_value: rest });
       });
       return;
@@ -895,9 +1135,8 @@
       crossCandidates(rest, inCart).then(function (pick) {
         if (!pick.length) return;
         var anchor = D.querySelector('.block-cart--container') || D.querySelector('.block-cart');
-        var el = section('crossSell', '<h4><span class="sis-tag">あと ' + yen(rest) + ' で送料無料</span>1点足すと送料が無料になるアイテム</h4><div class="sis-grid sis-4">' +
-          pick.map(function (g) { return card(g, { add: true }).replace('<div class="sis-cn">', '<div class="sis-cn"><span style="font-size:10px;color:#c4561a;font-weight:bold">' + esc(g.why) + '</span><br>'); }).join('') +
-          '</div><p class="sis-note">あなたが最近見た商品・よく見るカテゴリを優先し、足りない額（' + yen(rest) + '）以上で価格の近いものを表示しています</p>', anchor, 'after');
+        var el = section('crossSell', shead({ tone: 'sale', icon: 'truck', title: 'あと ' + yen(rest) + ' で送料無料　この1点でクリア', sub: '最近見た商品・よく見るカテゴリから、足りない額以上のものを選んでいます' }) + '<div class="sis-grid sis-4">' +
+          pick.map(function (g) { return card(g, { add: true, why: g.why }); }).join('') + '</div>', anchor, 'after');
         bindAdd(el);
       });
     });
@@ -913,7 +1152,7 @@
   }
 
   /* ---------- 関係者チップ ---------- */
-  var NAMES = { welcome: '初回ポップアップ', popup: 'ポップアップ枠', interestAlert: '気になる商品のお知らせ', eventOrder: 'イベント枠の並べ替え', exit: '離脱時ポップアップ', source: '流入元別の出し分け', coupon: '入店時クーポン', shipbar: '送料無料バー', countdown: '期限カウントダウン', kuji: 'くじ', rank: '会員ランク別UI', newRepeat: '新規／リピーター', catBanner: '閲覧カテゴリ別バナー', sizeMemo: 'サイズ記憶', modelSize: 'サイズの目安', lowStock: '在庫僅少バッジ', ranking: '売れ筋ランキング', extraOff: 'さらに◯%OFF', coord: 'コーデまとめ買い', cartReminder: 'カゴ落ち表示', crossSell: 'カート内クロスセル' };
+  var NAMES = { proof: '人気の実数（旅行サイト型）', proofList: '一覧の「◯点売れ」', interestTop: '気になる商品（トップ）', popup: 'ポップアップ枠', interestAlert: '気になる商品のお知らせ', eventOrder: 'イベント枠の並べ替え', exit: '離脱時ポップアップ', source: '流入元別の出し分け', coupon: '入店時クーポン', shipbar: '送料無料バー', countdown: '期限カウントダウン', kuji: 'くじ', rank: '会員ランク別UI', newRepeat: '新規／リピーター', catBanner: '閲覧カテゴリ別バナー', sizeMemo: 'サイズ記憶', modelSize: 'サイズの目安', lowStock: '在庫僅少バッジ', ranking: '売れ筋ランキング', extraOff: 'さらに◯%OFF', coord: 'コーデまとめ買い', cartReminder: 'カゴ落ち表示', crossSell: 'カート内クロスセル' };
   function chip() {
     if (Q.get('sis_chip') === '0') return;
     var c = h('<button class="sis-root sis-chip">SIS施策 ON</button>'); var panel;
@@ -936,10 +1175,10 @@
     style();
     recordViewed();
     trackInterest();
-    var order = ['countdown', 'source', 'coupon', 'rank', 'shipbar', 'eventOrder', 'newRepeat', 'catBanner', 'ranking', 'sizeMemo', 'modelSize', 'lowStock', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'interestAlert', 'popup', 'kuji', 'exit'];
+    var order = ['countdown', 'source', 'coupon', 'rank', 'shipbar', 'eventOrder', 'interestTop', 'newRepeat', 'catBanner', 'ranking', 'proofList', 'sizeMemo', 'modelSize', 'lowStock', 'proof', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'interestAlert', 'popup', 'kuji', 'exit'];
     var slot = C.topSlot || {};
     if (PAGE === 'top' && slot.mode === 'one' && !Q.get('sis_only')) { // トップの「あなた向け枠」は優先順に1つだけ出す
-      var so = (slot.order || ['newRepeat', 'catBanner', 'ranking']).filter(function (k) { return F[k] !== false && FX[k]; });
+      var so = (slot.order || ['interestTop', 'newRepeat', 'catBanner', 'ranking']).filter(function (k) { return F[k] !== false && FX[k]; });
       order = order.filter(function (k) { return so.indexOf(k) < 0; });
       so.reduce(function (pr, k) { return pr.then(function (done) { if (done) return true; try { return Promise.resolve(FX[k](false)).then(function (r) { return !!r; }); } catch (e) { return false; } }); }, Promise.resolve(false));
     }

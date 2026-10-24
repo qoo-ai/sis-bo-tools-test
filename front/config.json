@@ -1,7 +1,7 @@
 {
  "_readme": "drug store's 売上施策の設定。数字・期限・クーポンはすべて実在のもの（ガイド／BO設定）だけを書く。施策を止めるときは on を false にしてコミット。全停止は enabled を false。",
  "enabled": true,
- "version": "1.1.0",
+ "version": "1.2.0",
  "shop": {
   "freeShipping": 5000,
   "freeShippingSource": "ご利用ガイド「送料について」（商品代金5,000円税込以上で送料無料）",
@@ -234,12 +234,23 @@
  "topSlot": {
   "mode": "one",
   "order": [
+   "interestTop",
    "newRepeat",
    "catBanner",
    "ranking"
   ],
-  "_note": "トップの『あなた向け枠』は優先順に1つだけ出す（mode:all で全部）"
+  "_note": "トップの『あなた向け枠』は優先順に1つだけ出す：①気になっていた商品が残りわずか・値下がり ②はじめての人＝お買い物ガイド／2回目以降＝前回見た商品 ③よく見るカテゴリの新着 ④売れ筋（mode:all で全部）"
  },
+ "proof": {
+  "_readme": "旅行サイト型の人気表示。貴社サイトの /js/usr/sis_data.js（GA4の実数）から、下限以上のときだけ出す。少ない数は出さない",
+  "min": {
+   "views": 50,
+   "carts": 5,
+   "sold": 3
+  },
+  "listMinSold": 5
+ },
+ "dataUrl": "/js/usr/sis_data.js",
  "features": {
   "welcome": true,
   "exit": true,
@@ -263,7 +274,10 @@
   "ga4": true,
   "popup": true,
   "interestAlert": true,
-  "eventOrder": true
+  "eventOrder": true,
+  "proof": true,
+  "proofList": true,
+  "interestTop": true
  },
  "ga4": {
   "sendInStaffMode": false,
