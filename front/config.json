@@ -158,7 +158,8 @@
    "komono": "sales"
   },
   "mixEvery": 4,
-  "komonoWords": [
+  "komonoEvent": "komono",
+  "komonoWords": ["バッグ","リュック","財布","帽子","キャップ","ハット","ベルト","マフラー","ストール","手袋",
    "ソックス",
    "靴下",
    "マスク",

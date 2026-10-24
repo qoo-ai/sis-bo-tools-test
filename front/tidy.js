@@ -18,6 +18,28 @@
   var CDN = window.SIS_CDN || '';
   var D = document, L = location;
   var KOMONO0 = (CFG.komonoWords || []).map(function (w) { return w.toLowerCase(); });
+  /* 小物の判定：小物ページ（/shop/e/ekomono/）に載っている商品＝小物。名前の語（komonoWords）は予備。
+     このサイトの小物はバッグ・リュック等で、靴下などの語では拾えなかった（2026-10-24 stg実測） */
+  function pk(code) { var p = String(code || '').split('-'); return p.length < 4 ? code : p[0] + '-' + p[1].slice(0, -1) + '-' + p[2]; }
+  function komonoSet() {
+    var c = null; try { c = JSON.parse(sessionStorage.getItem('sis_tidy_komoset') || 'null'); } catch (e) {}
+    if (c && Date.now() - c.t < 30 * 60e3) return Promise.resolve(c.d);
+    var ev = CFG.komonoEvent || 'komono', set = {};
+    var pg = function (n) { return fetch('/shop/e/e' + ev + (n > 1 ? '_p' + n : '') + '/', { credentials: 'include' }).then(function (r) { return r.ok ? r.text() : ''; }); };
+    return pg(1).then(function (h) {
+      var last = 1, re = new RegExp('/shop/e/e' + ev + '_p(\\d+)/', 'g'), mm; while ((mm = re.exec(h))) last = Math.max(last, +mm[1]);
+      var more = []; for (var n = 2; n <= Math.min(last, 10); n++) more.push(pg(n));
+      return Promise.all(more).then(function (r) { return [h].concat(r); });
+    }).then(function (hs) {
+      hs.forEach(function (h) { var re = /\/shop\/g\/g([^/"'?#]+)\//g, mm; while ((mm = re.exec(h))) set[pk(mm[1])] = 1; });
+      try { sessionStorage.setItem('sis_tidy_komoset', JSON.stringify({ t: Date.now(), d: set })); } catch (e) {}
+      return set;
+    }).catch(function () { return {}; });
+  }
+  function isKomono(name, code, set) {
+    var t = String(name || '').toLowerCase();
+    return !!(set && set[pk(code)]) || KOMONO0.some(function (w) { return t.indexOf(w) >= 0; });
+  }
   /* NEWアイコン：メルカートは「掲載開始日が最近」でNEWを出すため、セールで掲載し直した商品にもNEWが付く（2026-10-24 stg実測）。
      新作ページ（発売日で自動更新）に載っている商品だけNEWを残し、それ以外のNEWは隠す。どのページでも動く */
   (function fixNew() {
@@ -50,11 +72,14 @@
   })();
   /* トップページ：各イベント枠の中で小物を最後に回す（並びはそれ以外そのまま） */
   if (/^\/(shop\/?)?(default\.aspx)?$/i.test(L.pathname)) {
-    var top = function () {
+    var top = function (kset) {
       var n = 0;
       D.querySelectorAll('.block-top-event--goods').forEach(function (sec) {
         var cards = [].slice.call(sec.querySelectorAll('dl.block-goods-detail-j--goods'));
-        var isK = function (dl) { var t = ((dl.querySelector('.block-goods-detail-j--goods-name') || {}).textContent || '').toLowerCase(); return KOMONO0.some(function (w) { return t.indexOf(w) >= 0; }); };
+        var isK = function (dl) {
+          var a = dl.querySelector('a[href*="/shop/g/g"]'), code = a && (a.getAttribute('href').match(/\/shop\/g\/g([^/?#]+)/) || [])[1];
+          return isKomono((dl.querySelector('.block-goods-detail-j--goods-name') || {}).textContent, code, kset);
+        };
         var k = cards.filter(isK); if (!k.length) return;
         var order = cards.filter(function (dl) { return !isK(dl); }).concat(k); n += k.length;
         // 行（li）ごとの枚数はそのままに、小物を最後の行へ詰め直す
@@ -64,7 +89,8 @@
       });
       window.SIS_TIDY = { page: 'top', komonoMoved: n };
     };
-    if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', top); else top();
+    var ready = new Promise(function (ok) { if (D.readyState === 'loading') D.addEventListener('DOMContentLoaded', ok); else ok(); });
+    Promise.all([komonoSet(), ready]).then(function (r) { top(r[0]); });
     return;
   }
   var m = L.pathname.match(/^\/shop\/e\/e([^_\/]+)(_[^\/]*)?\/?$/i);
@@ -74,6 +100,7 @@
   var RULE = (CFG.pages || {})[EV] || CFG.defaultRule || 'mix';
   if (RULE === 'off') return;
   var KOMONO = (CFG.komonoWords || []).map(function (w) { return w.toLowerCase(); });
+  var KSET = {};                                          // 小物ページの商品（run() の最初に読む）
   var MIX_EVERY = CFG.mixEvery || 4;                     // mix：売れ筋3枚ごとに在庫が多い商品を1枚
   var report = window.SIS_TIDY = { page: EV, rule: RULE, total: 0, hidden: 0, swapped: 0, merged: 0, komono: 0, unknown: 0 };
 
@@ -96,7 +123,7 @@
     var name = ((dl.querySelector('.block-goods-detail-j--goods-name') || {}).textContent || '').replace(/\s+/g, ' ').trim();
     var price = num((dl.querySelector('.block-goods-detail-j--price') || {}).textContent);
     var low = name.toLowerCase();
-    return { el: dl, code: code, name: name, price: price, idx: idx, komono: KOMONO.some(function (w) { return low.indexOf(w) >= 0; }) };
+    return { el: dl, code: code, name: name, price: price, idx: idx, komono: KOMONO.some(function (w) { return low.indexOf(w) >= 0; }) || !!KSET[pk(code)] };
   }
 
   /* 1. 全ページを集める */
@@ -166,7 +193,7 @@
   }
 
   function run() {
-    allPages().then(function (r) {
+    Promise.all([allPages(), komonoSet()]).then(function (x) { KSET = x[1] || {}; return x[0]; }).then(function (r) {
       if (!r) return;
       var list = r.all.map(info).filter(function (g) { return g.code; });
       report.total = list.length; report.pages = r.pages;
