@@ -46,6 +46,8 @@
     return fetch(url, { credentials: 'include', signal: ac.signal }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); });
   }
   function codeOf(href) { var m = String(href || '').match(/\/shop\/g\/g([^/?#]+)\/?/); return m ? m[1] : null; }
+  function pkey(code) { var p = String(code).split('-'); return p.length < 4 ? code : p[0] + '-' + p[1].slice(0, -1) + '-' + p[2]; }
+  function uniqProduct(arr) { var s = {}; return arr.filter(function (g) { var k = pkey(g.code); if (s[k]) return false; s[k] = 1; return true; }); }
   function stem(code) { var p = String(code).split('-'); if (p.length < 4) return code; return p[0] + '-' + p[1].slice(0, -1) + '-' + p[2] + '-' + p[3]; }
 
   /* ---------- 訪問・セッション ---------- */
@@ -100,6 +102,7 @@
     '.sis-sec{margin:24px auto;max-width:1200px;padding:18px;border:1px solid #f0d8c4;border-radius:14px;background:#fffaf6}',
     '.sis-sec h4{margin:0 0 12px;font-size:17px;color:#333;display:flex;align-items:center;gap:8px;flex-wrap:wrap}',
     '.sis-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}',
+    '.sis-grid.sis-4>:nth-child(n+5){display:none}',
     '.sis-card{display:block;background:#fff;border-radius:10px;overflow:hidden;text-decoration:none!important;color:#333!important;border:1px solid #eee;font-size:12px}',
     '.sis-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#f6f6f6}',
     '.sis-card .sis-cn{padding:6px 8px 2px;height:3.2em;overflow:hidden;line-height:1.6}',
@@ -175,7 +178,7 @@
     SIS.active[id] = 'on'; track(id, 'impression'); return el;
   }
   function card(g, opt) {
-    return '<a class="sis-card" href="' + esc(g.href) + '" data-sis-goods="' + esc(g.code) + '">' + (g.img ? '<img loading="lazy" src="' + esc(g.img) + '" alt="">' : '<img alt="">') +
+    return '<a class="sis-card" href="' + esc(g.href) + '" data-sis-goods="' + esc(g.code) + '">' + (g.img ? '<img loading="lazy" src="' + esc(g.img) + '" alt="" onerror="var c=this.closest(\'.sis-card\');if(c)c.remove()">' : '<img alt="">') +
       '<div class="sis-cn">' + esc(g.name) + '</div><div class="sis-cp">' + (g.price ? yen(g.price) : '') + '</div>' +
       (opt && opt.add ? '<button type="button" class="sis-add" data-sis-add="' + esc(g.code) + '">カートに入れる</button>' : '') + '</a>';
   }
@@ -493,10 +496,10 @@
     Object.keys(cats).forEach(function (k) { var c = cats[k]; if (c.n >= 2 && (!best || c.n > best.n || c.n === best.n && c.t > best.t)) best = { code: k, n: c.n, t: c.t, name: c.name }; });
     if (!best) return;
     get('/shop/c/' + best.code + '_srd/', 8000).catch(function () { return get('/shop/c/' + best.code + '/'); }).then(function (html) {
-      var items = listItems(parseDoc(html)).filter(function (g) { return g.price; }).slice(0, 4);
+      var items = uniqProduct(listItems(parseDoc(html)).filter(function (g) { return g.price; })).slice(0, 8);
       if (!items.length) return;
       var anchor = D.getElementById('block_of_event') || D.getElementById('block_of_top_free2');
-      var el = section('catBanner', '<h4><span class="sis-tag">よく見ているカテゴリ</span>「' + esc(best.name) + '」の新着</h4><div class="sis-grid">' + items.map(function (g) { return card(g); }).join('') + '</div><p style="text-align:right;margin:10px 0 0"><a href="/shop/c/' + best.code + '/" style="color:#c4561a">「' + esc(best.name) + '」をすべて見る ›</a></p>', anchor, 'before');
+      var el = section('catBanner', '<h4><span class="sis-tag">よく見ているカテゴリ</span>「' + esc(best.name) + '」の新着</h4><div class="sis-grid sis-4">' + items.map(function (g) { return card(g); }).join('') + '</div><p style="text-align:right;margin:10px 0 0"><a href="/shop/c/' + best.code + '/" style="color:#c4561a">「' + esc(best.name) + '」をすべて見る ›</a></p>', anchor, 'before');
       el.querySelectorAll('a').forEach(function (a) { a.onclick = function () { track('catBanner', 'click', { sis_label: best.code }); }; });
     });
   };
@@ -648,9 +651,9 @@
       function done() {
         if (done.ran) return; done.ran = 1;
         found.sort(function (a, b) { return a.price - b.price; });
-        var pick = found.slice(0, 4); if (!pick.length) return;
+        var pick = uniqProduct(found).slice(0, 8); if (!pick.length) return;
         var anchor = D.querySelector('.block-cart--container') || D.querySelector('.block-cart');
-        var el = section('crossSell', '<h4><span class="sis-tag">あと ' + yen(rest) + ' で送料無料</span>1点足すと送料が無料になるアイテム</h4><div class="sis-grid">' + pick.map(function (g) { return card(g, { add: true }); }).join('') + '</div><p class="sis-note">' + esc(SHOP.saleName) + ' の商品から、' + yen(rest) + '以上で価格の近い順に表示しています</p>', anchor, 'after');
+        var el = section('crossSell', '<h4><span class="sis-tag">あと ' + yen(rest) + ' で送料無料</span>1点足すと送料が無料になるアイテム</h4><div class="sis-grid sis-4">' + pick.map(function (g) { return card(g, { add: true }); }).join('') + '</div><p class="sis-note">' + esc(SHOP.saleName) + ' の商品から、' + yen(rest) + '以上で価格の近い順に表示しています</p>', anchor, 'after');
         bindAdd(el);
       }
     });
