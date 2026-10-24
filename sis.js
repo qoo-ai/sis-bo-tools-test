@@ -17,6 +17,7 @@ var TOOLS=[
  {id:"line", name:"LINE配信", desc:"Linyの配信作成画面に流し込む", where:'liny', grp:'release', on:true, path:'tools/line.js'},
  {id:"sale", name:"セール1ボタン", desc:"セール指示書 → メルカート取込ファイル一式（T-19）", where:'bo', grp:'test', on:true, path:'tools/sale.js'},
  {id:"yoyaku", name:"予約取込", desc:"商品インポート画面で、決めた時刻に［取込］を押す", where:'bo', grp:'test', on:true, path:'tools/yoyaku.js'},
+ {id:"keeper", name:"セッション維持", desc:"作業中だけ、約5分の自動ログアウトを防ぐ（延長の確認が出たら自動で「続けて使用する」）。OFFにするかタブを閉じるまで有効", where:'bo', grp:'test', on:true, path:'tools/keeper.js'},
  {id:"sanrio", name:"サンリオ掲載終了日延長（1回限り）", desc:"サンリオ14件の掲載終了日を2027/12/01に（在庫・状態はそのまま）。［取込］の手前まで", where:'bo', grp:'test', on:true, path:'tools/sanrio_end.js'}
 ];
 var D=document;
@@ -24,12 +25,15 @@ function bar(msg,bg){var d=D.createElement('div');d.textContent=msg;d.style.cssT
 if(!ENABLED){bar('このツールの提供は終了しました。','#667085');return;}
 var site=/(^|\.)manager\.liny\.jp$/.test(location.hostname)?'liny':(/\/(opipwy|doecms)\//.test(location.pathname)||/^office\..*mercart/.test(location.hostname))?'bo':null;
 if(!site){bar('BO（管理画面）またはLinyの画面を開いた状態で押してください。','#b42318');return;}
+// セッション維持（keeper）ON中は、画面が枠の中にあるので、メニューも枠の中で開き直す（他ツールが枠の中の画面に効くように）
+try{var K=window.__boKeeper;if(K&&K.frame&&K.frame.contentDocument&&K.frame.contentDocument.body){var fs=K.frame.contentDocument.createElement('script');fs.src=ME||(CDN+'sis.js');fs.charset='utf-8';K.frame.contentDocument.body.appendChild(fs);return;}}catch(e){}
+var KEEPER_ON=(function(){try{return !!(window.top!==window&&window.top.__boKeeper);}catch(e){return false;}})();
 function load(t){
  var m=D.getElementById('sisMenu');if(m)m.remove();
  var s=D.createElement('script');s.src=CDN+t.path;s.charset='utf-8';
  s.onerror=function(){bar('「'+t.name+'」を読み込めませんでした。時間をおいてもう一度押してください。','#b42318');};
  D.body.appendChild(s);}
-var list=TOOLS.filter(function(t){return t.where===site;});
+var list=TOOLS.filter(function(t){return t.where===site;}).map(function(t){if(t.id==='keeper'&&KEEPER_ON){return {id:t.id,name:'セッション維持：ON中（押すとOFF）',desc:'押すと枠を外して普通の画面に戻します',where:t.where,grp:t.grp,on:t.on,path:t.path};}return t;});
 var live=list.filter(function(t){return t.on;});
 if(!live.length){bar('この画面で使えるツールは提供を終了しました。','#667085');return;}
 if(live.length===1){load(live[0]);return;}
