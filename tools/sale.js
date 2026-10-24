@@ -132,7 +132,7 @@
     return rows;
   }
   var V2 = ['商品コード', '商品コード', '商品名', 'バリエーショングループ', 'サイズ', 'カラー', 'イベントページ', 'プライス', '店在庫', '在庫数',
-            '状態(掲載フラグ)', '掲載開始日', '掲載終了日', '発売日', '品番1', '品番2'];
+            '状態(掲載フラグ)', '掲載開始日', '掲載終了日', '発売日', '品番1', '品番2', 'キャンセル不可', '並び', '公開予約'];
   function cellStr(v) { if (v == null) return ''; if (typeof v === 'object' && v.__dt__) return v.__dt__; return String(v).trim(); }
   function readSettings(wb) { // 依頼シートの「設定」タブ：A列=項目、B列=値
     var o = {}; wsRows(wb.Sheets['設定']).forEach(function (r) { if (r[0]) o[cellStr(r[0])] = r[1]; }); return o;
@@ -149,6 +149,8 @@
     if (hi < 0) throw new Error('依頼シートの「商品」タブに「商品コード」の見出しがない');
     var h = rows[hi].map(cellStr), ic = h.indexOf('商品コード'), ip = h.indexOf('イベントページ'), ipr = h.indexOf('プライス');
     var ig = h.findIndex(function (x) { return /購入グループ/.test(x); });
+    var ix = function (re) { return h.findIndex(function (x) { return re.test(x.trim()); }); };
+    var icx = ix(/キャンセル不可/), ior = ix(/^(並び|並び順|位置)$/), ipu = ix(/^(公開予約|公開|新規公開)$/);
     if (ip < 0 || ipr < 0) throw new Error('依頼シートに「イベントページ」「プライス」の見出しがない');
     state('1/6 在庫と状態をエクスポート中…');
     var c2 = rowsOf(await exportTable('tmpgoodscustom2')), H = c2[0];
@@ -164,7 +166,8 @@
       if (g) per[m[0]] = g;
       out.push([m[0], key, m[X('商品名')], m[X('バリエーショングループ')], m[X('サイズ')], m[X('カラー')], cellStr(r[ip]), cellStr(r[ipr]), null,
                 Number(m[X('在庫数')] || 0), Number(m[X('状態(掲載フラグ)')] || 0), m[X('掲載開始日')] || null, m[X('掲載終了日')] || null,
-                m[X('発売日')] || null, m[X('品番1')] || null, null]);
+                m[X('発売日')] || null, m[X('品番1')] || null, null,
+                icx >= 0 ? cellStr(r[icx]) : '', ior >= 0 ? cellStr(r[ior]) : '', ipu >= 0 ? cellStr(r[ipu]) : '']);
     });
     return { rows: out, missing: missing, per: per };
   }
@@ -405,6 +408,20 @@
           }
           log('並びの指定：先頭 ' + nOr.pin + '件／後ろ ' + nOr.back + '件（先頭固定イベント pin・後回しイベント back に登録）');
         }
+        // 「公開予約」列（任意）：○ ＝ 新しく出す商品。掲載開始日＝セール開始日時・状態0 にして前日に取り込む
+        // （掲載開始日が来るまでは商品ページが開かず買えない。開始時刻にメルカートが自動で公開＝10/24 stg実測）
+        var puI = hiI >= 0 ? instRows[hiI].map(cellStr).findIndex(function (v) { return /^(公開予約|公開|新規公開)$/.test(v.trim()); }) : -1;
+        if (puI >= 0) {
+          var pub = {}; instRows.slice(hiI + 1).forEach(function (r) { if (r && r[0] && /^(○|〇|あり|true|1|✓|☑)$/i.test(cellStr(r[puI]).trim())) pub[String(r[0]).trim()] = 1; });
+          var nPub = Object.keys(pub).length;
+          if (nPub) {
+            state('2/6 公開予約の商品をエクスポート中…');
+            var c2x = rowsOf(await exportTable('tmpgoodscustom2')), H2 = c2x[0], si = H2.indexOf('掲載開始日'), ki = H2.indexOf('状態(掲載フラグ)');
+            var pick = c2x.slice(1).filter(function (r) { return pub[r[0]]; }).map(function (r) { var x = r.slice(); if (si >= 0) x[si] = a.start + (a.start.length === 16 ? ':00' : ''); if (ki >= 0) x[ki] = 0; return x; });
+            st.files['14_公開予約_掲載開始日.csv'] = await toCp932([H2].concat(pick));
+            log('公開予約：' + pick.length + '商品の掲載開始日を ' + a.start + ' に（状態0）' + (pick.length < nPub ? '／BOに無い ' + (nPub - pick.length) + '件' : ''));
+          }
+        }
         log('フェアパック: ' + JSON.stringify(pk.summary));
         var codes = {};
         ['11_', '12_', '13_'].forEach(function (p) { var f = file(p); if (f) rowsOf(f.bytes).slice(1).forEach(function (r) { codes[r[0]] = 1; }); });
@@ -434,6 +451,13 @@
       var r1 = await importFile('/import/imp_event.aspx', 'tmpeventgoods', file('10_').name, file('10_').bytes);
       log((r1.ok ? '✅' : '⚠') + ' イベント商品: ' + r1.msg.slice(0, 160));
       if (!r1.ok) { state('⚠ イベント商品の取込で止めた（ログを確認）'); return; }
+      var f14 = file('14_');
+      if (nrows(f14)) {
+        state('4/6 公開予約（掲載開始日）を取込中…');
+        var r14 = await importFile('/import/imp_goods.aspx', 'tmpgoodscustom2', f14.name, f14.bytes);
+        log((r14.ok ? '✅' : '⚠') + ' 公開予約（掲載開始日）: ' + r14.msg.slice(0, 160));
+        if (!r14.ok) { state('⚠ 公開予約の取込で止めた（ログを確認）'); return; }
+      }
       var f11 = file('11_');
       if (nrows(f11)) {
         state('4/6 商品価格（前日分）を取込中…');
