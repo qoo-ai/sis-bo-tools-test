@@ -14,6 +14,7 @@
       window.SIS_CFG = cfg; window.SIS_REF = ref; window.SIS_CDN = CDN(ref);
       var s = document.createElement('script'); s.src = CDN(ref) + 'app.js'; s.charset = 'utf-8'; s.async = true;
       document.head.appendChild(s);
+      if (cfg.tidy && cfg.tidy.on) { var t = document.createElement('script'); t.src = CDN(ref) + 'tidy.js'; t.charset = 'utf-8'; t.async = true; document.head.appendChild(t); }  // イベントページの整理（守り）
     }).catch(function () {});
   }
   var m = location.search.match(/[?&]sis_ref=([0-9a-f]{40})/);

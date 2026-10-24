@@ -46,6 +46,13 @@
   "welcome": { "variants": ["A", "B"], "goal": "line_click" }
  },
 
+ "tidy": {
+  "_readme": "イベントページの整理（守り・tidy.js）。pages はページ名（/shop/e/e○○/ の○○）ごとの並べ方：new=今の並び（新着）／mix=売れ筋と在庫の混合／sales=売れ筋順／off=触らない。小物は komonoWords を名前に含む商品で、どのページでも最後",
+  "on": true, "defaultRule": "mix", "pages": { "new": "new", "stan": "new", "komono": "sales" }, "mixEvery": 4,
+  "komonoWords": ["ソックス", "靴下", "マスク", "ヘアゴム", "シュシュ", "ヘアクリップ", "ポーチ", "エコバッグ", "ハンカチ", "タオル", "キーホルダー"],
+  "concurrency": 6, "maxPages": 20
+ },
+
  "features": {
   "welcome": true, "exit": true, "source": true, "coupon": true, "shipbar": true,
   "countdown": true, "kuji": true, "rank": true, "newRepeat": true, "catBanner": true,
