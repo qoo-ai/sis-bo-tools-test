@@ -33,7 +33,7 @@
   function now() { return new Date(Date.now() + NOWOFF); }
   var DEMO = Q.get('sis_demo') === '1';
   function ls(k, v) { try { if (v === undefined) { var s = localStorage.getItem('sis_' + k); return s ? JSON.parse(s) : null; } if (v === null) localStorage.removeItem('sis_' + k); else localStorage.setItem('sis_' + k, JSON.stringify(v)); } catch (e) { return null; } }
-  function ss(k, v) { try { if (v === undefined) { var s = sessionStorage.getItem('sis_' + k); return s ? JSON.parse(s) : null; } sessionStorage.setItem('sis_' + k, JSON.stringify(v)); } catch (e) { return null; } }
+  function ss(k, v) { try { if (v === undefined) { var s = sessionStorage.getItem('sis_' + k); return s ? JSON.parse(s) : null; } if (v === null) sessionStorage.removeItem('sis_' + k); else sessionStorage.setItem('sis_' + k, JSON.stringify(v)); } catch (e) { return null; } }
   function yen(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
   function num(s) { var m = String(s || '').replace(/,/g, '').match(/\d+/); return m ? +m[0] : 0; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -54,7 +54,7 @@
   var vid = ls('vid'); if (!vid) { vid = Math.random().toString(36).slice(2) + Date.now().toString(36); ls('vid', vid); }
   var newSession = !ss('sess'); if (newSession) { ss('sess', 1); ls('visits', (ls('visits') || 0) + 1); }
   var visits = ls('visits') || 1;
-  var isNew = Q.get('sis_visit') ? Q.get('sis_visit') === 'new' : visits <= 1;
+  var isNew = Q.get('sis_visit') ? Q.get('sis_visit') === 'new' : visits <= ((C.visitor || {}).newUntilVisits || 1);
   ss('pv', (ss('pv') || 0) + 1);
 
   /* ---------- ABテスト・計測 ---------- */
@@ -134,6 +134,10 @@
     '@keyframes sisfade{from{opacity:0}to{opacity:1}}@keyframes sispop{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}',
     '@keyframes sisup{from{transform:translate(-50%,20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}',
     '@keyframes sisbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}',
+    '.sis-shipfix{position:fixed;left:0;right:0;bottom:0;z-index:2147481500;background:#fff7f0;border-top:1px solid #f6d3b8;box-shadow:0 -2px 10px rgba(0,0,0,.06);padding-right:40px}',
+    '.sis-alert{position:fixed;right:16px;bottom:16px;z-index:2147482500;width:320px;max-width:calc(100% - 24px);background:#fff;border:1px solid #f0c9a8;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.15);padding:12px 36px 12px 12px;display:flex;gap:10px;align-items:center;animation:sisslide .3s;transition:opacity .4s}',
+    '.sis-alert img{width:60px;height:60px;object-fit:cover;border-radius:8px;flex:none}',
+    '@keyframes sisslide{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}',
     '.sis-sp .sis-grid{grid-template-columns:repeat(2,1fr)}',
     '.sis-sp .sis-sec{margin:16px 10px;padding:14px}',
     '.sis-sp .sis-strip{font-size:13px;padding:8px 10px;gap:8px}',
@@ -279,30 +283,77 @@
      ============================================================ */
   var FX = {};
 
-  /* 1. 初回ポップアップ（LINE友だち追加） */
-  FX.welcome = function (forced) {
-    if (!forced && (PAGE === 'order' || PAGE === 'cart' || ls('welcomeShown') || !isNew || source() === 'line')) return;
-    var v = ab('welcome');
-    var head = v === 'B' ? '新作とシークレットセールを<br>LINEでいち早く' : 'LINE友だち追加で<br>500円OFFクーポン';
-    var cp = coupon('welcome');
-    setTimeout(function () {
-      var m = modal('welcome',
-        '<span class="sis-tag">はじめての方へ</span><h3>' + head + '</h3>' +
-        '<ul class="sis-list"><li>' + esc(SHOP.linePerk || 'アンケート回答でWEBSHOP限定クーポン') + '</li><li>お誕生月にバースデークーポン</li><li>友だち限定シークレットセールのご案内</li></ul>' +
-        (cp ? '<p style="margin:10px 0">' + ticket(cp) + '</p>' : '') +
-        '<p><a class="sis-btn sis-line" href="' + esc(SHOP.lineUrl) + '" target="_blank" rel="noopener" data-sis="line">LINEで友だち追加</a></p>' +
-        '<p><button class="sis-btn sis-ghost" data-sis-close="later" style="padding:8px 18px;font-size:13px">あとで見る</button></p>' +
-        '<div class="sis-x2">ABテスト ' + v + '</div>', { force: forced });
-      if (!m) return; ls('welcomeShown', Date.now());
-      m.querySelector('[data-sis="line"]').onclick = function () { track('welcome', 'line_click'); };
-    }, forced ? 0 : 2500);
+  /* 1. ポップアップ枠（優先度つき・全ポップアップ共通で1人◯時間に1回まで） */
+  var PC = C.popup || {};
+  function popupRecent() { var t = ls('popupAt'); return !!t && Date.now() - t < (PC.capHours || 24) * 3600e3; }
+  function deadlineById(id) { return activeDeadlines().filter(function (x) { return x.d.id === id; })[0]; }
+  function popupContext() {
+    var need = (PC.rules || []).some(function (r) { return r.cart != null; });
+    return (need ? cart() : Promise.resolve(null)).then(function (c) { return { src: source(), visits: visits, isNew: isNew, cart: c, rank: ((D.getElementById('customer-rank') || {}).textContent || Q.get('sis_rank') || '').trim() }; });
+  }
+  function ruleMatch(r, x) {
+    if (r.off) return false;
+    if (r.pages && r.pages.indexOf(PAGE) < 0) return false;
+    if (r.source && r.source.indexOf(x.src) < 0) return false;
+    if (r.notSource && r.notSource.indexOf(x.src) >= 0) return false;
+    if (r.visitsMax && x.visits > r.visitsMax) return false;
+    if (r.visitsMin && x.visits < r.visitsMin) return false;
+    if (r.deadline && !deadlineById(r.deadline)) return false;
+    if (r.from && now() < new Date(r.from)) return false;
+    if (r.to && now() > new Date(r.to)) return false;
+    if (r.cart === true && !(x.cart && x.cart.count)) return false;
+    if (r.cart === false && x.cart && x.cart.count) return false;
+    if (r.rank && !r.rank.some(function (n) { return x.rank.indexOf(n) >= 0; })) return false;
+    if (r.type === 'coupon' && !coupon(r.coupon)) return false;
+    return true;
+  }
+  var POP = {
+    line: function (r) {
+      var v = ab('welcome');
+      var head = v === 'B' ? '新作とシークレットセールを<br>LINEでいち早く' : 'LINE友だち追加で<br>500円OFFクーポン';
+      return { html: '<span class="sis-tag">' + esc(r.tag || 'はじめての方へ') + '</span><h3>' + head + '</h3>' +
+        '<ul class="sis-list"><li>' + esc(SHOP.linePerk || '') + '</li><li>お誕生月にバースデークーポン</li><li>友だち限定シークレットセールのご案内</li></ul>' +
+        '<p><a class="sis-btn sis-line" href="' + esc(SHOP.lineUrl) + '" target="_blank" rel="noopener" data-sis="go">LINEで友だち追加</a></p>' +
+        '<div class="sis-x2">ABテスト ' + v + '</div>', goal: 'line_click' };
+    },
+    sale: function (r) {
+      var dl = deadlineById(r.deadline), end = dl ? dl.end : null;
+      var endTxt = end ? (end.getHours() === 0 ? (new Date(end - 1).getMonth() + 1) + '/' + new Date(end - 1).getDate() + ' 23:59' : (end.getMonth() + 1) + '/' + end.getDate() + ' ' + end.toTimeString().slice(0, 5)) : '';
+      return { html: '<span class="sis-tag">' + esc(r.tag || '開催中') + '</span><h3>' + esc(r.title || SHOP.saleName) + '</h3>' +
+        (endTxt ? '<p>' + endTxt + ' まで　残り <span class="sis-cd" data-end="' + (+end) + '">--:--:--</span></p>' : '') +
+        (r.text ? '<p>' + esc(r.text) + '</p>' : '') +
+        '<p style="margin-top:14px"><a class="sis-btn" href="' + esc(r.url || SHOP.salePage) + '" data-sis="go">セール会場を見る</a></p>', goal: 'click' };
+    },
+    coupon: function (r) {
+      var c = coupon(r.coupon);
+      return { html: '<span class="sis-tag">' + esc(r.tag || 'あなたへのクーポン') + '</span><h3>' + esc(r.title || c.title || 'クーポン') + '</h3>' +
+        '<p style="margin:12px 0">' + ticket(c) + '</p>' + (c.expiresLabel ? '<p class="sis-note">有効期限 ' + esc(c.expiresLabel) + '</p>' : '') +
+        '<p style="margin-top:10px"><a class="sis-btn" href="' + esc(r.url || SHOP.salePage) + '" data-sis="go">お買い物を続ける</a></p>', goal: 'click' };
+    }
   };
+  FX.popup = function (forced) {
+    if (!forced && (PAGE === 'order' || PAGE === 'cart' || popupRecent())) return;
+    popupContext().then(function (x) {
+      var rules = PC.rules || [], r = null;
+      if (typeof forced === 'string') r = rules.filter(function (q) { return q.id === forced || q.type === forced; })[0];
+      if (!r) r = rules.filter(function (q) { return ruleMatch(q, x); })[0];
+      if (!r || !POP[r.type]) return;
+      setTimeout(function () {
+        var c = POP[r.type](r);
+        var m = modal('popup', c.html + '<p><button class="sis-btn sis-ghost" data-sis-close="later" style="padding:8px 18px;font-size:13px">閉じる</button></p>', { force: !!forced });
+        if (!m) return; ls('popupAt', Date.now()); track('popup', 'show', { sis_label: r.id });
+        var go = m.querySelector('[data-sis="go"]'); if (go) go.onclick = function () { track('popup', c.goal, { sis_label: r.id }); };
+        var cd = m.querySelector('.sis-cd[data-end]'); if (cd) { var tk = function () { var ms = +cd.getAttribute('data-end') - now(); if (ms < 0) ms = 0; var s = Math.floor(ms / 1000); cd.textContent = (s >= 86400 ? Math.floor(s / 86400) + '日 ' : '') + String(Math.floor(s % 86400 / 3600)).padStart(2, '0') + ':' + String(Math.floor(s % 3600 / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }; tk(); setInterval(tk, 1000); }
+      }, forced ? 0 : (PC.delaySec || 3) * 1000);
+    });
+  };
+  FX.welcome = function (forced) { if (forced) FX.popup('line'); };
 
   /* 2. 離脱時ポップアップ */
   FX.exit = function (forced) {
-    if (!forced && (PAGE === 'order' || ss('exitShown'))) return;
+    if (!forced && (PAGE === 'order' || PAGE === 'cart' || ss('exitShown'))) return;
     function fire() {
-      if (ss('exitShown') && !forced) return; ss('exitShown', 1);
+      if ((ss('exitShown') || popupRecent()) && !forced) return; ss('exitShown', 1); ls('popupAt', Date.now());
       Promise.all([cart(), saleCount()]).then(function (r) {
         var c = r[0], n = r[1], body;
         if (c.count > 0) {
@@ -328,13 +379,12 @@
 
   /* 3. 流入元別の出し分け */
   function source() {
-    var s = ss('src');
-    if (!s || Q.get('sis_src') || Q.get('utm_source')) {
-      var u = (Q.get('sis_src') || Q.get('utm_source') || '').toLowerCase(), r = D.referrer.toLowerCase();
-      s = /line/.test(u) || /line\.me|liff/.test(r) ? 'line' : /insta|ig/.test(u) || /instagram/.test(r) ? 'instagram' : /qr|store|shop|tenpo/.test(u) ? 'qr' : (s || 'other');
-      ss('src', s);
-    }
-    return s;
+    var ttl = ((C.source || {}).ttlHours || 24) * 3600e3, st = ls('src');
+    var u = (Q.get('sis_src') || Q.get('utm_source') || '').toLowerCase(), r = D.referrer.toLowerCase();
+    var ext = r && r.indexOf(L.hostname) < 0;
+    var fresh = /line/.test(u) || ext && /line\.me|liff/.test(r) ? 'line' : /insta|ig/.test(u) || ext && /instagram/.test(r) ? 'instagram' : /qr|store|shop|tenpo/.test(u) ? 'qr' : u ? 'other' : null;
+    if (fresh) { st = { s: fresh, t: Date.now() }; ls('src', st); }
+    return st && Date.now() - st.t < ttl ? st.s : 'other';
   }
   FX.source = function () {
     var s = source(), msg = {
@@ -373,22 +423,36 @@
     track('coupon', 'impression', { sis_label: c.code || c.id });
   };
 
-  /* 5. あと○円で送料無料・ノベルティのバー */
+  /* 5. あと○円で送料無料・ノベルティのバー（カートに入れた人だけ、全ページの下に固定） */
+  function bottomOffset() {
+    var off = 0;
+    [].slice.call(D.querySelectorAll('body *')).forEach(function (el) {
+      if (el.closest('.sis-root')) return;
+      var cs = getComputedStyle(el); if (cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden') return;
+      var rc = el.getBoundingClientRect(); if (rc.width < innerWidth * 0.6 || rc.height > 160 || rc.bottom < innerHeight - 2) return;
+      off = Math.max(off, innerHeight - rc.top);
+    });
+    return off;
+  }
   FX.shipbar = function () {
-    if (PAGE === 'order') return;
+    var cfg = C.shipbar || {};
+    if (PAGE === 'order' || PAGE === 'cart' || ss('shipbarClosed')) return;
     cart().then(function (c) {
-      if (c.error) return;
+      if (c.error || (!c.count && !cfg.showWhenEmpty)) return;
       var free = SHOP.freeShipping || 0, nov = C.novelty || {};
-      var html;
-      if (c.count === 0) {
-        html = '<span>🚚 商品代金 <b>' + yen(free) + '（税込）以上で送料無料</b></span>' + (nov.on ? ' <span>／ ' + yen(nov.threshold) + '以上で <b>' + esc(nov.label) + '</b> プレゼント</span>' : '');
-      } else {
-        var rest = free - c.total, pct = Math.min(100, Math.round(c.total / free * 100));
-        html = rest > 0 ? '<span>🚚 あと <b>' + yen(rest) + '</b> で送料無料</span><span class="sis-bar"><i style="width:' + pct + '%"></i></span><span style="font-size:12px;color:#888">カート ' + yen(c.total) + ' / ' + yen(free) + '</span>'
-          : '<span>🎉 <b>送料無料ライン達成！</b>（カート ' + yen(c.total) + '）</span>';
-        if (nov.on) { var nr = nov.threshold - c.total; html += nr > 0 ? ' <span>／ あと <b>' + yen(nr) + '</b> で ' + esc(nov.label) + '</span>' : ' <span>／ <b>' + esc(nov.label) + '</b> 対象です</span>'; }
+      var rest = free - c.total, pct = Math.min(100, Math.round(c.total / free * 100));
+      var html = rest > 0 ? '<span>🚚 あと <b>' + yen(rest) + '</b> で送料無料</span><span class="sis-bar"><i style="width:' + pct + '%"></i></span><span style="font-size:12px;color:#888">カート ' + yen(c.total) + '</span>'
+        : '<span>🎉 <b>送料無料ライン達成</b>（カート ' + yen(c.total) + '）</span>';
+      if (nov.on) { var nr = nov.threshold - c.total; html += nr > 0 ? ' <span>／ あと <b>' + yen(nr) + '</b> で ' + esc(nov.label) + '</span>' : ' <span>／ <b>' + esc(nov.label) + '</b> 対象</span>'; }
+      html += ' <a class="sis-btn" href="/shop/cart/cart.aspx" style="padding:4px 12px;font-size:12px">カートへ</a>';
+      if (cfg.position === 'top') { strip('shipbar', html); }
+      else {
+        var old = D.getElementById('sis-shipfix'); if (old) old.remove();
+        var el = h('<div class="sis-root sis-shipfix" id="sis-shipfix"><div class="sis-strip" style="border:0;background:transparent">' + html + '</div><button class="sis-x" aria-label="閉じる" style="top:50%;transform:translateY(-50%)">×</button></div>');
+        el.querySelector('.sis-x').onclick = function () { el.remove(); ss('shipbarClosed', 1); track('shipbar', 'close'); };
+        D.body.appendChild(el); el.style.bottom = bottomOffset() + 'px'; SIS.active.shipbar = 'on';
       }
-      strip('shipbar', html); track('shipbar', 'impression', { sis_value: c.total });
+      track('shipbar', 'impression', { sis_value: c.total });
     });
   };
 
@@ -484,7 +548,7 @@
 
   /* 9. 新規・リピーターでトップを変える */
   FX.newRepeat = function () {
-    if (PAGE !== 'top') return;
+    if (PAGE !== 'top') return Promise.resolve(false);
     var slider = D.getElementById('block_of_top_body') || mainEl().firstElementChild;
     if (isNew) {
       section('newRepeat', '<h4><span class="sis-tag">はじめての方へ</span>drug store\'s WEBSHOPのお買い物ガイド</h4>' +
@@ -493,39 +557,63 @@
         '<a class="sis-card" style="padding:14px;font-size:14px" href="' + esc(SHOP.rankPage) + '"><b style="color:#c4561a">🐷 会員ランク</b><br>お買い物金額に応じてクーポン・ポイントがアップ</a>' +
         '<a class="sis-card" style="padding:14px;font-size:14px" href="' + esc(SHOP.linePage) + '"><b style="color:#c4561a">💬 LINE</b><br>' + esc(SHOP.linePerk) + '</a>' +
         '</div>', slider, 'after');
+      return Promise.resolve(true);
     } else {
       var hist = D.getElementById('block_of_itemhistory');
       var mine = (ls('viewed') || []).slice(0, SP ? 4 : 4);
-      if (!mine.length) return;
-      Promise.all(mine.map(function (g) { return goodsInfo(g.code); })).then(function (arr) {
+      if (!mine.length) return Promise.resolve(false);
+      return Promise.all(mine.map(function (g) { return goodsInfo(g.code); })).then(function (arr) {
         arr = arr.filter(function (g) { return g && g.price && !g.soldout; });
-        if (!arr.length) return;
+        if (!arr.length) return false;
         var el = section('newRepeat', '<h4><span class="sis-tag">おかえりなさい</span>前回チェックした商品（最新の価格・在庫）</h4><div class="sis-grid">' + arr.map(function (g) { return card(g); }).join('') + '</div>', slider, 'after');
         el.querySelectorAll('a').forEach(function (a) { a.onclick = function () { track('newRepeat', 'click'); }; });
+        return true;
       });
     }
   };
 
-  /* 10. 閲覧カテゴリ別バナー */
+  /* 10. 閲覧カテゴリ別バナー ／ よく見るジャンルを上に並べ替え */
+  var CB = C.catBanner || {};
+  function stamp(key, id, name) { var all = ls(key) || {}; var c = all[id] || { ts: [] }; if (c.n && !c.ts.length) c.ts = [c.t || Date.now()]; c.ts.push(Date.now()); c.ts = c.ts.slice(-30); if (name) c.name = name; all[id] = c; ls(key, all); }
+  function countIn(c) { var w = (CB.windowDays || 14) * 864e5; return (c.ts || (c.t ? [c.t] : [])).filter(function (t) { return Date.now() - t < w; }).length; }
   function recordCategory() {
-    var m = P.match(/^\/shop\/c\/(c\d+)/i); if (!m) return;
-    var name = (D.title.split(/[|｜]/)[0] || '').replace(/\s*[:：].*$/, '').trim();
-    var h1 = D.querySelector('h1'); if (h1 && h1.textContent.trim().length < 20) name = h1.textContent.trim();
-    var cats = ls('cats') || {}; var c = cats[m[1]] || { n: 0 }; c.n++; c.name = name; c.t = Date.now(); cats[m[1]] = c; ls('cats', cats);
+    var m = P.match(/^\/shop\/c\/(c\d+)/i);
+    if (m) { var name = (D.title.split(/[|｜]/)[0] || '').replace(/\s*[:：].*$/, '').trim(); var h1 = D.querySelector('h1'); if (h1 && h1.textContent.trim().length < 20) name = h1.textContent.trim(); stamp('cats', m[1], name.split('/').pop()); }
+    var e2 = P.match(/^\/shop\/e\/e([^/_]+)/i); if (e2) stamp('evs', e2[1]);
   }
   FX.catBanner = function () {
     recordCategory();
-    if (PAGE !== 'top') return;
+    if (PAGE !== 'top') return Promise.resolve(false);
     var cats = ls('cats') || {}, best = null;
-    Object.keys(cats).forEach(function (k) { var c = cats[k]; if (c.n >= 2 && (!best || c.n > best.n || c.n === best.n && c.t > best.t)) best = { code: k, n: c.n, t: c.t, name: c.name }; });
-    if (!best) return;
-    get('/shop/c/' + best.code + '_srd/', 8000).catch(function () { return get('/shop/c/' + best.code + '/'); }).then(function (html) {
+    Object.keys(cats).forEach(function (k) { var n = countIn(cats[k]); if (n >= (CB.minViews || 2) && (!best || n > best.n)) best = { code: k, n: n, name: cats[k].name }; });
+    if (!best) return Promise.resolve(false);
+    return get('/shop/c/' + best.code + '_srd/', 8000).catch(function () { return get('/shop/c/' + best.code + '/'); }).then(function (html) {
       var items = uniqProduct(listItems(parseDoc(html)).filter(function (g) { return g.price; })).slice(0, 8);
-      if (!items.length) return;
+      if (!items.length) return false;
       var anchor = D.getElementById('block_of_event') || D.getElementById('block_of_top_free2');
-      var el = section('catBanner', '<h4><span class="sis-tag">よく見ているカテゴリ</span>「' + esc(best.name) + '」の新着</h4><div class="sis-grid sis-4">' + items.map(function (g) { return card(g); }).join('') + '</div><p style="text-align:right;margin:10px 0 0"><a href="/shop/c/' + best.code + '/" style="color:#c4561a">「' + esc(best.name) + '」をすべて見る ›</a></p>', anchor, 'before');
+      var el = section('catBanner', '<h4><span class="sis-tag">よく見ているカテゴリ</span>「' + esc(best.name) + '」の新着<span style="font-size:12px;color:#888;font-weight:normal">直近' + (CB.windowDays || 14) + '日で' + best.n + '回</span></h4><div class="sis-grid sis-4">' + items.map(function (g) { return card(g); }).join('') + '</div><p style="text-align:right;margin:10px 0 0"><a href="/shop/c/' + best.code + '/" style="color:#c4561a">「' + esc(best.name) + '」をすべて見る ›</a></p>', anchor, 'before');
       el.querySelectorAll('a').forEach(function (a) { a.onclick = function () { track('catBanner', 'click', { sis_label: best.code }); }; });
+      return true;
+    }).catch(function () { return false; });
+  };
+  FX.eventOrder = function () { // トップのイベント枠（セール・新作・定番など）を、その人がよく見ている順に並べ替える
+    if (PAGE !== 'top' || CB.reorderEvents === false) return;
+    var box = D.getElementById('block_of_event'); if (!box) return;
+    var groups = [], cur = null;
+    [].slice.call(box.children).forEach(function (el) { if (/block-top-event--header/.test(el.className)) { cur = { els: [], id: '' }; groups.push(cur); var a = el.querySelector('a[href*="/shop/e/"]'); cur.id = a ? (a.getAttribute('href').match(/\/shop\/e\/e([^/_]+)/) || [])[1] || '' : ''; } if (cur) cur.els.push(el); });
+    if (groups.length < 2) return;
+    var evs = ls('evs') || {}, mine = {};
+    (ls('viewed') || []).concat(ls('interest') || []).forEach(function (v) { if (Date.now() - v.t < (CB.windowDays || 14) * 864e5) mine[pkey(v.code)] = 1; });
+    groups.forEach(function (g, i) {
+      g.i = i; g.score = countIn(evs[g.id] || {}) * 2;
+      g.els.forEach(function (el) { el.querySelectorAll && el.querySelectorAll('a[href*="/shop/g/g"]').forEach(function (a) { if (mine[pkey(codeOf(a.getAttribute('href')))]) g.score++; }); });
     });
+    if (!groups.some(function (g) { return g.score > 0; })) return;
+    var sorted = groups.slice().sort(function (x, y) { return y.score - x.score || x.i - y.i; });
+    if (sorted.every(function (g, i) { return g === groups[i]; })) return;
+    sorted.forEach(function (g) { g.els.forEach(function (el) { box.appendChild(el); }); });
+    SIS.active.eventOrder = sorted.map(function (g) { return g.id + ':' + g.score; }).join(' ');
+    track('eventOrder', 'reorder', { sis_label: sorted[0].id });
   };
 
   /* 11. サイズ記憶 ／ 閲覧履歴の記録 */
@@ -546,22 +634,91 @@
     if (!target || !list) return;
     target.classList.add('sis-memo-on');
     var hint;
-    if (active && label(active) === memo) hint = h('<div class="sis-root sis-size-hint">✓ いつものサイズ「<b>' + esc(memo) + '</b>」を選んでいます（' + esc(cat) + '）</div>');
+    var fromSw = ss('szFrom');
+    if (active && label(active) === memo && fromSw && fromSw.to === code) { hint = h('<div class="sis-root sis-size-hint">✓ いつものサイズ「<b>' + esc(memo) + '</b>」に切り替えました <a href="' + esc(fromSw.from) + '?sis_szback=1">「' + esc(fromSw.size || '元のサイズ') + '」に戻す</a></div>'); ss('szFrom', null); }
+    else if (active && label(active) === memo) hint = h('<div class="sis-root sis-size-hint">✓ いつものサイズ「<b>' + esc(memo) + '</b>」を選んでいます（' + esc(cat) + '）</div>');
     else {
       var a = target.querySelector('a'), oc = (target.querySelector('[onclick]') || target).getAttribute('onclick') || '';
       var href = a ? a.getAttribute('href') : (oc.match(/location\.href\s*=\s*['"]([^'"]+)['"]/) || [])[1];
       var dis = /disable|soldout|nostock/.test(target.className);
+      var auto = (C.sizeMemo || {}).autoSwitch, done = ss('szAuto') || {};
+      if (auto && href && !dis && !done[pkey(code)]) { done[pkey(code)] = 1; ss('szAuto', done); ss('szFrom', { to: codeOf(href), from: P, size: label(active || {}), memo: memo }); track('sizeMemo', 'auto_switch', { sis_label: memo }); L.replace(href + (href.indexOf('?') < 0 ? '?' : '&') + 'sis_sz=1' + (L.search.indexOf('sis_') >= 0 ? '&' + L.search.slice(1).split('&').filter(function (kv) { return /^sis_/.test(kv) && !/^sis_sz/.test(kv); }).join('&') : '')); return; }
       hint = h('<div class="sis-root sis-size-hint">いつものサイズは「<b>' + esc(memo) + '</b>」です。' + (href && !dis ? ' <a href="' + esc(href) + '">「' + esc(memo) + '」に切り替える ›</a>' : '（このカラーは「' + esc(memo) + '」の在庫がありません）') + '</div>');
       var link = hint.querySelector('a'); if (link) link.onclick = function () { track('sizeMemo', 'switch', { sis_label: memo }); };
     }
     list.parentNode.insertBefore(hint, list); SIS.active.sizeMemo = 'on'; track('sizeMemo', 'impression', { sis_label: memo });
   };
+  function curGoods() {
+    var code = codeOf(P); if (!code) return null;
+    return { code: code, name: ((D.querySelector('.block-goods-name') || {}).textContent || '').replace(/\s+/g, ' ').trim(), price: num((D.querySelector('.block-goods-price--price') || {}).textContent) };
+  }
   function recordViewed() {
     if (PAGE !== 'goods') return;
-    var code = codeOf(P); if (!code) return;
-    var v = (ls('viewed') || []).filter(function (x) { return x.code !== code && stem(x.code) !== stem(code); });
-    v.unshift({ code: code, t: Date.now() }); ls('viewed', v.slice(0, 12));
+    var g = curGoods(); if (!g) return;
+    var v = (ls('viewed') || []).filter(function (x) { return x.code !== g.code && stem(x.code) !== stem(g.code); });
+    v.unshift({ code: g.code, name: g.name, price: g.price, t: Date.now() }); ls('viewed', v.slice(0, 20));
   }
+  function addInterest(g, kind) {
+    var it = (ls('interest') || []).filter(function (x) { return !(x.code === g.code && x.kind === kind); });
+    it.unshift({ code: g.code, name: g.name, price: g.price, kind: kind, t: Date.now() }); ls('interest', it.slice(0, 30));
+  }
+  function trackInterest() { // 長く見た・カートに入れた・お気に入りした商品を「気になる商品」として覚える
+    if (PAGE !== 'goods') return;
+    var g = curGoods(); if (!g) return;
+    var need = ((C.interest || {}).dwellSec || 20) * 1000, seen = 0, last = Date.now(), done = false;
+    var iv = setInterval(function () { var t = Date.now(); if (!D.hidden) seen += t - last; last = t; if (!done && seen >= need) { done = true; addInterest(g, 'dwell'); clearInterval(iv); } }, 1000);
+    D.querySelectorAll('.block-add-cart--btn').forEach(function (b) { b.addEventListener('click', function () { addInterest(g, 'cart'); }); });
+    D.querySelectorAll('.block-goods-favorite--btn, [class*="favorite--btn"]').forEach(function (b) { b.addEventListener('click', function () { addInterest(g, 'fav'); }); });
+  }
+  var saleSetP = null;
+  function saleSet() { // セール会場（設定のsalePage）に載っている商品の一覧（セッション中は使い回す）
+    if (saleSetP) return saleSetP;
+    var cached = ss('saleSet'); if (cached && Date.now() - cached.t < 3600e3) return (saleSetP = Promise.resolve(cached.k));
+    var base = SHOP.salePage.replace(/\/$/, ''), keys = {};
+    saleSetP = [base + '/', base + '/?p=2', base + '/?p=3', base + '/?p=4'].reduce(function (pr, u) {
+      return pr.then(function () { return get(u, 8000).then(function (h2) { listItems(parseDoc(h2)).forEach(function (x) { keys[pkey(x.code)] = 1; }); }).catch(function () {}); });
+    }, Promise.resolve()).then(function () { ss('saleSet', { t: Date.now(), k: keys }); return keys; });
+    return saleSetP;
+  }
+  /* 気になる商品のお知らせ（在庫残りわずか・セール終了間近・値下がり）を右下に数秒だけ出す */
+  FX.interestAlert = function (forced) {
+    var cfg = C.interest || {};
+    if (PAGE === 'order') return;
+    var here = codeOf(P), days = (cfg.windowDays || 14) * 864e5;
+    var list = (ls('interest') || []).filter(function (x) { return Date.now() - x.t < days; });
+    cart().then(function (c) {
+      c.items.forEach(function (i) {
+        var code = i.code || ((ls('viewed') || []).filter(function (v) { return v.name && i.name && v.name === i.name; })[0] || {}).code;
+        if (code) list.unshift({ code: code, name: i.name, kind: 'cart', t: Date.now() });
+      });
+      var seenK = {}, uniq = [];
+      list.forEach(function (x) { if (!seenK[x.code] && x.code !== here) { seenK[x.code] = 1; uniq.push(x); } });
+      uniq = uniq.slice(0, cfg.maxItems || 6); if (!uniq.length) return;
+      var shown = ls('alertSeen') || {}, cap = (cfg.capHours || 24) * 3600e3;
+      var saleDl = activeDeadlines().filter(function (x) { return x.d.id === (cfg.saleDeadline || 'sale15') && x.end - now() < (cfg.saleEndHours || 48) * 3600e3; })[0];
+      return Promise.all([Promise.all(uniq.map(function (x) { return goodsInfo(x.code); })), saleDl ? saleSet() : Promise.resolve({})]).then(function (r) {
+        var infos = r[0], sale = r[1], pick = null;
+        uniq.forEach(function (x, i) {
+          var g = infos[i]; if (pick || !g || g.soldout) return;
+          var why = /△|残りわずか/.test(g.stock) ? 'low' : saleDl && sale[pkey(x.code)] ? 'saleEnd' : x.price && g.price && g.price < x.price ? 'drop' : null;
+          if (!why || (!forced && shown[x.code + why] && Date.now() - shown[x.code + why] < cap)) return;
+          pick = { x: x, g: g, why: why };
+        });
+        if (!pick) return;
+        var from = { cart: 'カートに入れた', dwell: 'じっくり見ていた', fav: 'お気に入りの' }[pick.x.kind] || '気になっていた';
+        var msg = pick.why === 'low' ? '在庫が<b>残りわずか</b>です' : pick.why === 'saleEnd' ? '<b>セール価格は' + ((saleDl.end.getMonth() + 1) + '/' + new Date(saleDl.end - 1).getDate()) + ' 23:59まで</b>です' : '<b>' + yen(pick.x.price - pick.g.price) + '値下がり</b>しました';
+        var el = h('<a class="sis-root sis-alert" href="' + esc(pick.g.href) + '" style="text-decoration:none;color:#333">' + (pick.g.img ? '<img src="' + esc(pick.g.img) + '" alt="">' : '') +
+          '<div style="font-size:13px;line-height:1.5"><span style="font-size:11px;color:#888">' + from + '商品</span><br>' + esc(pick.g.name.slice(0, 26)) + '<br>' + msg + '</div><button class="sis-x" aria-label="閉じる" style="top:2px;right:2px">×</button></a>');
+        el.querySelector('.sis-x').onclick = function (ev) { ev.preventDefault(); el.remove(); track('interestAlert', 'close'); };
+        el.addEventListener('click', function () { track('interestAlert', 'click', { sis_label: pick.why }); });
+        D.body.appendChild(el); var fix = D.getElementById('sis-shipfix'); if (fix) el.style.bottom = (fix.getBoundingClientRect().height + 16 + parseInt(fix.style.bottom || 0)) + 'px';
+        shown[pick.x.code + pick.why] = Date.now(); ls('alertSeen', shown); SIS.active.interestAlert = pick.why;
+        track('interestAlert', 'show', { sis_label: pick.why });
+        var sec = forced ? 0 : (cfg.durationSec == null ? 5 : cfg.durationSec);
+        if (sec > 0 && !Q.get('sis_hold')) setTimeout(function () { el.style.opacity = '0'; setTimeout(function () { el.remove(); }, 400); }, sec * 1000);
+      });
+    });
+  };
 
   /* 11b. サイズの目安（商品写真のモデル着用情報を使う） */
   FX.modelSize = function () {
@@ -593,18 +750,19 @@
 
   /* 13. 売れ筋ランキング（data/ranking.json があるときだけ） */
   FX.ranking = function () {
-    if (PAGE !== 'top' && PAGE !== 'list') return;
-    fetch(CDN + 'data/ranking.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (rk) {
+    if (PAGE !== 'top' && PAGE !== 'list') return Promise.resolve(false);
+    return fetch(CDN + 'data/ranking.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (rk) {
       var list = (rk.items || []).slice(0, 8); if (!list.length) return;
       return Promise.all(list.map(function (x) { return goodsInfo(x.code); })).then(function (arr) {
         var rows = [];
         arr.forEach(function (g, i) { if (g && g.price && !g.soldout) rows.push({ g: g, rank: list[i].rank || i + 1 }); });
-        rows = rows.slice(0, 4); if (!rows.length) return;
+        rows = rows.slice(0, 4); if (!rows.length) return false;
         var anchor = D.getElementById('block_of_event');
         section('ranking', '<h4><span class="sis-tag">売れ筋</span>' + esc(rk.title || 'いま売れているアイテム') + '<span style="font-size:12px;color:#888;font-weight:normal">' + esc(rk.period || '') + 'の購入数順</span></h4><div class="sis-grid">' +
           rows.map(function (r) { return card(r.g).replace('<div class="sis-cn">', '<div class="sis-cn"><b style="color:#c4561a">' + r.rank + '位</b> '); }).join('') + '</div>', anchor, 'before');
+        return true;
       });
-    }).catch(function () { SIS.active.ranking = 'データ待ち'; });
+    }).catch(function () { SIS.active.ranking = 'データ待ち'; return false; });
   };
 
   /* 14. さらに◯%OFF表示（BOでプロモーションを作ってから） */
@@ -665,10 +823,13 @@
     cart().then(function (c) {
       if (!c.count) return; ss('cartRemShown', 1);
       var first = c.items[0];
-      (first.code ? goodsInfo(first.code) : Promise.resolve(first.img ? { img: first.img } : null)).then(function (g) {
-        var rest = SHOP.freeShipping - c.total;
+      Promise.all(c.items.slice(0, 6).map(function (i) { return i.code ? goodsInfo(i.code) : Promise.resolve(null); })).then(function (gs) {
+        var g = gs[0] || (first.img ? { img: first.img } : null), rest = SHOP.freeShipping - c.total;
+        var low = gs.filter(function (x) { return x && /△|残りわずか/.test(x.stock); });
+        if (low.length) { SIS.active.cartReminder = '在庫△' + low.length; track('cartReminder', 'low_stock', { sis_value: low.length }); }
         var el = toast('cartReminder', (g && g.img ? '<img src="' + esc(g.img) + '" alt="">' : '') +
           '<div style="flex:1;font-size:14px"><b>前回のお買い物がカートに残っています</b><br>' + esc(first.name) + (c.items.length > 1 ? ' ほか' : '') + '（' + c.count + '点・' + yen(c.total) + '）' +
+          (low.length ? '<br><span style="font-size:12px;color:#c4561a;font-weight:bold">「' + esc(low[0].name.slice(0, 16)) + '」' + (low.length > 1 ? 'ほか' + (low.length - 1) + '点' : '') + 'の在庫が残りわずかです</span>' : '') +
           (rest > 0 ? '<br><span style="font-size:12px;color:#888">あと' + yen(rest) + 'で送料無料</span>' : '') + '</div>' +
           '<a class="sis-btn" style="padding:8px 14px;font-size:13px;flex:none" href="/shop/cart/cart.aspx">カートへ</a>');
         el.querySelector('a.sis-btn').onclick = function () { track('cartReminder', 'click'); };
@@ -676,31 +837,50 @@
     });
   };
 
-  /* 17. カート内クロスセル（送料無料まであと少しの人へ） */
+  /* 17. カート内クロスセル（送料無料まであと少しの人へ。その人が興味を持った商品を優先） */
+  function crossCandidates(rest, inCart) {
+    var out = [], seen = {};
+    function push(g, why) { if (!g || !g.price || g.soldout || g.price < rest || inCart[pkey(g.code)] || seen[pkey(g.code)]) return; seen[pkey(g.code)] = 1; g.why = why; out.push(g); }
+    var interest = (ls('interest') || []).concat(ls('viewed') || []).slice(0, 10);
+    return Promise.all(interest.map(function (x) { return goodsInfo(x.code); })).then(function (arr) {
+      arr.forEach(function (g) { push(g, '最近見た商品'); });
+      var cats = ls('cats') || {}, top = Object.keys(cats).sort(function (p, q) { return countIn(cats[q]) - countIn(cats[p]); })[0];
+      return top ? get('/shop/c/' + top + '_ssp/', 8000).then(function (h2) { listItems(parseDoc(h2)).forEach(function (g) { push(g, 'よく見るカテゴリ'); }); }).catch(function () {}) : null;
+    }).then(function () {
+      if (out.length >= 4) return;
+      var base = SHOP.salePage.replace(/\/$/, '');
+      return [base + '_ssp/', base + '_ssp/?p=2', base + '_ssp/?p=3'].reduce(function (pr, u) { return pr.then(function () { if (out.length >= 8) return; return get(u, 8000).then(function (h2) { listItems(parseDoc(h2)).forEach(function (g) { push(g, 'セール'); }); }).catch(function () {}); }); }, Promise.resolve());
+    }).then(function () {
+      var rank = { '最近見た商品': 0, 'よく見るカテゴリ': 1, 'セール': 2 };
+      out.sort(function (p, q) { return rank[p.why] - rank[q.why] || p.price - q.price; });
+      return uniqProduct(out).slice(0, 8);
+    });
+  }
   FX.crossSell = function () {
+    if (PAGE === 'goods') { // 商品ページ：この商品を足すと送料無料になるかを、カートボタンの上に一言
+      cart().then(function (c) {
+        if (!c.count) return; var rest = SHOP.freeShipping - c.total; if (rest <= 0) return;
+        var price = num((D.querySelector('.block-goods-price--price') || {}).textContent); var btn = D.querySelector('.block-add-cart');
+        if (!price || !btn) return;
+        var msg = price >= rest ? '🚚 この商品を足すと<b>送料無料</b>になります（カート ' + yen(c.total) + '）' : '🚚 この商品を足すと、送料無料まであと<b>' + yen(rest - price) + '</b>';
+        btn.insertBefore(h('<div class="sis-root sis-size-hint" style="margin:0 0 8px">' + msg + '</div>'), btn.firstChild);
+        SIS.active.crossSell = 'goods'; track('crossSell', 'goods_hint', { sis_value: rest });
+      });
+      return;
+    }
     if (PAGE !== 'cart') return;
     cart(true).then(function (c) {
       if (!c.count) return;
       var rest = SHOP.freeShipping - c.total; if (rest <= 0) return;
-      var inCart = {}; c.items.forEach(function (i) { inCart[stem(i.code)] = 1; });
-      var base = SHOP.salePage.replace(/\/$/, '');
-      var pages = [base + '_ssp/', base + '_ssp/?p=2', base + '_ssp/?p=3', base + '_ssp/?p=4'];
-      var found = [];
-      (function next(i) {
-        if (i >= pages.length || found.length >= 8) return done();
-        get(pages[i], 8000).then(function (html) {
-          listItems(parseDoc(html)).forEach(function (g) { if (g.price >= rest && !inCart[stem(g.code)]) found.push(g); });
-          if (found.length >= 4) return done(); next(i + 1);
-        }).catch(done);
-      })(0);
-      function done() {
-        if (done.ran) return; done.ran = 1;
-        found.sort(function (a, b) { return a.price - b.price; });
-        var pick = uniqProduct(found).slice(0, 8); if (!pick.length) return;
+      var inCart = {}; c.items.forEach(function (i) { if (i.code) inCart[pkey(i.code)] = 1; });
+      crossCandidates(rest, inCart).then(function (pick) {
+        if (!pick.length) return;
         var anchor = D.querySelector('.block-cart--container') || D.querySelector('.block-cart');
-        var el = section('crossSell', '<h4><span class="sis-tag">あと ' + yen(rest) + ' で送料無料</span>1点足すと送料が無料になるアイテム</h4><div class="sis-grid sis-4">' + pick.map(function (g) { return card(g, { add: true }); }).join('') + '</div><p class="sis-note">' + esc(SHOP.saleName) + ' の商品から、' + yen(rest) + '以上で価格の近い順に表示しています</p>', anchor, 'after');
+        var el = section('crossSell', '<h4><span class="sis-tag">あと ' + yen(rest) + ' で送料無料</span>1点足すと送料が無料になるアイテム</h4><div class="sis-grid sis-4">' +
+          pick.map(function (g) { return card(g, { add: true }).replace('<div class="sis-cn">', '<div class="sis-cn"><span style="font-size:10px;color:#c4561a;font-weight:bold">' + esc(g.why) + '</span><br>'); }).join('') +
+          '</div><p class="sis-note">あなたが最近見た商品・よく見るカテゴリを優先し、足りない額（' + yen(rest) + '）以上で価格の近いものを表示しています</p>', anchor, 'after');
         bindAdd(el);
-      }
+      });
     });
   };
 
@@ -714,7 +894,7 @@
   }
 
   /* ---------- 関係者チップ ---------- */
-  var NAMES = { welcome: '初回ポップアップ', exit: '離脱時ポップアップ', source: '流入元別の出し分け', coupon: '入店時クーポン', shipbar: '送料無料バー', countdown: '期限カウントダウン', kuji: 'くじ', rank: '会員ランク別UI', newRepeat: '新規／リピーター', catBanner: '閲覧カテゴリ別バナー', sizeMemo: 'サイズ記憶', modelSize: 'サイズの目安', lowStock: '在庫僅少バッジ', ranking: '売れ筋ランキング', extraOff: 'さらに◯%OFF', coord: 'コーデまとめ買い', cartReminder: 'カゴ落ち表示', crossSell: 'カート内クロスセル' };
+  var NAMES = { welcome: '初回ポップアップ', popup: 'ポップアップ枠', interestAlert: '気になる商品のお知らせ', eventOrder: 'イベント枠の並べ替え', exit: '離脱時ポップアップ', source: '流入元別の出し分け', coupon: '入店時クーポン', shipbar: '送料無料バー', countdown: '期限カウントダウン', kuji: 'くじ', rank: '会員ランク別UI', newRepeat: '新規／リピーター', catBanner: '閲覧カテゴリ別バナー', sizeMemo: 'サイズ記憶', modelSize: 'サイズの目安', lowStock: '在庫僅少バッジ', ranking: '売れ筋ランキング', extraOff: 'さらに◯%OFF', coord: 'コーデまとめ買い', cartReminder: 'カゴ落ち表示', crossSell: 'カート内クロスセル' };
   function chip() {
     if (Q.get('sis_chip') === '0') return;
     var c = h('<button class="sis-root sis-chip">SIS施策 ON</button>'); var panel;
@@ -730,13 +910,20 @@
     D.body.appendChild(c);
   }
 
-  SIS.show = function (k) { var fn = FX[k === 'cart' ? 'cartReminder' : k]; if (fn) fn(true); };
+  SIS.show = function (k) { var p = k.split(':'); if (p[0] === 'popup') return FX.popup(p[1] || true); if (k === 'welcome') return FX.popup('line'); var fn = FX[k === 'cart' ? 'cartReminder' : k === 'alert' ? 'interestAlert' : k]; if (fn) fn(true); };
 
   /* ---------- 起動 ---------- */
   onReady(function () {
     style();
     recordViewed();
-    var order = ['countdown', 'source', 'coupon', 'rank', 'shipbar', 'newRepeat', 'catBanner', 'ranking', 'sizeMemo', 'modelSize', 'lowStock', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'welcome', 'kuji', 'exit'];
+    trackInterest();
+    var order = ['countdown', 'source', 'coupon', 'rank', 'shipbar', 'eventOrder', 'newRepeat', 'catBanner', 'ranking', 'sizeMemo', 'modelSize', 'lowStock', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'interestAlert', 'popup', 'kuji', 'exit'];
+    var slot = C.topSlot || {};
+    if (PAGE === 'top' && slot.mode === 'one' && !Q.get('sis_only')) { // トップの「あなた向け枠」は優先順に1つだけ出す
+      var so = (slot.order || ['newRepeat', 'catBanner', 'ranking']).filter(function (k) { return F[k] !== false && FX[k]; });
+      order = order.filter(function (k) { return so.indexOf(k) < 0; });
+      so.reduce(function (pr, k) { return pr.then(function (done) { if (done) return true; try { return Promise.resolve(FX[k](false)).then(function (r) { return !!r; }); } catch (e) { return false; } }); }, Promise.resolve(false));
+    }
     var only = (Q.get('sis_only') || '').split(',').filter(Boolean);
     order.forEach(function (k) { if (F[k] === false || !FX[k] || only.length && only.indexOf(k) < 0) return; try { FX[k](false); } catch (e) { SIS.active[k] = 'エラー'; if (window.console) console.warn('[SIS]', k, e); } });
     var sh = Q.get('sis_show'); if (sh) setTimeout(function () { SIS.show(sh); }, 600);

@@ -11,7 +11,7 @@
 |---|---|
 | loader-line.js | user.js・user_sb.js に入れる1行（2026-10-24 stg 投入済み） |
 | boot.js | どのコミットを動かすかを決めて読み込む |
-| app.js | 施策20本（welcome / exit / source / coupon / shipbar / countdown / kuji / rank / newRepeat / catBanner / sizeMemo / modelSize / lowStock / ranking / extraOff / coord / cartReminder / crossSell / ab / ga4） |
+| app.js | 施策（popup＝優先順ポップアップ / interestAlert＝気になる商品のお知らせ / eventOrder＝イベント枠並べ替え / exit / source / coupon / shipbar / countdown / kuji / rank / newRepeat / catBanner / sizeMemo / modelSize / lowStock / ranking / extraOff / coord / cartReminder / crossSell / ab / ga4） |
 | config.json | 送料条件・クーポン・期限・ランク表・施策のオンオフ |
 | data/coords.json | スタッフコーデ索引（`python3 front/tools/build_coords.py` で再作成） |
 | data/ranking.json | 売れ筋（GA4 eコマース購入数から作成） |
