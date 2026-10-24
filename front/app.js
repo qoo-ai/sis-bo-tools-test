@@ -92,7 +92,7 @@
     var x = 2166136261; for (var i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); }
     x ^= x >>> 16; x = Math.imul(x, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return x >>> 0;
   }
-  var abOverride = {}; (Q.get('sis_ab') || '').split(',').forEach(function (kv) { var p = kv.split(':'); if (p[1]) abOverride[p[0]] = p[1]; });
+  var abOverride = {}; (Q.get('sis_ab') || '').split(',').forEach(function (kv) { var i = kv.lastIndexOf(':'); if (i > 0) abOverride[kv.slice(0, i)] = kv.slice(i + 1); }); // 例 sis_ab=welcome:B,f:ranking:B
   function ab(test) {
     var t = (C.ab || {})[test]; if (!t || !F.ab) return 'A';
     var hv = hash(vid + ':' + test), v = abOverride[test];
@@ -103,7 +103,8 @@
   /* どの施策でもABテスト：config の abFeatures に施策名と割合を書くと、その施策を「出す（A）／出さない（B）」に分けて、購入まで比べられる
      例 "abFeatures": { "ranking": { "weights": [50, 50] }, "all": { "weights": [90, 10] } }（all＝全施策で1割の人には出さない） */
   function featureOn(k) {
-    var a = C.abFeatures || {}, t = a[k] || a.all; if (!t || /^(orderCoupon|orderDone|countdown)$/.test(k)) return true;
+    var a = C.abFeatures || {}, t = a[k] || a.all; if (/^(orderCoupon|orderDone|countdown)$/.test(k)) return true;
+    if (!t && !abOverride['f:' + k]) return true; t = t || {};
     var v = abOverride['f:' + k], w = t.weights || [50, 50];
     if (!v) v = hash(vid + ':f:' + k) % 100 < w[0] ? 'A' : 'B';
     SIS.abf = SIS.abf || {}; SIS.abf[k] = v; SIS.active['ab:' + k] = v === 'A' ? '出す' : '出さない';
