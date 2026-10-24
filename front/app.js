@@ -62,7 +62,9 @@
   var abOverride = {}; (Q.get('sis_ab') || '').split(',').forEach(function (kv) { var p = kv.split(':'); if (p[1]) abOverride[p[0]] = p[1]; });
   function ab(test) {
     var t = (C.ab || {})[test]; if (!t || !F.ab) return 'A';
-    var v = abOverride[test] || t.variants[hash(vid + ':' + test) % t.variants.length];
+    var hv = hash(vid + ':' + test), v = abOverride[test];
+    if (!v && t.weights) { var r = hv % 100, acc = 0; for (var i = 0; i < t.variants.length; i++) { acc += t.weights[i] || 0; if (r < acc) { v = t.variants[i]; break; } } } // weights:[70,30] でA70%・B30%
+    if (!v) v = t.variants[hv % t.variants.length];
     SIS.active['ab:' + test] = v; return v;
   }
   function track(feature, action, extra) {
