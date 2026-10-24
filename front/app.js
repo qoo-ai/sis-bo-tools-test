@@ -283,7 +283,7 @@
     '.sis-sp .sis-fab{bottom:88px;width:64px;height:64px}.sis-sp .sis-fab .sis-ic{width:26px;height:26px}',
     '.sis-sp .sis-ship{padding:8px 44px 8px 12px;gap:10px}.sis-sp .sis-ship-ic{width:36px;height:36px}.sis-sp .sis-ship-t{font-size:13px}.sis-sp .sis-ship-t b{font-size:16px}.sis-sp .sis-ship .sis-btn{min-height:40px;padding:0 14px;font-size:13px}',
     '.sis-sp .sis-alert{left:12px;right:12px;width:auto}',
-    '.sis-sp .sis-tk-r code{font-size:16px}',
+    '.sis-sp .sis-tk-r code{font-size:15px;letter-spacing:.02em}.sis-sp .sis-tk-r{gap:6px;padding:6px 8px 6px 12px}.sis-sp .sis-tk-r button{padding:0 10px}',
     '.sis-sp .sis-toast{flex-wrap:wrap;padding:12px 44px 12px 12px;gap:10px}.sis-sp .sis-toast .sis-thumbs img{width:48px;height:48px}.sis-sp .sis-toast .sis-tb{flex:1 1 calc(100% - 120px)}.sis-sp .sis-toast>.sis-btn{width:100%}',
     '.sis-sp .sis-sh-t h4{font-size:16px}.sis-sp .sis-sh{gap:10px}.sis-sp .sis-sh-ic{width:36px;height:36px}',
     '.sis-sp .sis-ship-t{white-space:normal;font-size:12.5px}.sis-sp .sis-trk-l{font-size:10px}.sis-ship .sis-btn{flex:none;white-space:nowrap}',
