@@ -387,6 +387,24 @@
         log(st.evplan.exists ? 'イベント ' + a.ev + ' はBOにある' : 'イベント ' + a.ev + ' は無いので作る（ひな形 ' + st.evplan.tpl + '・' + a.start + '〜' + a.end + '）');
         var pk = await makePack(instRows, price, a);
         st.files = pk.files; st.summary = pk.summary;
+        // 「並び」列（任意）：先頭・↑＝先頭固定イベント(pin)へ／後ろ・↓・後回し＝後回しイベント(back)へ。
+        // サイトの並び（front/tidy.js）が、この2つのイベントに載っている商品をどのページでも先頭／最後に置く
+        var orI = hiI >= 0 ? instRows[hiI].map(cellStr).findIndex(function (v) { return /^(並び|並び順|位置)$/.test(v.trim()); }) : -1;
+        if (orI >= 0 && file('10_')) {
+          var add = [], nOr = { pin: 0, back: 0 };
+          instRows.slice(hiI + 1).forEach(function (r) {
+            if (!r || !r[0]) return; var v = cellStr(r[orI]).trim(), code = String(r[0]).trim();
+            var ev = /^(先頭|↑|上|先|top)$/i.test(v) ? 'pin' : /^(後ろ|↓|下|後回し|後|back)$/i.test(v) ? 'back' : '';
+            if (ev) { add.push([ev, code, 1]); nOr[ev]++; }
+          });
+          if (add.length) {
+            var f10 = file('10_'), rows10 = rowsOf(f10.bytes), head10 = rows10[0];
+            var ci = head10.indexOf('イベントコード'), gi = head10.indexOf('商品コード'), oi = head10.findIndex(function (h) { return /並び順/.test(h); });
+            add.forEach(function (x) { var row = head10.map(function () { return ''; }); row[ci >= 0 ? ci : 0] = x[0]; row[gi >= 0 ? gi : 1] = x[1]; if (oi >= 0) row[oi] = x[2]; rows10.push(row); });
+            st.files[f10.name] = await toCp932(rows10);
+          }
+          log('並びの指定：先頭 ' + nOr.pin + '件／後ろ ' + nOr.back + '件（先頭固定イベント pin・後回しイベント back に登録）');
+        }
         log('フェアパック: ' + JSON.stringify(pk.summary));
         var codes = {};
         ['11_', '12_', '13_'].forEach(function (p) { var f = file(p); if (f) rowsOf(f.bytes).slice(1).forEach(function (r) { codes[r[0]] = 1; }); });
