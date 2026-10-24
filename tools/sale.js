@@ -441,7 +441,7 @@
   // ---------------------------------------------------------------- クーポン：セール期間中は止める（除外期間）
   function dtNum(s) { var m = String(s || '').match(/(\d{4})\D(\d{1,2})\D(\d{1,2})\D+(\d{1,2}):(\d{2})/); return m ? +(m[1] + ('0' + m[2]).slice(-2) + ('0' + m[3]).slice(-2) + ('0' + m[4]).slice(-2) + m[5]) : null; }
   async function couponList() {
-    var url = BO + '/coupon/event_list.aspx', out = [], seen = {};
+    var url = BO + '/coupon/event_list.aspx?absolutepage=1&pagesize=200', out = [], seen = {};
     for (var pg = 0; pg < 30 && url; pg++) {
       var d = new DOMParser().parseFromString(await (await fetch(url, { credentials: 'include', cache: 'no-store' })).text(), 'text/html');
       var trs = [].slice.call(d.querySelectorAll('tr')), hd = trs.filter(function (t) { return /クーポンイベントID/.test(t.textContent); })[0];
