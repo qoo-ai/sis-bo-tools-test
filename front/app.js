@@ -175,7 +175,7 @@
     el.querySelector('.sis-x').onclick = function () { el.remove(); fix(true); track(id, 'close'); };
     var n = 0;
     (function place() { // ポップアップが開いている間は出さず、閉じてから出す
-      if (D.querySelector('.sis-modal') && n++ < 120) return setTimeout(place, 1000);
+      if ((SIS.popupPending || D.querySelector('.sis-modal')) && n++ < 120) return setTimeout(place, 1000);
       D.body.appendChild(el); fix(false); SIS.active[id] = 'on'; track(id, 'impression');
     })();
     return el;
@@ -339,19 +339,21 @@
   };
   FX.popup = function (forced) {
     if (!forced && (PAGE === 'order' || PAGE === 'cart' || popupRecent())) return;
+    SIS.popupPending = true; // 判定中は下のトーストを待たせる
     popupContext().then(function (x) {
       var rules = PC.rules || [], r = null;
       if (typeof forced === 'string') r = rules.filter(function (q) { return q.id === forced || q.type === forced; })[0];
       if (!r) r = rules.filter(function (q) { return ruleMatch(q, x); })[0];
-      if (!r || !POP[r.type]) return;
+      if (!r || !POP[r.type]) { SIS.popupPending = false; return; }
       setTimeout(function () {
+        SIS.popupPending = false;
         var c = POP[r.type](r);
         var m = modal('popup', c.html + '<p><button class="sis-btn sis-ghost" data-sis-close="later" style="padding:8px 18px;font-size:13px">閉じる</button></p>', { force: !!forced });
         if (!m) return; ls('popupAt', Date.now()); track('popup', 'show', { sis_label: r.id });
         var go = m.querySelector('[data-sis="go"]'); if (go) go.onclick = function () { track('popup', c.goal, { sis_label: r.id }); };
         var cd = m.querySelector('.sis-cd[data-end]'); if (cd) { var tk = function () { var ms = +cd.getAttribute('data-end') - now(); if (ms < 0) ms = 0; var s = Math.floor(ms / 1000); cd.textContent = (s >= 86400 ? Math.floor(s / 86400) + '日 ' : '') + String(Math.floor(s % 86400 / 3600)).padStart(2, '0') + ':' + String(Math.floor(s % 3600 / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }; tk(); setInterval(tk, 1000); }
       }, forced ? 0 : (PC.delaySec || 3) * 1000);
-    });
+    }).catch(function () { SIS.popupPending = false; });
   };
   FX.welcome = function (forced) { if (forced) FX.popup('line'); };
 
@@ -720,7 +722,7 @@
         el.addEventListener('click', function () { track('interestAlert', 'click', { sis_label: pick.why }); });
         var waited = 0;
         (function place() { // ポップアップが開いている間は待ち、閉じてから出す（同時に2つ出さない）
-          if (D.querySelector('.sis-modal, .sis-toast') && waited++ < 120 && !forced) return setTimeout(place, 1000);
+          if ((SIS.popupPending || D.querySelector('.sis-modal, .sis-toast')) && waited++ < 120 && !forced) return setTimeout(place, 1000);
           show();
         })();
         function show() {
