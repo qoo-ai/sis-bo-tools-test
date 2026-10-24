@@ -1169,6 +1169,9 @@
     var k = pkey(code);
     if (!qvCache[k]) {
       var c = ss('qv_' + k); if (c && Date.now() - c.t < 10 * 60e3) qvCache[k] = Promise.resolve(c.m);
+      else if (SP) qvCache[k] = new Promise(function (res) { qvQueue.push(function () { // スマホ版はクイックビューが使えない（500になる）ので商品ページの在庫表示を読む
+        return goodsInfo(code).then(function (g) { var m = {}; if (g && g.stock) m[code] = g.soldout ? '×' : g.low ? '△' : '○'; ss('qv_' + k, { t: Date.now(), m: m }); res(m); });
+      }); pump(); });
       else qvCache[k] = new Promise(function (res) { qvQueue.push(function () {
         return get('/shop/goods/quickviewajax.aspx?goods=' + encodeURIComponent(code), 6000).then(function (html) {
           var t = parseDoc(html).body.textContent.replace(/\s+/g, ' '), m = {}, re = /商品コード\s*([\w-]+)\s*在庫\s*([○△×])/g, x;
@@ -1179,7 +1182,7 @@
     }
     return qvCache[k].then(function (m) { return m[code] || null; });
   }
-  function pump() { while (qvRunning < 3 && qvQueue.length) { qvRunning++; qvQueue.shift()().then(function () { qvRunning--; pump(); }); } }
+  function pump() { while (qvRunning < (SP ? 2 : 3) && qvQueue.length) { qvRunning++; qvQueue.shift()().then(function () { qvRunning--; pump(); }); } }
   FX.listStock = function () {
     if (PAGE !== 'list' && PAGE !== 'top') return;
     var n = 0, io = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); mark(e.target); } }); }, { rootMargin: '200px' }) : null;
