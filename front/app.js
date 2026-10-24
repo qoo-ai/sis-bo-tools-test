@@ -561,7 +561,7 @@
   /* 14. さらに◯%OFF表示（BOでプロモーションを作ってから） */
   FX.extraOff = function () {
     var x = C.extraOff || {}; if (!x.on && !DEMO) return;
-    var rate = x.rate || 20, lab = (x.label || 'カートでさらに{rate}%OFF').replace('{rate}', rate);
+    var rate = x.rate || 20, lab = (x.label || 'カートでさらに{rate}%OFF').replace('{rate}', rate) + (x.on ? '' : '（BO設定待ちのプレビュー）');
     var inScope = (x.scopePaths || []).some(function (p) { return P.indexOf(p) === 0; });
     var n = 0;
     if (PAGE === 'list' && inScope) {

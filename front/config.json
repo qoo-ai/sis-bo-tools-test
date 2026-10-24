@@ -35,9 +35,9 @@
  "coupons": [
   { "id": "now", "code": "boohallo26", "title": "今あるセール品も使える", "value": "500円OFF", "audience": "all", "expires": "2026-11-03T23:59:59+09:00", "expiresLabel": "11/3(火)まで", "_source": "ヘッダーバナー freebnr[42whl]（10/21〜11/3）" },
   { "id": "welcome", "code": "", "title": "はじめてのお買い物クーポン", "value": "", "audience": "new", "_bo": "BO＞プロモーション＞クーポン で発行し、code と value を入れると表示される" },
-  { "id": "kuji-a", "code": "", "value": "", "weight": 70 },
-  { "id": "kuji-b", "code": "", "value": "", "weight": 25 },
-  { "id": "kuji-c", "code": "", "value": "", "weight": 5 }
+  { "id": "kuji-a", "code": "", "value": "300円OFF", "weight": 70, "_bo": "共通クーポンを発行して code を入れる" },
+  { "id": "kuji-b", "code": "", "value": "500円OFF", "weight": 25 },
+  { "id": "kuji-c", "code": "", "value": "送料無料", "weight": 5 }
  ],
 
  "extraOff": { "on": false, "rate": 20, "scopePaths": ["/shop/e/especial/"], "label": "カートでさらに{rate}%OFF", "_bo": "BO＞プロモーション で対象イベントに『さらに20%OFF』を作ってから on:true" },
