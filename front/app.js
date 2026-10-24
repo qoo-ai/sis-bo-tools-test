@@ -721,7 +721,7 @@
       if (c.expires && now() > new Date(c.expires)) return false;
       if (c.audience === 'new' && !isNew) return false;
       if (c.audience === 'repeat' && isNew) return false;
-      if (c.audience === 'guest' && rankName()) return false;
+      if (c.audience === 'guest' && (rankName() || D.getElementById('customer-rank'))) return false; // ログイン中の会員には会員登録の案内は出さない
       return c.code || c.url || DEMO; // コードのない案内（会員登録の特典など）はリンク付きで出す
     });
     myCoupons().then(function (mine) {
