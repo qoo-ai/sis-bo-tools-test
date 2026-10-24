@@ -47,7 +47,7 @@
   }
   function codeOf(href) { var m = String(href || '').match(/\/shop\/g\/g([^/?#]+)\/?/); return m ? m[1] : null; }
   function pkey(code) { var p = String(code).split('-'); return p.length < 4 ? code : p[0] + '-' + p[1] + '-' + p[2]; } // 色違いをまとめた番号（商品番号-サイズ番号-シーズン）
-  function uniqProduct(arr) { var s = {}; return arr.filter(function (g) { var k = pkey(g.code), nm = (g.name || '').replace(/\s*[（(][^）)]*[）)]\s*$/, '').replace(/\s+/g, ' ').trim(); nm = nm ? 'n:' + nm : ''; if (s[k] || (nm && s[nm])) return false; s[k] = 1; if (nm) s[nm] = 1; return true; }); } // 色・サイズ違い（同じ商品名）は1つにまとめる
+  function uniqProduct(arr) { var s = {}; return arr.filter(function (g) { var k = pkey(g.code), nm = (g.name || '').split(/[（(￥¥]/)[0].replace(/\s+/g, ' ').trim(); nm = nm ? 'n:' + nm : ''; if (s[k] || (nm && s[nm])) return false; s[k] = 1; if (nm) s[nm] = 1; return true; }); } // 色・サイズ違い（同じ商品名）は1つにまとめる
   function stem(code) { return pkey(code); }
 
   /* ---------- 訪問・セッション ---------- */
@@ -405,7 +405,7 @@
       while (box && box.parentNode && !/[￥¥]\s?[\d,]+/.test(box.textContent) && up++ < 6) box = box.parentNode;
       var txt = box.textContent.replace(/\s+/g, ' ');
       var nameEl = box.querySelector('[class*="goods-name"], [class*="--name"]');
-      var name = (nameEl ? nameEl.textContent : img.getAttribute('alt') || '').replace(/\s+/g, ' ').trim();
+      var name = (nameEl ? nameEl.textContent : img.getAttribute('alt') || '').replace(/\s+/g, ' ').split(/\s[（(]|[￥¥]/)[0].trim(); // 色・サイズ・価格の表記は除く
       var price = 0, orig = 0, re = /(通常価格\s*)?[￥¥]\s?([\d,]+)/g, m;
       while ((m = re.exec(txt))) { if (m[1]) orig = orig || num(m[2]); else if (!price) price = num(m[2]); }
       seen[code] = 1;
