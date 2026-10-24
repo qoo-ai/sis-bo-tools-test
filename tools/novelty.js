@@ -190,10 +190,13 @@
     return r;
   }
   var MARK = function (id) { return { a: '<!--SIS-NOV:' + id + '-->', b: '<!--/SIS-NOV:' + id + '-->' }; };
-  function block(s) {
+  function iso(v) { return v ? v.replace(/\//g, '-').replace(' ', 'T') + '+09:00' : ''; } // 2026/10/27 12:00:00 → 2026-10-27T12:00:00+09:00
+  function block(s) { // 期間外は表示しない（共通フッターの期間タグ[data-t33]＋この中の小さなJS。前日に入れてよい・終了後に外すのが遅れても見えない）
     var m = MARK(s.cid);
-    return m.a + '<div class="sis-nov" style="margin:0 0 8px"><div style="background:#D12629;color:#fff;font-weight:900;line-height:22px;padding:0 10px">ノベルティ対象商品</div>' +
-      '<div style="line-height:26px;color:#141414">' + s.ctext.replace(/[<>&]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]; }) + '</div></div>' + m.b;
+    return m.a + '<div class="sis-nov" data-t33="SP-1V ' + s.cid + '" data-from="' + iso(s.start) + '" data-to="' + iso(s.end) + '" style="margin:0 0 8px">' +
+      '<div style="background:#D12629;color:#fff;font-weight:900;line-height:22px;padding:0 10px">ノベルティ対象商品</div>' +
+      '<div style="line-height:26px;color:#141414">' + s.ctext.replace(/[<>&]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]; }) + '</div></div>' +
+      '<script>(function(){var s=document.currentScript,e=s&&s.previousElementSibling,m=location.search.match(/[?&]bnrtime=([^&]+)/),n=m?Date.parse(decodeURIComponent(m[1])):Date.now();if(e&&((n<Date.parse(e.getAttribute("data-from")))||(n>=Date.parse(e.getAttribute("data-to")))))e.parentNode.removeChild(e);})();</script>' + m.b;
   }
   function strip(v, id) { var m = MARK(id); var re = new RegExp(m.a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s\\S]*?' + m.b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'); return String(v || '').replace(re, ''); }
   async function commentRows(s, mode) { // mode: add / del
