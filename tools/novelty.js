@@ -29,7 +29,7 @@
     row('終了', '<input class="end" type="datetime-local">') +
     row('最低金額', '<input class="min" type="number" placeholder="11000" style="width:100px"> 円以上（商品合計）') +
     row('選択肢', '<label><input type="checkbox" class="need"> 「ノベルティ不要」も出す</label>') +
-    '<div style="margin:6px 0 2px;color:#475467">ノベルティ（最大5。選択画面は品番の小さい順に並ぶ）：品番 ／ 商品名 ／ 在庫</div>' +
+    '<div style="margin:6px 0 2px;color:#475467">ノベルティ（最大5。選択画面の並びは指定できないので名前に番号を入れない）：品番 ／ 商品名 ／ 在庫</div>' +
     '<textarea class="items" rows="5" style="width:100%;font:12px monospace" placeholder="88-0031-2699-30	【ノベルティ】カバー付き湯たんぽ ①マヌル	30"></textarea>' +
     row('コメント文', '<input class="ctext" style="width:100%" placeholder="空欄なら金額と商品名から作る">') +
     row('コメント対象', '<select class="ctarget"><option value="all">全商品</option><option value="ev">イベントの商品だけ</option><option value="none">付けない</option></select> <input class="cev" placeholder="イベントコード" style="width:110px">') +
