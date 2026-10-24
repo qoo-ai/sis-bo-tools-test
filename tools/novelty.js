@@ -101,7 +101,12 @@
     Object.keys(extra || {}).forEach(function (k) { base[k] = extra[k]; });
     Object.keys(base).forEach(function (k) { fd.append(k, base[k]); });
     var r = await fetch(BO + '/import/exp_goods.aspx', { method: 'POST', body: fd, credentials: 'include' });
-    if (!/csv/.test(r.headers.get('content-type') || '')) throw new Error('エクスポートできない（' + table + '。ログイン切れの可能性）');
+    if (!/csv/.test(r.headers.get('content-type') || '')) {
+      var t = await r.text();
+      if (/<title>[^<]*ログイン/.test(t)) throw new Error('ログインが切れている（' + table + '）');
+      if (/該当/.test(t)) return new Uint8Array(0); // 該当なし＝0件
+      throw new Error('エクスポートできない（' + table + '）');
+    }
     return new Uint8Array(await r.arrayBuffer());
   }
   async function importFile(table, name, bytes) {
@@ -196,6 +201,7 @@
     var extra = s.ctarget === 'ev' ? { event: s.cev } : {};
     state('コメント：エクスポート中…（全商品だと数分）');
     var rows = rowsOf(await exportTable('tmpgoodscustom3', extra)), h = rows[0];
+    if (!h) return { out: [], back: [] };
     var c1 = h.indexOf('商品コメント１'), c1s = h.indexOf('商品コメント１(スマートフォン)'), i2 = h.indexOf('アイコン２');
     if (c1 < 0 || c1s < 0 || i2 < 0) throw new Error('セールコメントのレイアウトに「商品コメント１」「商品コメント１(スマートフォン)」「アイコン２」がない');
     var codes = {}; s.items.forEach(function (i) { codes[i.code] = 1; });
