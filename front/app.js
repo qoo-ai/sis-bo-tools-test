@@ -265,7 +265,10 @@
     '.sis-sp .sis-fab{bottom:88px;width:64px;height:64px}.sis-sp .sis-fab .sis-ic{width:26px;height:26px}',
     '.sis-sp .sis-ship{padding:8px 44px 8px 12px;gap:10px}.sis-sp .sis-ship-ic{width:36px;height:36px}.sis-sp .sis-ship-t{font-size:13px}.sis-sp .sis-ship-t b{font-size:16px}.sis-sp .sis-ship .sis-btn{min-height:40px;padding:0 14px;font-size:13px}',
     '.sis-sp .sis-alert{left:12px;right:12px;width:auto}',
-    '.sis-sp .sis-tk-r code{font-size:16px}'
+    '.sis-sp .sis-tk-r code{font-size:16px}',
+    '.sis-sp .sis-toast{flex-wrap:wrap;padding:12px 44px 12px 12px;gap:10px}.sis-sp .sis-toast .sis-thumbs img{width:48px;height:48px}.sis-sp .sis-toast .sis-tb{flex:1 1 calc(100% - 120px)}.sis-sp .sis-toast>.sis-btn{width:100%}',
+    '.sis-sp .sis-sh-t h4{font-size:16px}.sis-sp .sis-sh{gap:10px}.sis-sp .sis-sh-ic{width:36px;height:36px}',
+    '.sis-sp .sis-ship-t{white-space:nowrap}.sis-sp .sis-trk-l{font-size:10px}'
   ].join('\n');
   function style() { if (D.getElementById('sis-css')) return; var s = D.createElement('style'); s.id = 'sis-css'; s.textContent = css + (Q.get('sis_noanim') === '1' ? '\n.sis-root,.sis-root *,.sis-root:before,.sis-fab:before{animation:none!important;transition:none!important}' : ''); D.head.appendChild(s); D.documentElement.classList.add(SP ? 'sis-sp' : 'sis-pc'); }
 
