@@ -555,11 +555,14 @@
   FX.ranking = function () {
     if (PAGE !== 'top' && PAGE !== 'list') return;
     fetch(CDN + 'data/ranking.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (rk) {
-      var codes = (rk.items || []).slice(0, 8).map(function (x) { return x.code; }); if (!codes.length) return;
-      return Promise.all(codes.map(goodsInfo)).then(function (arr) {
-        arr = arr.filter(function (g) { return g && !g.soldout; }).slice(0, 4); if (!arr.length) return;
+      var list = (rk.items || []).slice(0, 8); if (!list.length) return;
+      return Promise.all(list.map(function (x) { return goodsInfo(x.code); })).then(function (arr) {
+        var rows = [];
+        arr.forEach(function (g, i) { if (g && g.price && !g.soldout) rows.push({ g: g, rank: list[i].rank || i + 1 }); });
+        rows = rows.slice(0, 4); if (!rows.length) return;
         var anchor = D.getElementById('block_of_event');
-        section('ranking', '<h4><span class="sis-tag">売れ筋</span>' + esc(rk.title || '今週の売れ筋') + '<span style="font-size:12px;color:#888;font-weight:normal">集計：' + esc(rk.period || '') + '</span></h4><div class="sis-grid">' + arr.map(function (g, i) { return card(g).replace('<div class="sis-cn">', '<div class="sis-cn"><b style="color:#c4561a">' + (i + 1) + '位</b> '); }).join('') + '</div>', anchor, 'before');
+        section('ranking', '<h4><span class="sis-tag">売れ筋</span>' + esc(rk.title || 'いま売れているアイテム') + '<span style="font-size:12px;color:#888;font-weight:normal">' + esc(rk.period || '') + 'の購入数順</span></h4><div class="sis-grid">' +
+          rows.map(function (r) { return card(r.g).replace('<div class="sis-cn">', '<div class="sis-cn"><b style="color:#c4561a">' + r.rank + '位</b> '); }).join('') + '</div>', anchor, 'before');
       });
     }).catch(function () { SIS.active.ranking = 'データ待ち'; });
   };
