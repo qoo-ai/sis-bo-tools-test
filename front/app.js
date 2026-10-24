@@ -459,6 +459,7 @@
         var el = h('<div class="sis-root sis-shipfix" id="sis-shipfix"><div class="sis-strip" style="border:0;background:transparent">' + html + '</div><button class="sis-x" aria-label="閉じる" style="top:50%;transform:translateY(-50%)">×</button></div>');
         el.querySelector('.sis-x').onclick = function () { el.remove(); ss('shipbarClosed', 1); track('shipbar', 'close'); };
         D.body.appendChild(el); el.style.bottom = bottomOffset() + 'px'; SIS.active.shipbar = 'on';
+        if (parseInt(el.style.bottom)) var iv = setInterval(function () { var cb = D.getElementById('cookieBox'); if (!cb || getComputedStyle(cb).display === 'none') { el.style.bottom = bottomOffset() + 'px'; if (!parseInt(el.style.bottom)) clearInterval(iv); } }, 1500); // Cookie同意バーが消えたら下まで下げる
       }
       track('shipbar', 'impression', { sis_value: c.total });
     });
