@@ -781,14 +781,14 @@
       var rankBar = '';
       if (rest <= 0 && rs && rs.up && rs.amt != null) { // 送料無料を越えたら、次の会員ランクまでのバーに切り替える（この注文も足して計算）
         var after = rs.amt + c.total, need = Math.max(0, rs.up.min - after), rp = Math.min(100, Math.round(after / rs.up.min * 100));
-        rankBar = need > 0 ? '<div class="sis-ship-k">送料無料 達成</div><div class="sis-ship-t">あと <b>' + yen(need) + '</b> で「' + esc(rs.up.name) + '」</div><div class="sis-trk"><i style="width:' + rp + '%;background:var(--sis-p)"></i><u style="left:' + rp + '%;border-color:var(--sis-p)"></u></div><div class="sis-trk-l"><span>' + rs.nextLabel + 'の判定まで（この注文込み ' + yen(after) + '）</span><span>' + yen(rs.up.min) + '</span></div>'
+        rankBar = need > 0 ? '<div class="sis-ship-k">送料無料 達成</div><div class="sis-ship-t">あと <b>' + yen(need) + '</b> で「' + esc(rs.up.name) + '」</div><div class="sis-trk"><i style="width:' + rp + '%;background:var(--sis-p)"></i><u style="left:' + rp + '%;border-color:var(--sis-p)"></u></div><div class="sis-trk-l"><span>' + rs.nextLabel + 'の判定まで</span><span>' + yen(rs.up.min) + '</span></div>'
           : '<div class="sis-ship-k">送料無料 達成</div><div class="sis-ship-t">この注文で' + rs.nextLabel + 'に「' + esc(rs.up.name) + '」へ</div>';
       }
       var html = '<div class="sis-ship-m">' +
         (rest > 0 ? '<div class="sis-ship-t">あと <b>' + yen(rest) + '</b> で送料無料</div><div class="sis-trk"><i style="width:' + pct + '%"></i><u style="left:' + pct + '%"></u></div><div class="sis-trk-l"><span>カート ' + yen(c.total) + '</span><span>' + yen(free) + '</span></div>'
           : rankBar || '<div class="sis-ship-t" style="color:#05964a">送料無料ライン達成！</div><div class="sis-trk-l"><span>カート ' + yen(c.total) + '（' + yen(free) + '以上）</span></div>');
       if (nov.on) { var nr = nov.threshold - c.total; html += '<div class="sis-trk-l"><span>' + (nr > 0 ? 'あと ' + yen(nr) + ' で ' + esc(nov.label) : esc(nov.label) + ' 対象') + '</span></div>'; }
-      html += '</div><a class="sis-btn sis-sm" href="/shop/cart/cart.aspx">' + ic('cart') + 'カートを見る</a>';
+      html += '</div><a class="sis-btn sis-sm" href="/shop/cart/cart.aspx">' + ic('cart') + (SP ? 'カート' : 'カートを見る') + '</a>';
       if (cfg.position === 'top') { strip('shipbar', '<div class="sis-ship" style="padding:0;width:100%">' + html + '</div>'); }
       else {
         var old = D.getElementById('sis-shipfix'); if (old) old.remove();
