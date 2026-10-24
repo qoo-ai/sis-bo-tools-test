@@ -7,7 +7,7 @@
    ・登録の前に一覧で確認 →［登録する］で1本ずつ入れ、読み戻して照合する */
 (function(){
 "use strict";
-var W=window,D=document,VER='NEWS v1.2 (2026-10-24)';
+var W=window,D=document,VER='NEWS v1.3 (2026-10-24)';
 var ROOT='/'+location.pathname.split('/')[1]+'/';
 var host=location.hostname,ENV=/mercart-stg/.test(host)?'stg':/mercart-bo/.test(host)?'本番':null;
 var SHOP=ENV==='stg'?'https://shop.seesplanning.mercart-stg.net':'https://drugstores-shop.com';
@@ -84,6 +84,7 @@ function build(rows){var out=[],errs=[];
    var st=pdt(r.st),en=pdt(r.en);
    if(!st||!en){errs.push(where+'イベント3本は「イベント開始日時」「イベント終了日時」が要ります');return;}
    if(!(pub<st&&st<en)){errs.push(where+'掲載日時（予告）＜イベント開始＜イベント終了 の順にしてください');return;}
+   if(end&&end<=en){errs.push(where+'イベント3本の掲載終了は、イベント終了日時より後にしてください（空なら終了の3日後）');return;}
    var nm=r.title.replace(/^【[^】]*】\s*/,'');
    var e3=end||new Date(en.getTime()+3*86400000);
    out.push({row:r.n,part:'予告',title:'【イベント】'+nm+' '+md(st)+hm(st)+'よりスタート！',text:r.text,s:pub,f:st,img:img,link:link});
