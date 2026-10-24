@@ -675,9 +675,11 @@
   /* 4b. ヘッダーのバナーを2つに分ける（左＝今のバナー画像、右＝クーポンの残り時間とコードのコピー） */
   FX.headerSplit = function () {
     var cfg = C.headerSplit || {}; if (!cfg.on && !Q.get('sis_hsplit')) return;
-    var box = D.querySelector(cfg.selector || '#header-news2'); if (!box) return;
+    var key = cfg.bannerKey || '', box = SP ? null : D.querySelector(cfg.selector || '#header-news2');
+    if (SP) { var im = [].slice.call(D.querySelectorAll('img')).filter(function (i) { return key && i.src.indexOf(key) >= 0; })[0]; box = im ? (im.closest('a') || im) : null; }
+    if (!box) return;
     var c = (C.coupons || []).filter(function (x) { return x.code && x.code === (cfg.coupon || '') && (!x.expires || now() < new Date(x.expires)); })[0]; if (!c) return;
-    var bg = (getComputedStyle(box).backgroundImage.match(/url\("?([^")]+)"?\)/) || [])[1]; if (!bg) return;
+    var bg = SP ? 'x' : (getComputedStyle(box).backgroundImage.match(/url\("?([^")]+)"?\)/) || [])[1]; if (!bg) return;
     var link = box.closest('a') || box.querySelector('a'), href = link ? link.getAttribute('href') : (cfg.href || '');
     var end = c.expires ? new Date(c.expires) : null;
     var right = (end ? '<div class="sis-hs-t">' + esc(c.expiresLabel || '') + '　終了まで<b>' + tiles(end) + '</b></div>' : '') +
