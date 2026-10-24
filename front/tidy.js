@@ -149,10 +149,7 @@
     });
     var pinned = rest.filter(function (g) { return g.pin; });
     rest = rest.filter(function (g) { return !g.pin; });
-    if (top.length < TOPN) {   // 上段が埋まらない（商品が少ない）ときは、かぶりを許して埋める
-      var fill = rest.filter(function (g) { return !g.back; }).slice(0, TOPN - top.length);
-      top = top.concat(fill); rest = rest.filter(function (g) { return fill.indexOf(g) < 0; });
-    }
+    // 上段が TOPN 枚に満たない（商品が少ないページ）ときは、そのまま。かぶる商品・色違いは上段の後ろに並ぶ
     return { list: pinned.concat(top, rest), top: top };
   }
   // priority の順に各ページの上段を決める（until のページの直前まで、または全部）
@@ -176,9 +173,13 @@
     return Promise.all([marks(), stats()]).then(function (r) {
       var ctx = { marks: r[0], stats: r[1], prof: profile() };
       return allocate(null, ctx).then(function (a) {
-        var seen = {}, dup = 0, rows = {};
-        PRIORITY.forEach(function (ev) { rows[ev] = (a.tops[ev] || []).map(function (g) { var k = pk(g.code); if (seen[k]) dup++; seen[k] = 1; return g.name.slice(0, 18); }); });
-        return { overlapInTops: dup, tops: rows };
+        var seen = {}, dup = 0, rows = {}, inPage = 0;
+        PRIORITY.forEach(function (ev) {
+          var mine = {};
+          rows[ev] = (a.tops[ev] || []).map(function (g) { var k = pk(g.code); if (seen[k]) dup++; if (mine[k]) inPage++; mine[k] = 1; return g.name.slice(0, 18); });
+          Object.keys(mine).forEach(function (k) { seen[k] = 1; });
+        });
+        return { overlapAcrossPages: dup, sameProductInOneTop: inPage, tops: rows };
       });
     });
   };
