@@ -7,7 +7,7 @@
    ・登録の前に一覧で確認 →［登録する］で1本ずつ入れ、読み戻して照合する */
 (function(){
 "use strict";
-var W=window,D=document,VER='NEWS v1.0 (2026-10-24)';
+var W=window,D=document,VER='NEWS v1.1 (2026-10-24)';
 var ROOT='/'+location.pathname.split('/')[1]+'/';
 var host=location.hostname,ENV=/mercart-stg/.test(host)?'stg':/mercart-bo/.test(host)?'本番':null;
 var SHOP=ENV==='stg'?'https://shop.seesplanning.mercart-stg.net':'https://drugstores-shop.com';
@@ -161,9 +161,12 @@ function run(list){var i=0,okN=0;
   if(t.del&&!t.ex){t.st.textContent='—';say(t.row+'行目「'+t.title+'」はBOに無いので、消す作業はありません',1);return next();}
   if(t.del){t.f=new Date();t.f.setSeconds(0,0);if(t.f<=t.s)t.s=new Date(t.f.getTime()-60000);}
   t.st.textContent='登録中…';
-  return put(t,t.ex).then(function(r){if(!r.id)throw new Error('トピック番号が取れません'+(r.err?'（'+r.err+'）':''));return verify(t,r.id).then(function(bad){
+  /* 読み戻して食い違えば、同じトピックに1回だけ入れ直す（初回の画面読み込みで本文が空になることがある：10/24 stg実測） */
+  function once(id,retry){return put(t,id).then(function(r){if(!r.id)throw new Error('トピック番号が取れません'+(r.err?'（'+r.err+'）':''));return verify(t,r.id).then(function(bad){
+    if(bad.length&&!retry){t.st.textContent='入れ直し中… #'+r.id;return once(r.id,true);}
     if(bad.length){t.st.textContent='× #'+r.id;say(t.row+'行目 #'+r.id+'：BOと食い違い（'+bad.join('・')+'）',2);}
-    else{okN++;t.st.textContent='✓ #'+r.id;}});})
+    else{okN++;t.st.textContent='✓ #'+r.id+(retry?'（入れ直し）':'');}});});}
+  return once(t.ex,false)
    .catch(function(e){t.st.textContent='×';say(t.row+'行目「'+t.title+'」：'+e.message,2);}).then(next);}
  return next();}
 function start(text){var rows;try{rows=parseSheet(text);}catch(e){say(e.message,2);ask();return;}
