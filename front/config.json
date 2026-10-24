@@ -49,7 +49,7 @@
  "features": {
   "welcome": true, "exit": true, "source": true, "coupon": true, "shipbar": true,
   "countdown": true, "kuji": true, "rank": true, "newRepeat": true, "catBanner": true,
-  "sizeMemo": true, "lowStock": true, "ranking": true, "extraOff": true, "coord": true,
+  "sizeMemo": true, "modelSize": true, "lowStock": true, "ranking": true, "extraOff": true, "coord": true,
   "cartReminder": true, "crossSell": true, "ab": true, "ga4": true
  },
 

@@ -563,6 +563,22 @@
     v.unshift({ code: code, t: Date.now() }); ls('viewed', v.slice(0, 12));
   }
 
+  /* 11b. サイズの目安（商品写真のモデル着用情報を使う） */
+  FX.modelSize = function () {
+    if (PAGE !== 'goods') return;
+    var seen = {}, rows = [];
+    [].slice.call(D.querySelectorAll('.block-goods-gallery p, .block-src-L div, .js-goods-img-item div')).forEach(function (e) {
+      if (e.children.length) return;
+      var m = e.textContent.replace(/\s+/g, ' ').match(/着用サイズ[：:]\s*(\S+)\s*モデル身長[：:]\s*(\d{3})\s*cm/);
+      if (!m) return; var k = m[2] + '-' + m[1]; if (seen[k]) return; seen[k] = 1; rows.push({ size: m[1], h: +m[2] });
+    });
+    if (!rows.length) return;
+    rows.sort(function (x, y) { return x.h - y.h; });
+    var list = D.querySelector('.block-size--item-list'); if (!list) return;
+    var html = '<div class="sis-root sis-size-hint" id="sis-modelsize">📏 サイズの目安（撮影モデルの着用）：' + rows.map(function (r) { return '身長' + r.h + 'cm → <b>' + esc(r.size) + '</b>'; }).join('／') + '</div>';
+    list.parentNode.insertBefore(h(html), list); SIS.active.modelSize = 'on'; track('modelSize', 'impression', { sis_label: rows.length });
+  };
+
   /* 12. 在庫僅少バッジ（メルカートの在庫表示「△」をそのまま使う） */
   FX.lowStock = function () {
     if (PAGE !== 'goods') return;
@@ -698,7 +714,7 @@
   }
 
   /* ---------- 関係者チップ ---------- */
-  var NAMES = { welcome: '初回ポップアップ', exit: '離脱時ポップアップ', source: '流入元別の出し分け', coupon: '入店時クーポン', shipbar: '送料無料バー', countdown: '期限カウントダウン', kuji: 'くじ', rank: '会員ランク別UI', newRepeat: '新規／リピーター', catBanner: '閲覧カテゴリ別バナー', sizeMemo: 'サイズ記憶', lowStock: '在庫僅少バッジ', ranking: '売れ筋ランキング', extraOff: 'さらに◯%OFF', coord: 'コーデまとめ買い', cartReminder: 'カゴ落ち表示', crossSell: 'カート内クロスセル' };
+  var NAMES = { welcome: '初回ポップアップ', exit: '離脱時ポップアップ', source: '流入元別の出し分け', coupon: '入店時クーポン', shipbar: '送料無料バー', countdown: '期限カウントダウン', kuji: 'くじ', rank: '会員ランク別UI', newRepeat: '新規／リピーター', catBanner: '閲覧カテゴリ別バナー', sizeMemo: 'サイズ記憶', modelSize: 'サイズの目安', lowStock: '在庫僅少バッジ', ranking: '売れ筋ランキング', extraOff: 'さらに◯%OFF', coord: 'コーデまとめ買い', cartReminder: 'カゴ落ち表示', crossSell: 'カート内クロスセル' };
   function chip() {
     if (Q.get('sis_chip') === '0') return;
     var c = h('<button class="sis-root sis-chip">SIS施策 ON</button>'); var panel;
@@ -720,7 +736,7 @@
   onReady(function () {
     style();
     recordViewed();
-    var order = ['countdown', 'source', 'coupon', 'rank', 'shipbar', 'newRepeat', 'catBanner', 'ranking', 'sizeMemo', 'lowStock', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'welcome', 'kuji', 'exit'];
+    var order = ['countdown', 'source', 'coupon', 'rank', 'shipbar', 'newRepeat', 'catBanner', 'ranking', 'sizeMemo', 'modelSize', 'lowStock', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'welcome', 'kuji', 'exit'];
     var only = (Q.get('sis_only') || '').split(',').filter(Boolean);
     order.forEach(function (k) { if (F[k] === false || !FX[k] || only.length && only.indexOf(k) < 0) return; try { FX[k](false); } catch (e) { SIS.active[k] = 'エラー'; if (window.console) console.warn('[SIS]', k, e); } });
     var sh = Q.get('sis_show'); if (sh) setTimeout(function () { SIS.show(sh); }, 600);
