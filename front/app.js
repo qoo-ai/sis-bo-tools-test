@@ -47,7 +47,7 @@
   }
   function codeOf(href) { var m = String(href || '').match(/\/shop\/g\/g([^/?#]+)\/?/); return m ? m[1] : null; }
   function pkey(code) { var p = String(code).split('-'); return p.length < 4 ? code : p[0] + '-' + p[1] + '-' + p[2]; } // 色違いをまとめた番号（商品番号-サイズ番号-シーズン）
-  function uniqProduct(arr) { var s = {}; return arr.filter(function (g) { var k = pkey(g.code); if (s[k]) return false; s[k] = 1; return true; }); }
+  function uniqProduct(arr) { var s = {}; return arr.filter(function (g) { var k = pkey(g.code), nm = (g.name || '').replace(/[\s（(].*$/, '') ? 'n:' + (g.name || '').trim() : ''; if (s[k] || (nm && s[nm])) return false; s[k] = 1; if (nm) s[nm] = 1; return true; }); } // 色・サイズ違い（同じ商品名）は1つにまとめる
   function stem(code) { return pkey(code); }
 
   /* ---------- 訪問・セッション ---------- */
@@ -1011,6 +1011,7 @@
     return Promise.all(list.map(function (x) { return goodsInfo(x.code); })).then(function (arr) {
       var hits = [];
       arr.forEach(function (g, i) { if (!g || g.soldout || !g.price) return; var x = list[i]; var why = g.low ? '残りわずか' : x.price && g.price < x.price ? yen(x.price - g.price) + '値下がり' : null; if (why) hits.push({ g: g, why: why }); });
+      hits = uniqProduct(hits.map(function (x) { x.g.why = x.why; return x.g; })).map(function (g) { return { g: g, why: g.why }; });
       if (!hits.length) return false;
       var slider = D.getElementById('block_of_top_body') || mainEl().firstElementChild;
       var el = section('interestTop', shead({ tone: 'r', icon: 'fire', title: '気になっていた商品が' + (hits.every(function (x) { return x.why === '残りわずか'; }) ? '残りわずかです' : '動いています'), sub: 'あなたが見た・カートに入れた商品の、いまの在庫と価格です' }) +
