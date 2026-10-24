@@ -465,7 +465,7 @@
     d.querySelectorAll('.block-cart--goods-list-item').forEach(function (it) {
       var li = it.closest('.js-enhanced-ecommerce-item, li'); // スマホ版は数量の入力欄が商品名の枠の外（li の中）にある
       var box = it.closest('.block-cart--goods-list-item-container, .js-enhanced-ecommerce-item') || it.parentNode;
-      var a = box.querySelector('a[href*="/shop/g/g"]') || (box.parentNode && box.parentNode.querySelector('a[href*="/shop/g/g"]'));
+      var a = box.querySelector('a[href*="/shop/g/g"]') || it.closest('a[href*="/shop/g/g"]') || (li && li.querySelector('a[href*="/shop/g/g"]')) || (box.parentNode && box.parentNode.querySelector('a[href*="/shop/g/g"]'));
       var img = (box.parentNode || box).querySelector('.block-cart--goods-list-image img, img[src*="/img/goods/"]');
       var qEl = it.querySelector('.block-cart--goods-list-item-qty input, input[name*="qty"], select') || (li && li.querySelector('.block-cart--goods-list-item-qty input, input[name^="qty"]'));
       var vEl = it.querySelector('.block-cart--goods-list-item-comment');
