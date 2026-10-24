@@ -499,7 +499,7 @@
       var snap = ls('cartSnap');
       if (snap && snap.count === hc && Date.now() - snap.at < 6 * 3600e3) return snap;
       return get('/shop/cart/cart.aspx', 8000).then(function (h2) { return parseCartPage(parseDoc(h2)); })
-        .catch(function () { return snap && Date.now() - snap.at < 6 * 3600e3 ? snap : { items: [], total: 0, count: 0, error: true }; }); // カート画面が重いときは、前に読んだ中身を使う
+        .catch(function () { return snap && snap.count === hc && Date.now() - snap.at < 6 * 3600e3 ? snap : { items: [], total: 0, count: 0, error: true }; }); // カート画面が重いときは、前に読んだ中身を使う
     }).catch(function () { return { items: [], total: 0, count: 0, error: true }; });
     return cartP;
   }
