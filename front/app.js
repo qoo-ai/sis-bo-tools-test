@@ -574,8 +574,8 @@
 
   /* 10. 閲覧カテゴリ別バナー ／ よく見るジャンルを上に並べ替え */
   var CB = C.catBanner || {};
-  function stamp(key, id, name) { var all = ls(key) || {}; var c = all[id] || { ts: [] }; if (c.n && !c.ts.length) c.ts = [c.t || Date.now()]; c.ts.push(Date.now()); c.ts = c.ts.slice(-30); if (name) c.name = name; all[id] = c; ls(key, all); }
-  function countIn(c) { var w = (CB.windowDays || 14) * 864e5; return (c.ts || (c.t ? [c.t] : [])).filter(function (t) { return Date.now() - t < w; }).length; }
+  function stamp(key, id, name) { var all = ls(key) || {}; var c = all[id] || {}; if (!c.ts) { c.ts = []; for (var i = 0; i < (c.n || 0); i++) c.ts.push(c.t || Date.now()); delete c.n; delete c.t; } c.ts.push(Date.now()); c.ts = c.ts.slice(-30); if (name) c.name = name; all[id] = c; ls(key, all); }
+  function countIn(c) { var w = (CB.windowDays || 14) * 864e5; var ts = c.ts; if (!ts) { ts = []; for (var i = 0; i < (c.n || 0); i++) ts.push(c.t); } return ts.filter(function (t) { return Date.now() - t < w; }).length; }
   function recordCategory() {
     var m = P.match(/^\/shop\/c\/(c\d+)/i);
     if (m) { var name = (D.title.split(/[|｜]/)[0] || '').replace(/\s*[:：].*$/, '').trim(); var h1 = D.querySelector('h1'); if (h1 && h1.textContent.trim().length < 20) name = h1.textContent.trim(); stamp('cats', m[1], name.split('/').pop()); }
