@@ -164,7 +164,9 @@
   "tidy": {
     "_readme": "イベントページとトップの並び（tidy.js v2）。pages=ページごとの並べ方（new=登録の並び／mix=売れ筋3＋在庫十分1の繰り返し・人と日でゆらぐ／sales=売れ筋順／off=触らない）。priority=かぶり防止の優先順（上のページから上段 dedupeTop 枚を決め、下のページの上段には出さない）。lastEvents=そのイベントに載せた商品はどのページでも最後（komono=小物、back=後回し）。firstEvents=先頭固定（pin）。komonoWords=名前で小物とみなす語（予備）",
     "on": true,
-    "topOn": true,
+    "mode": "basic",
+    "_mode": "basic＝フェーズ1（並びはメルカートの並び順のまま。売り切れ・同じ色の重複を隠すGとNEWのIだけ。トップは触らない）／full＝フェーズ2の全部品（人気順・好み・かぶり防止・1ページ化・トップ入れ替え）",
+    "topOn": false,
     "priority": [
       "special",
       "sale2",

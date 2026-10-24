@@ -21,12 +21,17 @@
     '#sis1 .chk{display:flex;gap:6px;align-items:center;font-weight:normal;margin-top:6px}#sis1 .chk input{width:auto}</style>' +
     '<div class="hd"><span>SIS セール1ボタン（' + (STG ? 'stg 検証環境' : '本番') + '）</span><a href="#" class="x">×</a></div>' +
     '<div class="bd">' +
-    '<label>関様の依頼シート（.xlsx）※今の指示書でも可</label><input type="file" class="inst" accept=".xlsx">' +
+    '<label>セール依頼シートの「セール」タブを貼り付け</label>' +
+    '<div style="font-size:12px;color:#555">シートで Cmd＋A → Cmd＋C → 下の欄をクリックして Cmd＋V。設定も商品もシートから読みます（ここで入力する項目はありません）</div>' +
+    '<textarea class="paste" style="width:100%;height:64px;box-sizing:border-box;font-size:11px" placeholder="ここに貼り付け"></textarea>' +
+    '<div class="pv" style="font-size:12px;background:#f6f6f6;padding:6px;margin-top:4px;display:none"></div>' +
+    '<details style="margin-top:6px"><summary style="font-size:12px;color:#888">予備：Excelファイルで読む（貼り付けが使えないとき）</summary>' +
+    '<input type="file" class="inst" accept=".xlsx">' +
     '<div class="row"><div><label>開始</label><input type="datetime-local" class="start"></div><div><label>終了</label><input type="datetime-local" class="end"></div></div>' +
     '<div class="row"><div><label>フェアのイベントコード</label><input type="text" class="ev" placeholder="例 1010fair"></div>' +
     '<div><label>常設セールと重なるとき</label><select class="mode"><option value="timed">B 時刻ちょうどに入れる</option><option value="gap">A 前日・翌朝は定価</option></select></div></div>' +
     '<div class="row"><div><label>購入グループ</label><select class="grp"><option value="">変えない</option></select></div>' +
-    '<div><label>購入グループを入れる時</label><select class="gwhen"><option value="now">前日（すぐ）</option><option value="start">開始時刻</option></select></div></div>' +
+    '<div><label>購入グループを入れる時</label><select class="gwhen"><option value="now">前日（すぐ）</option><option value="start">開始時刻</option></select></div></div></details>' +
     (STG ? '<label class="chk"><input type="checkbox" class="now" checked> stgは開始を「今」にする（関様がすぐ確認できる）</label>' : '') +
     '<label class="chk"><input type="checkbox" class="dry"> 作るだけ（取り込まない・確認用）</label>' +
     '<button class="go">全部やる</button><button class="dl">ファイルを保存</button><button class="undo">元に戻す</button><button class="clean">フェア後の片付け</button>' +
@@ -143,8 +148,7 @@
     var m = String(v).match(/(\d{4})\D(\d{1,2})\D(\d{1,2})\D+(\d{1,2}):(\d{2})/);
     return m ? m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2) + 'T' + ('0' + m[4]).slice(-2) + ':' + m[5] : '';
   }
-  async function requestRows(wb) { // 依頼シート「商品」タブ → 指示書（v2）の形
-    var rows = wsRows(wb.Sheets['商品']);
+  async function requestRows(rows) { // 依頼シート「商品」タブ（または貼り付けた「セール」タブの表）→ 指示書（v2）の形
     var hi = rows.findIndex(function (r) { return r.some(function (v) { return cellStr(v) === '商品コード'; }); });
     if (hi < 0) throw new Error('依頼シートの「商品」タブに「商品コード」の見出しがない');
     var h = rows[hi].map(cellStr), ic = h.indexOf('商品コード'), ip = h.indexOf('イベントページ'), ipr = h.indexOf('プライス');
@@ -153,7 +157,7 @@
     var icx = ix(/キャンセル不可/), ior = ix(/^(並び|並び順|位置)$/), ipu = ix(/^(公開予約|公開|新規公開)$/);
     if (ip < 0 || ipr < 0) throw new Error('依頼シートに「イベントページ」「プライス」の見出しがない');
     state('1/6 在庫と状態をエクスポート中…');
-    var c2 = rowsOf(await exportTable('tmpgoodscustom2')), H = c2[0];
+    var c2 = await custom2(), H = c2[0];
     var X = function (k) { return H.indexOf(k); };
     var map = {}; c2.slice(1).forEach(function (r) { if (r[0]) map[r[0].replace(/\D/g, '')] = r; });
     var out = [V2], missing = [], per = {}, seen = {};
@@ -334,12 +338,154 @@
     };
   }
 
+
+  // ---------------------------------------------------------------- 在庫と状態（1回の実行で1回だけエクスポート）
+  async function custom2() { if (!st.c2) st.c2 = rowsOf(await exportTable('tmpgoodscustom2')); return st.c2; }
+  async function eventGoods(ev) { // イベント商品のエクスポート（商品コードの一覧）
+    var fd = new FormData();
+    [['table', 'tmpeventgoods'], ['category_tree', ''], ['genre_tree', ''], ['event', ev], ['format', 'CSV'], ['header', '1'], ['export.x', '10'], ['export.y', '10']]
+      .forEach(function (q) { fd.append(q[0], q[1]); });
+    var r = await fetch(BO + '/import/exp_event.aspx', { method: 'POST', body: fd, credentials: 'include' });
+    if (!/csv/.test(r.headers.get('content-type') || '')) return null;
+    var rows = rowsOf(new Uint8Array(await r.arrayBuffer())), h = rows[0] || [], ei = h.indexOf('イベントコード'), gi = h.indexOf('商品コード');
+    return rows.slice(1).filter(function (x) { return ei < 0 || x[ei] === ev; }).map(function (x) { return x[gi >= 0 ? gi : 1]; });
+  }
+  var KOMONO_EVENT = 'komono';
+  var KOMONO_WORDS = ['バッグ', 'リュック', '財布', '帽子', 'キャップ', 'ハット', 'ベルト', 'マフラー', 'ストール', '手袋', 'ソックス', '靴下', 'マスク', 'ヘアゴム', 'シュシュ', 'ヘアクリップ', 'ポーチ', 'エコバッグ', 'ハンカチ', 'タオル', 'キーホルダー'];
+  async function renumber10(instRows, hiI) {
+    var f10 = file('10_'), rows = rowsOf(f10.bytes), head = rows[0];
+    var ci = Math.max(0, head.indexOf('イベントコード')), gi = head.indexOf('商品コード'), oi = head.findIndex(function (h) { return /並び順/.test(h); });
+    gi = gi < 0 ? 1 : gi; if (oi < 0) return;
+    var orI = hiI >= 0 ? instRows[hiI].map(cellStr).findIndex(function (v) { return /^(並び|並び順|位置)$/.test(v.trim()); }) : -1;
+    var front = {}, back = {}, nF = 0, nB = 0;
+    if (orI >= 0) instRows.slice(hiI + 1).forEach(function (r) {
+      if (!r || !r[0]) return; var v = cellStr(r[orI]).trim(), code = String(r[0]).trim();
+      if (/^\d+$/.test(v)) { front[code] = Number(v); nF++; }
+      else if (/^(先頭|↑|上|先|top)$/i.test(v)) { front[code] = 0; nF++; }
+      else if (/^(後ろ|↓|下|後回し|後|back)$/i.test(v)) { back[code] = 1; nB++; }
+    });
+    var kset = {}, nameOf = {}, c2 = await custom2(), ni = c2[0].indexOf('商品名');
+    c2.slice(1).forEach(function (r) { nameOf[r[0]] = String(r[ni] || ''); });
+    var km = await eventGoods(KOMONO_EVENT); (km || []).forEach(function (c) { kset[c] = 1; });
+    var isK = function (c) { if (kset[c]) return true; var n = (nameOf[c] || '').toLowerCase(); return KOMONO_WORDS.some(function (w) { return n.indexOf(w.toLowerCase()) >= 0; }); };
+    var by = {}, nK = 0;
+    rows.slice(1).forEach(function (r, i) { (by[r[ci]] = by[r[ci]] || []).push({ r: r, i: i }); });
+    var out = [head];
+    Object.keys(by).forEach(function (ev) {
+      var L = by[ev].map(function (x) {
+        var c = x.r[gi], b = front[c] != null ? 0 : (back[c] || isK(c)) ? 2 : 1; if (b === 2 && !back[c]) nK++;
+        return { r: x.r, b: b, f: front[c] || 0, o: Number(x.r[oi]) || 0, i: x.i };
+      }).sort(function (p, q) { return p.b - q.b || p.f - q.f || p.o - q.o || p.i - q.i; });
+      var rank = 0, prev = null;
+      L.forEach(function (x) { var k = x.b + ':' + x.f + ':' + x.o; if (k !== prev) { rank++; prev = k; } var n = x.r.slice(); n[oi] = rank; out.push(n); });
+    });
+    st.files[f10.name] = await toCp932(out);
+    log('並び順（メルカート標準の番号）：先頭 ' + nF + '件／後ろ ' + nB + '件／小物を最後に ' + nK + '行' + (km ? '' : '（小物ページを読めず、名前だけで判定）'));
+  }
+
+  // ---------------------------------------------------------------- 貼り付け（依頼シートの「セール」タブ）
+  function tsv(t) { // Googleスプレッドシートのコピー（タブ区切り・改行を含むセルは "" で囲まれる）
+    var out = [], row = [], cell = '', q = false; t = String(t || '').replace(/\r\n?/g, '\n');
+    for (var i = 0; i < t.length; i++) {
+      var ch = t[i];
+      if (q) { if (ch === '"') { if (t[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
+      else if (ch === '"' && cell === '') q = true;
+      else if (ch === '\t') { row.push(cell); cell = ''; }
+      else if (ch === '\n') { row.push(cell); out.push(row); row = []; cell = ''; }
+      else cell += ch;
+    }
+    if (cell || row.length) { row.push(cell); out.push(row); }
+    return out;
+  }
+  function readPaste(text) {
+    var rows = tsv(text), hi = rows.findIndex(function (r) { var h = r.map(function (v) { return String(v).trim(); }); return h.indexOf('商品コード') >= 0 && h.indexOf('イベントページ') >= 0; });
+    if (hi < 0) throw new Error('貼り付けた中に「商品コード」「イベントページ」の見出しがない（「セール」タブを Cmd＋A でまるごとコピー）');
+    var S = {}; rows.slice(0, hi).forEach(function (r) { var k = String(r[0] || '').trim(); if (k && r[1] != null) S[k] = String(r[1]).trim(); });
+    return { S: S, table: rows.slice(hi) };
+  }
+  function pickS(S, re) { var k = Object.keys(S).filter(function (x) { return re.test(x); })[0]; return k ? S[k] : ''; }
+  function applySettings(S) { // 貼り付けた設定 → 画面の（隠れた）入力欄へ。足りないものを返す
+    var v, miss = [];
+    if ((v = toLocal(pickS(S, /^開始/)))) $('.start').value = v; else miss.push('開始');
+    if ((v = toLocal(pickS(S, /^終了/)))) $('.end').value = v; else miss.push('終了');
+    if ((v = cellStr(pickS(S, /イベントコード/)))) $('.ev').value = v; else miss.push('イベントコード');
+    st.settings = { name: pickS(S, /フェア名|イベント名|セール名/), tpl: pickS(S, /ひな形/) };
+    v = cellStr(pickS(S, /^購入グループ/)); $('.grp').value = '';
+    if (v && !/^(なし|空欄|-|ー)$/.test(v)) { var gc = groupCode(v); if (gc) $('.grp').value = gc; else miss.push('購入グループ「' + v + '」がマスタに無い'); }
+    v = cellStr(pickS(S, /入れる時/)); $('.gwhen').value = /開始/.test(v) ? 'start' : 'now';
+    v = cellStr(pickS(S, /重なる/)); $('.mode').value = /前日|翌朝|A/.test(v) && !/時刻ちょうど/.test(v) ? 'gap' : 'timed';
+    v = cellStr(pickS(S, /クーポン/)); st.couponStop = !/止めない|しない|いいえ|×/.test(v);
+    v = cellStr(pickS(S, /新作・定番|定価の行|^P/)); st.keepP = /取り込む|入れる|はい|○/.test(v) && !/取り込まない/.test(v);
+    return miss;
+  }
+  $('.paste').addEventListener('paste', function (e) {
+    var t = e.clipboardData && e.clipboardData.getData('text/plain'); if (!t) return;
+    e.preventDefault(); this.value = '';
+    try {
+      var p = readPaste(t), miss = applySettings(p.S); st.pasted = p.table;
+      var n = p.table.slice(1).filter(function (r) { var c = String(r[0] || '').trim(); return c && c !== '記入例' && c[0] !== '#'; }).length;
+      var pv = $('.pv'); pv.style.display = 'block';
+      pv.innerHTML = '<b>' + esc(st.settings.name || '（フェア名なし）') + '</b>　' + esc($('.ev').value) + '<br>' + esc(jp($('.start').value)) + ' 〜 ' + esc(jp($('.end').value)) +
+        '<br>購入グループ：' + esc($('.grp').value ? $('.grp').value + ' ' + (st.groups[$('.grp').value] || '') : '付けない') + '（' + ($('.gwhen').value === 'start' ? '開始時刻' : '前日') + '）' +
+        '<br>動いているクーポン：' + (st.couponStop ? 'セール中は止める（除外期間を入れる）' : '止めない') + '／新作・定番の行（P）：' + (st.keepP ? '取り込む' : '取り込まない') +
+        '<br>商品 ' + n + '行' + (miss.length ? '<br><span style="color:#c92a2a">⚠ 足りない：' + esc(miss.join('、')) + '</span>' : '');
+      log('貼り付けを読み込んだ：商品 ' + n + '行' + (miss.length ? '／足りない：' + miss.join('、') : ''));
+    } catch (er) { st.pasted = null; log('⚠ ' + er.message); alert(er.message); }
+  });
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // ---------------------------------------------------------------- クーポン：セール期間中は止める（除外期間）
+  function dtNum(s) { var m = String(s || '').match(/(\d{4})\D(\d{1,2})\D(\d{1,2})\D+(\d{1,2}):(\d{2})/); return m ? +(m[1] + ('0' + m[2]).slice(-2) + ('0' + m[3]).slice(-2) + ('0' + m[4]).slice(-2) + m[5]) : null; }
+  async function couponList() {
+    var url = BO + '/coupon/event_list.aspx', out = [], seen = {};
+    for (var pg = 0; pg < 30 && url; pg++) {
+      var d = new DOMParser().parseFromString(await (await fetch(url, { credentials: 'include', cache: 'no-store' })).text(), 'text/html');
+      var trs = [].slice.call(d.querySelectorAll('tr')), hd = trs.filter(function (t) { return /クーポンイベントID/.test(t.textContent); })[0];
+      if (!hd) break;
+      var H = [].map.call(hd.cells, function (c) { return c.textContent.replace(/\s+/g, ''); }), col = function (k) { return H.findIndex(function (h) { return h.indexOf(k) >= 0; }); };
+      trs.slice(trs.indexOf(hd) + 1).forEach(function (t) {
+        var c = [].map.call(t.cells, function (x) { return x.textContent.replace(/\s+/g, ' ').trim(); }); if (c.length < H.length - 1) return;
+        var id = c[col('クーポンイベントID')]; if (!id || seen[id]) return; seen[id] = 1;
+        var per = function (v) { var p = String(v || '').split(/～|〜/); return p.length === 2 ? [p[0].trim(), p[1].trim()] : null; };
+        out.push({ type: /ユニーク/.test(c[col('種別')]) ? 1 : 0, id: id, name: c[col('クーポンイベント名')], term: per(c[col('有効期間')]), x: per(c[col('除外期間')]), on: /有効/.test(c[col('有効区分')]) && !/無効/.test(c[col('有効区分')]) });
+      });
+      var nx = [].filter.call(d.querySelectorAll('a'), function (a) { return /次へ/.test(a.textContent); })[0];
+      url = nx && nx.getAttribute('href') && nx.getAttribute('href')[0] !== '#' ? new URL(nx.getAttribute('href'), location.href).href : null;
+    }
+    return out;
+  }
+  async function couponPlan(a) { // セール期間に有効なクーポン → 止める／止めない（理由つき）
+    var S = dtNum(a.start), E = dtNum(a.end), now = dtNum(new Date(Date.now() + 9 * 3600000).toISOString().replace('T', ' ')), list = await couponList(), go = [], skip = [];
+    list.forEach(function (c) {
+      if (!c.on) return;
+      if (c.term && (dtNum(c.term[1]) < S || dtNum(c.term[0]) > E)) return; // セール期間と重ならない
+      if (c.x) {
+        var xs = dtNum(c.x[0]), xe = dtNum(c.x[1]);
+        if (xs === S && Math.floor(xe / 100) === Math.floor(E / 100)) { skip.push(c.id + '（すでにセール期間を除外済み）'); return; }
+        if (xe >= now) { skip.push(c.id + '（別の除外期間 ' + c.x[0] + '〜' + c.x[1] + ' が入っている。1つしか持てないので手で判断）'); return; }
+      }
+      go.push(c);
+    });
+    return { go: go, skip: skip };
+  }
+  async function couponSetX(c, xs, xe, on) { // 除外期間を入れる（on=false で外す）。前の値を返す
+    var q = '?mode=update&coupon_type=' + c.type + '&coupon_event=' + encodeURIComponent(c.id);
+    var d = new DOMParser().parseFromString(await (await fetch(BO + '/coupon/event_detail.aspx' + q, { credentials: 'include', cache: 'no-store' })).text(), 'text/html');
+    var fm = d.querySelector('form'); if (!fm || !d.querySelector('[name=cmdUpdate]')) throw new Error('クーポン ' + c.id + ' の設定画面を開けない（ログイン切れの可能性）');
+    var fd = new FormData(fm), prev = { on: fd.get('condition_x_term'), s: fd.get('x_s_dt'), f: fd.get('x_f_dt') };
+    fd.set('condition_x_term', on ? 'true' : ''); fd.set('x_s_dt', on ? xs : ''); fd.set('x_f_dt', on ? xe : '');
+    fd.append('cmdUpdate', '更新する');
+    var t = await (await fetch(BO + '/coupon/event_detail.aspx', { method: 'POST', body: fd, credentials: 'include' })).text();
+    if (!/更新しました/.test(t)) throw new Error('クーポン ' + c.id + ' を更新できない: ' + new DOMParser().parseFromString(t, 'text/html').body.textContent.replace(/\s+/g, ' ').slice(0, 120));
+    return prev;
+  }
+
   // ---------------------------------------------------------------- 全部やる
   async function run(force) {
-    var inst = $('.inst').files[0];
+    var inst = $('.inst').files[0], pasted = st.pasted;
     var a = { start: jp($('.start').value), end: jp($('.end').value), ev: $('.ev').value.trim(), mode: $('.mode').value };
     try { localStorage.setItem(KEY + ':form', JSON.stringify({ start: $('.start').value, end: $('.end').value, ev: a.ev, mode: a.mode })); } catch (e) {}
-    if (!inst || !a.start || !a.end || !a.ev) { alert('依頼シート・開始・終了・イベントコードを入れてください'); return; }
+    if ((!inst && !pasted) || !a.start || !a.end || !a.ev) { alert(pasted ? 'シートの設定（開始・終了・イベントコード）が足りません' : 'セール依頼シートの「セール」タブを貼り付けてください'); return; }
     var dry = $('.dry').checked;
     if (STG && $('.now') && $('.now').checked && !(force && st.a)) {
       var nn = new Date(Date.now() + 9 * 3600000 + 2 * 60000); a.start = nn.toISOString().slice(0, 16).replace(/-/g, '/').replace('T', ' ');
@@ -352,20 +498,31 @@
     try {
       $('.go').disabled = true;
       if (!force || !st.files) {
-        if (!window.XLSX) await loadScript(XLSXJS);
-        var wb = XLSX.read(await inst.arrayBuffer(), { type: 'array', cellDates: true }), instRows, extraNeed = [];
-        st.per = {};
-        if (wb.Sheets['商品']) {
-          var rq = await requestRows(wb); instRows = rq.rows; st.per = rq.per;
+        var wb = null, instRows, extraNeed = [];
+        st.per = {}; st.c2 = null;
+        if (!pasted) { if (!window.XLSX) await loadScript(XLSXJS); wb = XLSX.read(await inst.arrayBuffer(), { type: 'array', cellDates: true }); }
+        if (pasted || wb.Sheets['商品']) {
+          var rq = await requestRows(pasted || wsRows(wb.Sheets['商品'])); instRows = rq.rows; st.per = rq.per;
           log('依頼シート: ' + (instRows.length - 1) + '商品' + (rq.missing.length ? '／BOに無い商品コード ' + rq.missing.length + '件: ' + rq.missing.slice(0, 10).join(', ') : ''));
           if (rq.missing.length) extraNeed.push('・BOに無い商品コード ' + rq.missing.length + '件（この商品は入らない）: ' + rq.missing.slice(0, 15).join(', '));
         } else { instRows = wsRows(wb.Sheets[wb.SheetNames[0]]); log('指示書（今の形）を読み込み'); }
+        // 新作・定番の行（プライスが P＝定価）：セールの指示書では取り込まない（新作は自動更新のページ、定番は別に登録）
+        (function () {
+          var h = instRows.findIndex(function (r) { return r && r.some(function (v) { return cellStr(v) === 'イベントページ'; }); });
+          if (h < 0) return; var H = instRows[h].map(cellStr), pi = H.findIndex(function (x) { return /プライス/.test(x); }), ei = H.indexOf('イベントページ');
+          if (pi < 0) return; var per = {}, n = 0;
+          var keep = instRows.slice(0, h + 1).concat(instRows.slice(h + 1).filter(function (r) {
+            var isP = r && /^p$/i.test(cellStr(r[pi])); if (!isP || st.keepP) return true;
+            n++; var k = cellStr(r[ei]) || '（ページ空欄）'; per[k] = (per[k] || 0) + 1; return false;
+          }));
+          if (n) { instRows = keep; log('新作・定番の行（プライスP）' + n + '行は取り込まない：' + Object.keys(per).map(function (k) { return k + ' ' + per[k]; }).join('／') + '（取り込むならシートの設定を「取り込む」に）'); }
+        })();
         // 購入グループ（全体＋行ごと）
         var g0 = $('.grp').value, targets = {}, badg = [];
         var hiI = instRows.findIndex(function (r) { return r && r.some(function (v) { return cellStr(v) === 'イベントページ'; }); });
         var ipI = hiI >= 0 ? instRows[hiI].map(cellStr).indexOf('イベントページ') : -1;
         var SALEW = /セール|スペシャル|フェア|感謝祭|バザー|記念/; // 全体の購入グループはフェア（セール側）の行だけ。新作・定番などには付けない
-        // 「キャンセル不可」列（任意）：空欄＝自動（セール側の行は付ける）／○・あり・TRUE＝付ける／×・なし・FALSE＝付けない
+        // 「キャンセル不可」列（任意）：空欄＝自動（セール側の行は付ける）／×＝付けない（○は書かなくてよい。書いても付けるだけ）
         var cxI = hiI >= 0 ? instRows[hiI].map(cellStr).findIndex(function (v) { return /キャンセル不可/.test(v); }) : -1, nCx = { on: 0, off: 0 };
         instRows.slice(hiI + 1).forEach(function (r) {
           if (!r || !r[0]) return;
@@ -390,24 +547,9 @@
         log(st.evplan.exists ? 'イベント ' + a.ev + ' はBOにある' : 'イベント ' + a.ev + ' は無いので作る（ひな形 ' + st.evplan.tpl + '・' + a.start + '〜' + a.end + '）');
         var pk = await makePack(instRows, price, a);
         st.files = pk.files; st.summary = pk.summary;
-        // 「並び」列（任意）：先頭・↑＝先頭固定イベント(pin)へ／後ろ・↓・後回し＝後回しイベント(back)へ。
-        // サイトの並び（front/tidy.js）が、この2つのイベントに載っている商品をどのページでも先頭／最後に置く
-        var orI = hiI >= 0 ? instRows[hiI].map(cellStr).findIndex(function (v) { return /^(並び|並び順|位置)$/.test(v.trim()); }) : -1;
-        if (orI >= 0 && file('10_')) {
-          var add = [], nOr = { pin: 0, back: 0 };
-          instRows.slice(hiI + 1).forEach(function (r) {
-            if (!r || !r[0]) return; var v = cellStr(r[orI]).trim(), code = String(r[0]).trim();
-            var ev = /^(先頭|↑|上|先|top)$/i.test(v) ? 'pin' : /^(後ろ|↓|下|後回し|後|back)$/i.test(v) ? 'back' : '';
-            if (ev) { add.push([ev, code, 1]); nOr[ev]++; }
-          });
-          if (add.length) {
-            var f10 = file('10_'), rows10 = rowsOf(f10.bytes), head10 = rows10[0];
-            var ci = head10.indexOf('イベントコード'), gi = head10.indexOf('商品コード'), oi = head10.findIndex(function (h) { return /並び順/.test(h); });
-            add.forEach(function (x) { var row = head10.map(function () { return ''; }); row[ci >= 0 ? ci : 0] = x[0]; row[gi >= 0 ? gi : 1] = x[1]; if (oi >= 0) row[oi] = x[2]; rows10.push(row); });
-            st.files[f10.name] = await toCp932(rows10);
-          }
-          log('並びの指定：先頭 ' + nOr.pin + '件／後ろ ' + nOr.back + '件（先頭固定イベント pin・後回しイベント back に登録）');
-        }
+        // 並び：メルカート標準の「並び順」番号をツールが振る（JSで並べ替えない）
+        //   先頭（「並び」列が 先頭／↑ または 数字）→ ふつう（ツールの規則＝在庫の多い順など）→ 小物・「後ろ」指定は最後
+        if (file('10_')) await renumber10(instRows, hiI);
         // 「公開予約」列（任意）：○ ＝ 新しく出す商品。掲載開始日＝セール開始日時・状態0 にして前日に取り込む
         // （掲載開始日が来るまでは商品ページが開かず買えない。開始時刻にメルカートが自動で公開＝10/24 stg実測）
         var puI = hiI >= 0 ? instRows[hiI].map(cellStr).findIndex(function (v) { return /^(公開予約|公開|新規公開)$/.test(v.trim()); }) : -1;
@@ -416,13 +558,23 @@
           var nPub = Object.keys(pub).length;
           if (nPub) {
             state('2/6 公開予約の商品をエクスポート中…');
-            var c2x = rowsOf(await exportTable('tmpgoodscustom2')), H2 = c2x[0], si = H2.indexOf('掲載開始日'), ki = H2.indexOf('状態(掲載フラグ)');
-            var pick = c2x.slice(1).filter(function (r) { return pub[r[0]]; }).map(function (r) { var x = r.slice(); if (si >= 0) x[si] = a.start + (a.start.length === 16 ? ':00' : ''); if (ki >= 0) x[ki] = 0; return x; });
-            st.files['14_公開予約_掲載開始日.csv'] = await toCp932([H2].concat(pick));
-            log('公開予約：' + pick.length + '商品の掲載開始日を ' + a.start + ' に（状態0）' + (pick.length < nPub ? '／BOに無い ' + (nPub - pick.length) + '件' : ''));
+            var c2x = await custom2(), H2 = c2x[0], si = H2.indexOf('掲載開始日'), fi = H2.indexOf('掲載終了日'), ki = H2.indexOf('状態(掲載フラグ)');
+            var sec = function (t) { return t + (t.length === 16 ? ':00' : ''); };
+            var pick = c2x.slice(1).filter(function (r) { return pub[r[0]]; }).map(function (r) { var x = r.slice(); if (si >= 0) x[si] = sec(a.start); if (fi >= 0) x[fi] = sec(a.end); if (ki >= 0) x[ki] = 0; return x; });
+            st.files['14_公開予約_掲載期間.csv'] = await toCp932([H2].concat(pick));
+            log('公開予約：' + pick.length + '商品の掲載期間をセール期間（' + a.start + '〜' + a.end + '）に・状態0（開始まで見えず、終了後は自動で隠れる）' + (pick.length < nPub ? '／BOに無い ' + (nPub - pick.length) + '件' : ''));
           }
         }
         log('フェアパック: ' + JSON.stringify(pk.summary));
+        st.cplan = null;
+        if (st.couponStop !== false) {
+          state('2/6 動いているクーポンを確認中…');
+          try {
+            st.cplan = await couponPlan(a);
+            log('クーポン：セール中に止める ' + st.cplan.go.length + '件' + (st.cplan.go.length ? '（' + st.cplan.go.map(function (c) { return c.id; }).join(', ') + '）' : '') + (st.cplan.skip.length ? '／止めない ' + st.cplan.skip.length + '件: ' + st.cplan.skip.join(' / ') : ''));
+            st.cplan.skip.filter(function (x) { return /別の除外期間/.test(x); }).forEach(function (x) { extraNeed.push('・クーポン ' + x); });
+          } catch (e) { extraNeed.push('・クーポンの一覧を読めない（' + e.message + '）'); }
+        }
         var codes = {};
         ['11_', '12_', '13_'].forEach(function (p) { var f = file(p); if (f) rowsOf(f.bytes).slice(1).forEach(function (r) { codes[r[0]] = 1; }); });
         st.restore = makeRestore(price, codes);
@@ -439,7 +591,7 @@
       if (dry) { state('作るだけ：ここまで（取り込んでいない）。「ファイルを保存」で中身を確認できる'); return; }
       var ng = Object.keys(st.targets || {}).length;
       if (!confirm((STG ? '【stg】' : '【本番】') + '取り込みます。\n' + (st.evplan && !st.evplan.exists ? 'イベント新設 ' + a.ev + '（' + a.start + '〜' + a.end + '）\n' : '') + 'イベント商品 ' + nrows(file('10_')) + '行 → 商品価格 ' + nrows(file('11_')) + '行' +
-          (ng ? '\n購入グループ ' + ng + '商品（' + ($('.gwhen').value === 'start' ? '開始時刻' : 'すぐ') + '）' : '') + '\n予約 ' + nrows(file('12_')) + '行（開始）・' + nrows(file('13_')) + '行（' + (a.mode === 'gap' ? '翌朝' : '終了') + '）')) { state('取り消した'); return; }
+          (ng ? '\n購入グループ ' + ng + '商品（' + ($('.gwhen').value === 'start' ? '開始時刻' : 'すぐ') + '）' : '') + (st.cplan && st.cplan.go.length ? '\nクーポン ' + st.cplan.go.length + '件にセール期間の除外期間を入れる' : '') + '\n予約 ' + nrows(file('12_')) + '行（開始）・' + nrows(file('13_')) + '行（' + (a.mode === 'gap' ? '翌朝' : '終了') + '）')) { state('取り消した'); return; }
       if (st.evplan && !st.evplan.exists) {
         state('4/6 イベントを新設中…');
         var r0 = await importFile('/import/imp_event.aspx', 'tmpevent', 'イベント新設_' + a.ev + '.csv', await toCp932([st.evplan.head, st.evplan.row]));
@@ -453,9 +605,9 @@
       if (!r1.ok) { state('⚠ イベント商品の取込で止めた（ログを確認）'); return; }
       var f14 = file('14_');
       if (nrows(f14)) {
-        state('4/6 公開予約（掲載開始日）を取込中…');
+        state('4/6 公開予約（掲載期間）を取込中…');
         var r14 = await importFile('/import/imp_goods.aspx', 'tmpgoodscustom2', f14.name, f14.bytes);
-        log((r14.ok ? '✅' : '⚠') + ' 公開予約（掲載開始日）: ' + r14.msg.slice(0, 160));
+        log((r14.ok ? '✅' : '⚠') + ' 公開予約（掲載期間）: ' + r14.msg.slice(0, 160));
         if (!r14.ok) { state('⚠ 公開予約の取込で止めた（ログを確認）'); return; }
       }
       var f11 = file('11_');
@@ -469,6 +621,18 @@
         var bad = await verify(f11);
         log(bad.length ? '⚠ 反映されていない ' + bad.length + '件: ' + bad.slice(0, 8).join(' / ') : '✅ 商品価格 ' + nrows(f11) + '行 全件反映を確認');
       } else log('商品価格（前日分）は0行');
+      if (st.cplan && st.cplan.go.length) {
+        state('5/6 クーポンに除外期間を入れています…');
+        st.couponRestore = [];
+        for (var ci2 = 0; ci2 < st.cplan.go.length; ci2++) {
+          var cc = st.cplan.go[ci2];
+          try { var pv0 = await couponSetX(cc, a.start + ':00', a.end + (/:59$/.test(a.end) ? ':59' : ':00'), true); st.couponRestore.push({ c: cc, prev: pv0 }); log('✅ クーポン ' + cc.id + '：除外期間 ' + a.start + '〜' + a.end); }
+          catch (e) { log('⚠ ' + e.message); }
+        }
+        var after = await couponList(), okN = 0;
+        st.cplan.go.forEach(function (c) { var n = after.filter(function (x) { return x.id === c.id; })[0]; if (n && n.x && dtNum(n.x[0]) === dtNum(a.start)) okN++; else log('⚠ クーポン ' + c.id + ' の除外期間が一覧で確かめられない'); });
+        log('✅ クーポンの除外期間 ' + okN + '/' + st.cplan.go.length + '件を一覧で確認（セールが終わると自動でまた使える）');
+      }
       var gStart = false;
       if (ng) {
         state('5/6 購入グループを準備中…');
@@ -507,7 +671,7 @@
   };
   $('.undo').onclick = async function () {
     if (!st.restore) { alert('戻し用のデータがありません（このタブで「全部やる」を実行したあとに使えます）'); return; }
-    if (!confirm('商品価格' + (st.groupRestore && st.groupRestore.length > 1 ? '・購入グループ' : '') + 'を取込前に戻します（' + (st.restore.length - 1) + '行）。予約も取り消します。')) return;
+    if (!confirm('商品価格' + (st.groupRestore && st.groupRestore.length > 1 ? '・購入グループ' : '') + (st.couponRestore && st.couponRestore.length ? '・クーポンの除外期間' : '') + 'を取込前に戻します（' + (st.restore.length - 1) + '行）。予約も取り消します。')) return;
     stopTimers();
     var b = await toCp932(st.restore);
     var r = await importFile('/import/imp_goods.aspx', 'tmpgoodsprice', '戻し_取込前の商品価格.csv', b);
@@ -515,6 +679,10 @@
     if (st.groupRestore && st.groupRestore.length > 1) {
       var r4 = await importFile('/import/imp_goods.aspx', 'tmpgoodscustom3', '戻し_購入グループ.csv', await toCp932(st.groupRestore));
       log((r4.ok ? '✅' : '⚠') + ' 元に戻す（購入グループ）: ' + r4.msg.slice(0, 120));
+    }
+    for (var k = 0; k < (st.couponRestore || []).length; k++) {
+      var x = st.couponRestore[k];
+      try { await couponSetX(x.c, x.prev.s || '', x.prev.f || '', !!x.prev.on); log('✅ 元に戻す（クーポン ' + x.c.id + ' の除外期間）'); } catch (e) { log('⚠ ' + e.message); }
     }
   };
   $('.clean').onclick = async function () { // フェア後：このフェアの商品で、指定の購入グループのものを「通常商品」に戻す

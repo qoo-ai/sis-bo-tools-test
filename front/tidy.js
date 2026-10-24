@@ -15,6 +15,10 @@
      H. 表示 ……………………… イベントページ：全件を1ページに並べ直し（元と同じ1行の枚数）、ページ番号を隠す
                                     トップ：各イベント枠を、そのページの上段（F の結果）で入れ替える（枠の枚数はそのまま）
      I. NEWアイコン ……………… 新作ページに載っている商品だけ NEW を残す（掲載開始日でNEWが付く仕様への対策）
+   フェーズ1（config の tidy.mode = "basic"、2026-10-24〜）
+     並びはメルカートの「並び順」（セール1ボタンが 先頭→在庫の多い順→小物・後ろ を番号で振る）に任せ、
+     JSは G（売り切れの色を隠す・在庫のあるサイズへ・同じ色は1枚）と I（NEW）だけ。今のページのカードだけを見る。
+     A・B・C・D・E・F・トップの入れ替え・1ページ化は動かない（フェーズ2で A/B テストの候補）
    決まり（10/8の不具合を繰り返さない）
      ・URLにパラメータを足さない ・在庫が判定できない商品は隠さない ・トップの見出し・もっと見るは触らない
      ・お客様が並び替えやページ番号を選んだ（_sg や _p2 など）ページは触らない */
@@ -204,7 +208,7 @@
   /* ---------- H-1. トップページ ---------- */
   if (/^\/(shop\/?)?(default\.aspx)?$/i.test(L.pathname)) {
     report.page = 'top';
-    if (CFG.topOn === false) return;
+    if (CFG.topOn === false || CFG.mode === 'basic') return;
     Promise.all([ready(), marks(), stats()]).then(function (r) {
       var ctx = { marks: r[1], stats: r[2], prof: profile() };
       var secs = [].slice.call(D.querySelectorAll('.block-top-event--goods')).map(function (s) {
@@ -241,7 +245,8 @@
   var m = L.pathname.match(/^\/shop\/e\/e([^_\/]+)(_[^\/]*)?\/?$/i);
   if (!m) return;
   var EV = m[1], SUF = m[2] || '';
-  if (SUF && SUF !== '_p1') return;
+  var BASIC = CFG.mode === 'basic';   // フェーズ1：並びはメルカートの並び順（ツールが番号を振る）のまま。G（売り切れ・同じ色）と I（NEW）だけ
+  if (SUF && SUF !== '_p1' && !BASIC) return;
   var RULE = (CFG.pages || {})[EV] || CFG.defaultRule || 'mix';
   if (RULE === 'off') return;
   report.page = EV; report.rule = RULE;
@@ -269,7 +274,39 @@
     return Promise.all(ws).then(function () { return out; });
   }
 
+  /* フェーズ1（mode: basic）：今のページのカードだけを見る。並び・ページ送りはメルカートのまま */
+  function runBasic() {
+    var first = [].slice.call(D.querySelectorAll(CARD)); if (!first.length) return;
+    report.rule = 'basic';
+    var g0 = first.map(function (dl) { return { el: dl, code: linkCode(dl), name: nameOf(dl) }; }).filter(function (g) { return g.code; });
+    var order = [], colors = {};
+    g0.forEach(function (g) { var k = stem(g.code); if (!colors[k]) { colors[k] = []; order.push(k); } colors[k].push(g); });
+    var reps = order.map(function (k) { return colors[k][0]; });
+    step('total', g0.length);
+    pool(reps, CFG.concurrency || 6, function (g) { return colorStock(g.code); }).then(function (res) {
+      var keep = [], hidden = 0, swapped = 0, merged = 0, unknown = 0;
+      order.forEach(function (k, i) {
+        var group = colors[k], st = res[i];
+        if (!st || !st.sizes.length) { unknown++; keep.push(group[0]); merged += group.length - 1; return; }
+        var okSizes = st.sizes.filter(function (s) { return s.ok; });
+        if (!okSizes.length && st.sizes.some(function (s) { return s.ok === false; })) { hidden += group.length; return; }
+        var g = group.filter(function (q) { return okSizes.some(function (s) { return s.code === q.code; }); })[0] || group[0];
+        merged += group.length - 1;
+        var alt = okSizes.filter(function (s) { return s.code; })[0];
+        if (!okSizes.some(function (s) { return s.code === g.code; }) && alt) {
+          g.el.querySelectorAll('a[href*="/shop/g/g' + g.code + '/"]').forEach(function (a) { a.setAttribute('href', a.getAttribute('href').replace(g.code, alt.code)); });
+          g.el.setAttribute('data-sis-swap', g.code + '>' + alt.code); swapped++;
+        }
+        keep.push(g);
+      });
+      step('stock', { hidden: hidden, swapped: swapped, merged: merged, unknown: unknown });
+      if (!hidden && !merged) { step('shown', keep.length); D.documentElement.setAttribute('data-sis-tidy', 'basic'); return; } // 何も隠さないなら並べ直さない
+      render(first, keep, true);
+    }).catch(function (e) { step('error', String(e)); });
+  }
+
   function run() {
+    if (BASIC) return runBasic();
     var first = [].slice.call(D.querySelectorAll(CARD)); if (!first.length) return;
     var ctxP = Promise.all([marks(), stats()]).then(function (r) { return { marks: r[0], stats: r[1], prof: profile() }; });
     Promise.all([eventList(EV), ctxP]).then(function (x) {
@@ -313,7 +350,7 @@
       });
     }).catch(function (e) { step('error', String(e)); if (window.console) console.warn('[SIS tidy]', e); });
   }
-  function render(first, sorted) {
+  function render(first, sorted, keepPager) {
     var row0 = first[0].parentNode, list0 = row0.parentNode;
     var perRow = Math.max.apply(null, first.map(function (dl) { return dl.parentNode; }).filter(function (x, i, a) { return a.indexOf(x) === i; })
       .map(function (row) { return row.querySelectorAll(CARD).length; })) || 4;
@@ -322,9 +359,11 @@
     var anchor = oldRows[0], cur = null;
     sorted.forEach(function (g, i) { if (i % perRow === 0) { cur = rowTpl.cloneNode(false); list0.insertBefore(cur, anchor); } cur.appendChild(g.el); });
     oldRows.forEach(function (row) { if (!row.querySelector(CARD) && row.parentNode) row.parentNode.removeChild(row); });
-    D.querySelectorAll('.pagination').forEach(function (p) { p.style.display = 'none'; });
-    var cnt = D.querySelector('.pager-count'); if (cnt) cnt.textContent = sorted.length + '件あります';
-    D.documentElement.setAttribute('data-sis-tidy', RULE);
+    if (!keepPager) {
+      D.querySelectorAll('.pagination').forEach(function (p) { p.style.display = 'none'; });
+      var cnt = D.querySelector('.pager-count'); if (cnt) cnt.textContent = sorted.length + '件あります';
+    }
+    D.documentElement.setAttribute('data-sis-tidy', keepPager ? 'basic' : RULE);
     step('shown', sorted.length);
     if (window.console) console.info('[SIS tidy]', report);
   }
