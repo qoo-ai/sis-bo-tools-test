@@ -167,7 +167,7 @@
   // ---------------------------------------------------------------- ファイル
   function goodsRows(s) {
     var rows = [H167];
-    s.items.forEach(function (it) {
+    s.items.forEach(function (it, k) {
       var r = H167.map(function (h) { return TPL[h] != null ? TPL[h] : ''; });
       var set = function (k, v) { var i = H167.indexOf(k); if (i < 0) throw new Error('列がない: ' + k); r[i] = v; };
       set('商品コード', it.code); set('商品名', it.name); set('バリエーショングループ', it.code.slice(0, -1));
@@ -175,6 +175,7 @@
       set('品番１', s.start.slice(0, 4) + 'ﾉﾍﾞﾙﾃｨ');
       ['掲載開始日', '販売開始日', '発売日'].forEach(function (k) { set(k, s.start); });
       ['掲載終了日', '販売終了日'].forEach(function (k) { set(k, s.end); });
+      set('並び順', String(500 + k)); // 選択画面の並び＝入力した順（10/24 stg：品番順でも名前順でもなかった）
       set('S画像ファイル', it.s); set('Ｌ画像ファイル', it.l); set('在庫数', it.stock || '0');
       rows.push(r);
     });
