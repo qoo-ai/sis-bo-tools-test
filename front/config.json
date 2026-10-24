@@ -187,7 +187,9 @@
      "line"
     ],
     "title": "15周年special SALE",
-    "_note": "セール期間中はLINEよりセールを優先"
+    "_note": "セール期間中はLINEよりセールを優先",
+    "img": "https://drugstores-shop.com/img/usr/demo/2026_42w15th.jpg",
+    "_img": "トップのメインバナー（貴社の画像をそのまま使用）"
    },
    {
     "id": "line",
@@ -196,7 +198,8 @@
     "notSource": [
      "line"
     ],
-    "_note": "セールがない時の初回・2回目の人へLINE友だち追加"
+    "_note": "セールがない時の初回・2回目の人へLINE友だち追加",
+    "img": "https://drugstores-shop.com/img/usr/demo/line500.jpg"
    }
   ]
  },

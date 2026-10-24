@@ -151,6 +151,7 @@
     '.sis-mhd .sis-tag{position:relative;z-index:1;background:#fff;color:var(--sis-tone,var(--sis-cd))}',
     '.sis-modal h3{margin:8px 0 0;font-size:22px;line-height:1.4;color:var(--sis-ink);font-weight:800;position:relative;z-index:1}',
     '.sis-modal h3 em{font-style:normal;color:var(--sis-tone,var(--sis-cd))}',
+    '.sis-mimg img{width:100%;display:block}.sis-mhd.sis-mhd-s{padding:14px 24px 4px;background:#fff}.sis-mhd.sis-mhd-s:before,.sis-mhd.sis-mhd-s:after{display:none}.sis-mhd-s .sis-tag{background:var(--sis-tonel,var(--sis-cl))}',
     '.sis-mbd{padding:20px 24px 16px}.sis-mbd p{margin:8px 0;font-size:14px}',
     '.sis-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.9);font-size:20px;line-height:36px;color:var(--sis-mu);cursor:pointer;z-index:3;padding:0}.sis-x:hover{background:#fff;color:var(--sis-ink)}',
     '.sis-perks{list-style:none;margin:0 0 16px;padding:0;text-align:left;display:flex;flex-direction:column;gap:8px}',
@@ -292,7 +293,9 @@
     });
   }
   var modalOpen = false;
-  function mhead(tone, icon, tag, title) { return '<div class="sis-mhd sis-tone-' + tone + '"><div class="sis-mic">' + ic(icon) + '</div>' + (tag ? '<span class="sis-tag">' + tag + '</span>' : '') + '<h3>' + title + '</h3></div>'; }
+  function mhead(tone, icon, tag, title, img) { // img があれば貴社の実際のバナー画像を上に出す
+    if (img) return '<div class="sis-mimg"><img src="' + esc(img) + '" alt=""></div><div class="sis-mhd sis-tone-' + tone + ' sis-mhd-s">' + (tag ? '<span class="sis-tag">' + tag + '</span>' : '') + '<h3>' + title + '</h3></div>';
+    return '<div class="sis-mhd sis-tone-' + tone + '"><div class="sis-mic">' + ic(icon) + '</div>' + (tag ? '<span class="sis-tag">' + tag + '</span>' : '') + '<h3>' + title + '</h3></div>'; }
   function modal(id, html, opt) {
     if (modalOpen && !(opt && opt.force)) return null;
     modalOpen = true; SIS.active[id] = 'on';
@@ -465,7 +468,7 @@
     line: function (r) {
       var v = ab('welcome');
       var head = v === 'B' ? '新作とシークレットセールを<br><em>LINEでいち早く</em>' : 'LINE友だち追加で<br><em>500円OFFクーポン</em>';
-      return { tone: 'g', html: mhead('g', 'chat', esc(r.tag || 'はじめての方へ'), head) + '<div class="sis-mbd">' +
+      return { tone: 'g', html: mhead('g', 'chat', esc(r.tag || 'はじめての方へ'), head, r.img) + '<div class="sis-mbd">' +
         '<ul class="sis-perks"><li>' + ic('ticket') + esc(SHOP.linePerk || '') + '</li><li>' + ic('gift') + 'お誕生月にバースデークーポン</li><li>' + ic('spark') + '友だち限定シークレットセールのご案内</li></ul>' +
         '<a class="sis-btn sis-line sis-block" href="' + esc(SHOP.lineUrl) + '" target="_blank" rel="noopener" data-sis="go">' + ic('chat') + 'LINEで友だち追加</a>' +
         '<button class="sis-link" data-sis-close="later">今はしない</button><div class="sis-x2">ABテスト ' + v + '</div></div>', goal: 'line_click' };
@@ -473,7 +476,7 @@
     sale: function (r) {
       var dl = deadlineById(r.deadline), end = dl ? dl.end : null;
       var endTxt = end ? (end.getHours() === 0 ? (new Date(end - 1).getMonth() + 1) + '/' + new Date(end - 1).getDate() + ' 23:59' : (end.getMonth() + 1) + '/' + end.getDate() + ' ' + end.toTimeString().slice(0, 5)) : '';
-      return { html: mhead('sale', 'tag', esc(r.tag || '開催中'), esc(r.title || SHOP.saleName)) + '<div class="sis-mbd">' +
+      return { html: mhead('sale', 'tag', esc(r.tag || '開催中'), esc(r.title || SHOP.saleName), r.img) + '<div class="sis-mbd">' +
         (endTxt ? '<p style="margin:0 0 8px;font-weight:700">' + endTxt + ' まで　終了まであと</p><p style="margin:0 0 16px">' + tiles(end) + '</p>' : '') +
         (r.text ? '<p>' + esc(r.text) + '</p>' : '') +
         '<a class="sis-btn sis-block" href="' + esc(r.url || SHOP.salePage) + '" data-sis="go">セール会場を見る' + ic('arrow') + '</a>' +
