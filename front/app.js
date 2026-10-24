@@ -720,7 +720,7 @@
         el.addEventListener('click', function () { track('interestAlert', 'click', { sis_label: pick.why }); });
         var waited = 0;
         (function place() { // ポップアップが開いている間は待ち、閉じてから出す（同時に2つ出さない）
-          if (D.querySelector('.sis-modal') && waited++ < 120 && !forced) return setTimeout(place, 1000);
+          if (D.querySelector('.sis-modal, .sis-toast') && waited++ < 120 && !forced) return setTimeout(place, 1000);
           show();
         })();
         function show() {
