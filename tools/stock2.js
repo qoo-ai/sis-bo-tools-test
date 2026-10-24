@@ -95,7 +95,7 @@ function live(o,now){return o.st==='0'&&!(o.start&&o.start>now)&&!(o.end&&o.end<
 
 /* ---------- 突き合わせ ---------- */
 function plan(inp,M,opt){
- var now=new Date(),P={err:[],un:[],amb:[],rows:{},touchedGrp:{},ev:0,qtyChg:0,dateChg:0,newNow:[],newLater:{},hide:[],unhide:[],zeroNew:[],keptNon0:[],missResv:[],partial:[],qtySkip:0};
+ var now=new Date(),P={err:[],un:[],amb:[],rows:{},touchedGrp:{},ev:0,qtyChg:0,dateChg:0,newNow:[],newLater:{},vanish:[],hide:[],unhide:[],zeroNew:[],keptNon0:[],missResv:[],partial:[],qtySkip:0};
  inp.rows.forEach(function(r){
   var code=null,cands=r.codes.filter(Boolean);
   for(var i=0;i<cands.length&&!code;i++){var c=cands[i];if(M.by[c])code=c;else{var l=M.dg[digits(c)];if(l&&l.length==1)code=l[0];else if(l&&l.length>1){P.amb.push([c,l.join(' ')]);return;}}}
@@ -134,6 +134,8 @@ function plan(inp,M,opt){
   var wasLive=live(o,now),willLive=w.st==='0'&&!(w.end&&w.end<now);
   if(willLive&&!wasLive){if(w.start&&w.start>now){var k=w.start.getTime();(P.newLater[k]=P.newLater[k]||[]).push(o);}else P.newNow.push(o);
    if(w.q===0&&P.zeroNew.indexOf(o)<0)P.zeroNew.push(o);}
+  var liveNow=w.st==='0'&&!(w.start&&w.start>now)&&!(w.end&&w.end<now);
+  if(wasLive&&!liveNow&&w.st!==HIDE)P.vanish.push(o);   /* 今出ているのに、掲載開始日が先・掲載終了日が過去になって消える */
   if(t.inFile&&w.st!=='0'&&w.st!==HIDE&&w.q>0)P.keptNon0.push(o);
   var n=o.raw.slice();var ix=M.ix;n[ix.qty]=String(w.q);n[ix.st]=w.st;n[ix.start]=fmt(w.start,o.startRaw);n[ix.end]=fmt(w.end,o.endRaw);out.push(n);});
  /* 予約中（掲載開始日が先）なのにファイルに無い商品 */
@@ -156,7 +158,7 @@ function summaryText(P){
  var L=[];L.push('在庫更新 '+new Date().toLocaleString()+'（取り込む行 '+P.out.length+'件）');
  function add(t,list){L.push('■ '+t+' '+list.length+'件');groupList(list).slice(0,200).forEach(function(G){L.push(G.o.code+'\t'+G.o.name+'\t'+G.n+'件 '+G.lab.join('・'));});}
  add('今すぐ新しく出る商品',P.newNow);Object.keys(P.newLater).sort().forEach(function(k){add(showY(new Date(+k))+' に出る商品',P.newLater[k]);});
- add('完売で見えなくする',P.hide);add('在庫が戻ったので出し直す',P.unhide);add('出す（予約する）のに在庫0の商品',P.zeroNew);add('予約中なのに今回のデータに無い商品',P.missResv);add('同じ商品の色・サイズが一部だけ無い',P.partial);
+ add('今出ているのに、いったん見えなくなる商品',P.vanish);add('完売で見えなくする',P.hide);add('在庫が戻ったので出し直す',P.unhide);add('出す（予約する）のに在庫0の商品',P.zeroNew);add('予約中なのに今回のデータに無い商品',P.missResv);add('同じ商品の色・サイズが一部だけ無い',P.partial);
  L.push('■ Webに無いコード（飛ばす） '+P.un.length+'件');P.un.slice(0,200).forEach(function(u){L.push(u[0]+'\t'+u[2]);});
  return L.join('\n');}
 function render(inp,M,opt){
@@ -172,6 +174,7 @@ function render(inp,M,opt){
  p.appendChild(el('div','font-weight:bold;margin:10px 0 2px','① 出す商品の確認（今回出さない商品が混ざっていないか）'));
  p.appendChild(section('取込後すぐサイトに出る商品',P.newNow,'今はサイトに出ていない商品です。出すつもりのない商品があれば［閉じる］で止めて、Excelの在庫数を空欄にするか行を消してください','#fff'));
  Object.keys(P.newLater).sort().forEach(function(x){p.appendChild(section(showY(new Date(+x))+' に自動で出る商品',P.newLater[x],'掲載開始日のとおり、その時刻に自動でサイトに出ます（その時刻に作業は要りません）','#f6fef9'));});
+ if(P.vanish.length)p.appendChild(section('今サイトに出ているのに、いったん見えなくなる商品',P.vanish,'掲載開始日が先の日時になった、または掲載終了日が過ぎた商品です。意図どおりか確認してください','#fef3f2'));
  p.appendChild(el('div','font-weight:bold;margin:12px 0 2px','② 抜けの確認'));
  p.appendChild(section('出す（予約する）のに在庫0の商品',P.zeroNew,'新作で在庫0なら、在庫数の入れ忘れの可能性があります。発売前の商品は完売扱いにせず、そのまま予約します','#fffaeb'));
  p.appendChild(section('予約中（掲載開始日が先）なのに今回のデータに無い商品',P.missResv,'BOでは公開予定になっている商品です。品番の抜けでなければそのままで大丈夫です','#fffaeb'));
