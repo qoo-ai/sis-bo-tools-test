@@ -41,9 +41,23 @@
   function onReady(fn) { if (D.readyState !== 'loading') fn(); else D.addEventListener('DOMContentLoaded', fn); }
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function parseDoc(html) { return new DOMParser().parseFromString(html, 'text/html'); }
+  /* 裏で読むページは同時に2件まで。お客様がカートに入れる・ページを移るときは裏の読み込みをすべて止める
+     （メルカートは同じお客様のリクエストを順番に処理するため、裏の読み込みが多いとカート投入が待たされる） */
+  var getQ = [], getN = 0, getAll = [], stopped = false;
+  function stopAll() { stopped = true; getQ.length = 0; getAll.forEach(function (ac) { try { ac.abort(); } catch (e) {} }); getAll = []; }
+  D.addEventListener('submit', stopAll, true);
+  D.addEventListener('click', function (e) { var a = e.target.closest && e.target.closest('a[href], button[type="submit"], input[type="submit"], .block-add-cart--btn'); if (a && !(a.closest && a.closest('.sis-root')) && !/^#|javascript:/i.test(a.getAttribute('href') || '')) stopAll(); }, true);
+  addEventListener('pagehide', stopAll);
   function get(url, ms) {
-    var ac = new AbortController(); setTimeout(function () { ac.abort(); }, ms || 8000);
-    return fetch(url, { credentials: 'include', signal: ac.signal }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); });
+    if (stopped) return Promise.reject(new Error('stopped'));
+    return new Promise(function (res, rej) {
+      getQ.push(function () {
+        var ac = new AbortController(); getAll.push(ac); var t = setTimeout(function () { ac.abort(); }, ms || 8000);
+        return fetch(url, { credentials: 'include', signal: ac.signal, priority: 'low' }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+          .then(res, rej).then(function () { clearTimeout(t); getAll = getAll.filter(function (x) { return x !== ac; }); });
+      });
+      (function pumpGet() { while (getN < 2 && getQ.length) { getN++; getQ.shift()().then(function () { getN--; pumpGet(); }); } })();
+    });
   }
   function codeOf(href) { var m = String(href || '').match(/\/shop\/g\/g([^/?#]+)\/?/); return m ? m[1] : null; }
   function pkey(code) { var p = String(code).split('-'); return p.length < 4 ? code : p[0] + '-' + p[1] + '-' + p[2]; } // 色違いをまとめた番号（商品番号-サイズ番号-シーズン）
@@ -446,6 +460,7 @@
     return cartP;
   }
   function addToCart(code) {
+    stopAll(); // 裏の読み込みを止めてからカートに入れる
     var fd = new FormData(); fd.append('goods', code);
     return fetch('/shop/cart/cart.aspx', { method: 'POST', body: fd, credentials: 'include' }).then(function () { cartP = null; });
   }
