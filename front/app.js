@@ -1230,7 +1230,8 @@
   /* 週間の売れ筋（ジャンル別TOP10）。Amazonの「ベストセラー1位（カテゴリ）」と同じ見せ方で、商品ページ・一覧にも順位を出す */
   function weekly() { return siteData().then(function (d) {
     var w = d && d.rank7; if (!w) return null;
-    if (!w.index) { w.index = {}; (w.genres || []).forEach(function (g) { (g.items || []).forEach(function (code, i) { var k = pkey(code); if (g.name === '総合') { (w.index[k] = w.index[k] || {}).all = i + 1; } else { (w.index[k] = w.index[k] || {}).g = g.name; w.index[k].r = i + 1; } }); }); }
+    if (!w.index) { w.index = {}; (w.genres || []).forEach(function (g) { (g.items || []).forEach(function (code, i) { var k = pkey(code); if (g.name === '総合') { (w.index[k] = w.index[k] || {}).all = i + 1; } else { (w.index[k] = w.index[k] || {}).g = g.name; w.index[k].r = i + 1; } }); });
+      Object.keys(w.alias || {}).forEach(function (k) { if (w.index[w.alias[k]]) w.index[k] = w.index[w.alias[k]]; }); } // 同じ商品の色・サイズ違いにも同じ順位
     return w;
   }); }
   FX.proofList = function () { // 一覧のサムネイルの下に「トップス 週間3位」（ジャンルTOP10に入っている商品だけ）
@@ -1292,7 +1293,7 @@
         [].slice.call(el.querySelectorAll('.sis-tabs button')).forEach(function (b) { b.setAttribute('aria-selected', String(+b.getAttribute('data-g') === i)); });
         var codes = genres[i].items.slice(0, 14);
         Promise.all(codes.map(goodsInfo)).then(function (arr) {
-          var rows = []; arr.forEach(function (g) { if (g && g.price && !g.soldout && rows.length < 10) rows.push(g); });
+          var rows = uniqProduct(arr.filter(function (g) { return g && g.price && !g.soldout; })).slice(0, 10); // 同じ商品のサイズ違い・色違いは1つにまとめる
           el.querySelector('#sis-rank-grid').innerHTML = rows.map(function (g, k) { return card(g, { badge: '' }).replace('<div class="sis-im">', '<div class="sis-im"><span class="sis-rk' + (k === 0 ? ' r1' : '') + '">' + (k + 1) + '位</span>'); }).join('');
           track('ranking', 'tab', { sis_label: genres[i].name });
         });
