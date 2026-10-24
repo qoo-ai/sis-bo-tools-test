@@ -434,9 +434,10 @@
       items.push({ name: ((it.querySelector('.block-cart--goods-list-item-name') || {}).textContent || '').replace(/\s+/g, ' ').trim(), href: a ? a.getAttribute('href') : '', code: codeOf(a && a.getAttribute('href')),
         variation: vEl ? vEl.textContent.replace(/\s+/g, ' ').trim() : '', qty: qty, amt: price * qty, img: img ? img.getAttribute('src') : '' });
     });
-    var sub = num((d.querySelector('.block-cart--subtotal-price') || {}).textContent);
+    var subs = [].slice.call(d.querySelectorAll('.block-cart--subtotal-price')).map(function (e) { return num(e.textContent); }); // カートがグループ（例：セール品グループ）に分かれると小計も複数出る
+    var sub = subs.reduce(function (a, b) { return a + b; }, 0);
     var total = sub || items.reduce(function (s, i) { return s + i.amt; }, 0);
-    var snap = { items: items, total: total, count: items.reduce(function (s, i) { return s + i.qty; }, 0), at: Date.now() };
+    var snap = { items: items, total: total, groups: subs.length > 1 ? subs : null, count: items.reduce(function (s, i) { return s + i.qty; }, 0), at: Date.now() };
     var cp = ls('cartPrices') || {}; items.forEach(function (i) { if (i.code && i.qty && !cp[i.code]) cp[i.code] = Math.round(i.amt / i.qty); }); ls('cartPrices', cp); // 次の訪問で「値下がり」を出すため、入れたときの価格を覚える
     ls('cartSnap', snap); return snap;
   }
