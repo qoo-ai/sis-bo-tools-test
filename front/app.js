@@ -1196,7 +1196,7 @@
         n++; SIS.active.listStock = n + '件';
       });
     }
-    [].slice.call(D.querySelectorAll('a[href*="/shop/g/g"] img')).forEach(function (img, i) { if (img.closest('.sis-root')) return; if (io && !D.hidden) io.observe(img); else if (i < 40) mark(img); }); // 画面が裏にあるときは先頭40件だけ
+    [].slice.call(D.querySelectorAll('a[href*="/shop/g/g"]')).map(function (a) { return a.querySelector('img'); }).filter(function (img) { return img && !(img.width && img.width < 60); }).forEach(function (img, i) { if (img.closest(".sis-root")) return; /* 1商品につき写真1枚だけ（SALEなどの小さいアイコン画像には付けない） */ if (io && !D.hidden) io.observe(img); else if (i < 40) mark(img); }); // 画面が裏にあるときは先頭40件だけ
     SIS.active.listStock = SIS.active.listStock || '確認中';
   };
 
