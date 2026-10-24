@@ -339,7 +339,7 @@
     opt = opt || {};
     var bd = (opt.rank ? '<span class="sis-medal' + (opt.rank <= 3 ? ' m' + opt.rank : '') + '">' + opt.rank + '</span>' : '') + (opt.badge || '') + (g.low && !/残りわずか/.test(opt.badge || '') ? '<span class="sis-tag sis-t-r">残りわずか</span>' : '');
     var sale = g.orig && g.orig > g.price;
-    return '<a class="sis-card" href="' + esc(g.href) + '" data-sis-goods="' + esc(g.code) + '"><div class="sis-im">' + (g.img ? '<img src="' + esc(g.img) + '" alt="' + esc(g.name) + '" loading="lazy" onerror="var c=this.closest(\'.sis-card\');if(c)c.remove()">' : '<img alt="">') + (bd ? '<div class="sis-bd">' + bd + '</div>' : '') + '</div>' +
+    return '<a class="sis-card" href="' + esc(g.href) + '" data-sis-goods="' + esc(g.code) + '"><div class="sis-im">' + (g.img ? '<img src="' + esc(g.img) + '" alt="' + esc(g.name) + '" onerror="var c=this.closest(\'.sis-card\');if(c)c.remove()">' : '<img alt="">') + (bd ? '<div class="sis-bd">' + bd + '</div>' : '') + '</div>' +
       (opt.why ? '<div class="sis-why2">' + esc(opt.why) + '</div>' : '') +
       '<div class="sis-cn">' + esc(g.name) + '</div><div class="sis-cp' + (sale ? ' sale' : '') + '">' + (g.price ? yen(g.price) : '') + (sale ? '<s>' + yen(g.orig) + '</s>' : '') + '</div>' +
       (opt.add ? '<button type="button" class="sis-add" data-sis-add="' + esc(g.code) + '">' + ic('cart') + 'カートに入れる</button>' : '') + '</a>';
