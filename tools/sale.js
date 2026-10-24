@@ -83,7 +83,15 @@
     var k = Object.keys(st.groups).filter(function (c) { return st.groups[c] === v || st.groups[c].indexOf(v) >= 0 || v.indexOf(c) === 0; });
     return k.length === 1 ? k[0] : null;
   }
-  async function importFile(page, table, name, bytes) {
+  async function importFile(page, table, name, bytes) { // 前の取込が実行中なら待ってやり直す（イベント新設の直後など）
+    for (var t = 0; t < 12; t++) {
+      var r = await importOnce(page, table, name, bytes);
+      if (!/受付待ちまたは実行中/.test(r.msg)) return r;
+      state('前の取込が終わるのを待っています…（' + (t + 1) + '）'); await new Promise(function (ok) { setTimeout(ok, 15000); });
+    }
+    return r;
+  }
+  async function importOnce(page, table, name, bytes) {
     var h = await (await fetch(BO + page, { credentials: 'include', cache: 'no-store' })).text();
     if (/ログイン/.test((h.match(/<title>([^<]*)/) || [])[1] || '')) throw new Error('ログインが切れている');
     var opendt = (h.match(/name="opendt"\s+value="([^"]*)"/) || [])[1];
