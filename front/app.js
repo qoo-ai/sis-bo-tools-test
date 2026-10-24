@@ -316,9 +316,9 @@
     /* v4：購入手続きでクーポンを入れたお知らせ */
     '.sis-ordnote{margin:8px 0;padding:10px 12px;border-radius:8px;background:var(--sis-cl);color:var(--sis-ink);font-size:13px;line-height:1.5}.sis-ordnote b{color:var(--sis-cd)}',
     /* v4：トップのスライダーに入れる「はじめての方へ」 */
-    '.sis-onb{display:flex!important;flex-direction:column;justify-content:center;gap:18px;width:100%;height:100%;min-height:300px;padding:36px 44px;background:var(--sis-pl);text-decoration:none!important;color:var(--sis-ink)!important;box-sizing:border-box}',
-    '.sis-onb h3{margin:0;font-size:30px;font-weight:800;line-height:1.3;color:var(--sis-p)}.sis-onb h3 small{display:block;font-size:14px;color:var(--sis-mu);font-weight:700;margin-bottom:6px}',
-    '.sis-onb ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.sis-onb li{background:#fff;border-radius:12px;padding:16px}.sis-onb li b{display:block;font-size:20px;color:var(--sis-cd);line-height:1.3}.sis-onb li span{font-size:13px;color:var(--sis-mu)}',
+    '.sis-onb{display:flex!important;flex-direction:column;justify-content:center;gap:24px;width:100%;height:100%;min-height:300px;padding:36px 44px;background:var(--sis-pl);text-decoration:none!important;color:var(--sis-ink)!important;box-sizing:border-box}',
+    '.sis-onb h3{margin:0;font-size:36px;font-weight:800;line-height:1.3;color:var(--sis-p)}.sis-onb h3 small{display:block;font-size:14px;color:var(--sis-mu);font-weight:700;margin-bottom:6px}',
+    '.sis-onb ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.sis-onb li{background:#fff;border-radius:12px;padding:16px}.sis-onb li b{display:block;font-size:24px;color:var(--sis-cd);line-height:1.3}.sis-onb li span{font-size:13px;color:var(--sis-mu)}',
     '.sis-onb .sis-btn{align-self:flex-start}',
     '.sis-sp .sis-onb{padding:20px 16px;gap:12px;min-height:0}.sis-sp .sis-onb h3{font-size:20px}.sis-sp .sis-onb ol{grid-template-columns:1fr;gap:6px}.sis-sp .sis-onb li{padding:8px 12px}.sis-sp .sis-onb li b{font-size:15px;display:inline;margin-right:6px}'
   ].join('\n');
@@ -923,7 +923,9 @@
       if ((nr.mode === 'slider' && !rankName() || Q.get('sis_onb') === 'slider') && window.jQuery && jQuery('#top-slider').hasClass('slick-initialized')) { // メインバナーの先頭に「はじめての方へ」を1枚足す
         var slide = '<div class="sis-root"><a class="sis-onb" href="/shop/pages/guide.aspx"><h3><small>はじめての方へ</small>drug store\'s WEBSHOPの3つのお得</h3><ol>' +
           '<li><b>' + yen(SHOP.freeShipping) + '以上で送料無料</b><span>商品代金（税込）の合計で判定</span></li><li><b>会員ランクで毎月クーポン</b><span>お買い物金額に応じてアップ</span></li><li><b>LINEで500円OFF</b><span>' + esc(SHOP.linePerk) + '</span></li></ol><span class="sis-btn sis-pur">ご利用ガイドを見る</span></a></div>';
+        var hh = 0; jQuery('#top-slider .slick-slide:not(.slick-cloned)').each(function () { hh = Math.max(hh, this.offsetHeight); });
         jQuery('#top-slider').slick('slickAdd', slide, 0, true); jQuery('#top-slider').slick('slickGoTo', 0, true);
+        if (hh) [].slice.call(D.querySelectorAll('#top-slider .sis-onb')).forEach(function (e) { e.style.height = hh + 'px'; }); // ほかのバナーと同じ高さにそろえる
         SIS.active.newRepeat = 'メインバナー'; track('newRepeat', 'impression', { sis_label: 'slider' }); return true;
       }
       section('newRepeat', shead({ tone: 'p', icon: 'spark', title: 'はじめての方へ　お買い物ガイド', sub: 'drug store\'s WEBSHOPで知っておくとお得な3つ' }) +
