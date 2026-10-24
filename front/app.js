@@ -1166,7 +1166,7 @@
   /* 12a. 一覧のサムネイルにも「残りわずか」「在庫なし」（メルカートのクイックビューの在庫記号 △・× を、画面に見えた商品だけ取りに行く） */
   var qvCache = {}, qvQueue = [], qvRunning = 0;
   function quickStock(code) {
-    var k = pkey(code);
+    var k = SP ? code : pkey(code); // スマホ版は色・サイズ1つずつ商品ページを読む
     if (!qvCache[k]) {
       var c = ss('qv_' + k); if (c && Date.now() - c.t < 10 * 60e3) qvCache[k] = Promise.resolve(c.m);
       else if (SP) qvCache[k] = new Promise(function (res) { qvQueue.push(function () { // スマホ版はクイックビューが使えない（500になる）ので商品ページの在庫表示を読む
