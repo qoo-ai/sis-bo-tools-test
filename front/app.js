@@ -1177,7 +1177,7 @@
         n++; SIS.active.listStock = n + '件';
       });
     }
-    [].slice.call(D.querySelectorAll('a[href*="/shop/g/g"] img')).forEach(function (img) { if (img.closest('.sis-root')) return; if (io) io.observe(img); else mark(img); });
+    [].slice.call(D.querySelectorAll('a[href*="/shop/g/g"] img')).forEach(function (img, i) { if (img.closest('.sis-root')) return; if (io && !D.hidden) io.observe(img); else if (i < 40) mark(img); }); // 画面が裏にあるときは先頭40件だけ
     SIS.active.listStock = SIS.active.listStock || '確認中';
   };
 
@@ -1335,8 +1335,8 @@
         D.querySelectorAll('.block-goods-detail-j--price-items, .block-thumbnail-t--price-items, [class*="--price-items"]').forEach(function (box) {
           if (o.saleOnly && !/通常価格/.test(box.textContent)) return; if (box.querySelector('.sis-offer')) return;
           var p = num((box.querySelector('[class*="--price"]:not([class*="default"])') || box).textContent);
-          var pay = o.type === 'yen' && p > o.yen ? '（1点なら ' + yen(p - o.yen) + '）' : o.type === 'percent' && p ? ' → ' + yen(Math.floor(p * (100 - o.rate) / 100)) : '';
-          box.appendChild(h('<div class="sis-root sis-offer"><span class="sis-xoff">' + esc(txt) + esc(pay) + '</span></div>')); n++;
+          var short = o.type === 'yen' && p > o.yen ? (o.short || 'クーポン併用で') + ' ' + yen(p - o.yen) : o.type === 'percent' && p ? (o.short || 'クーポン併用で') + ' ' + yen(Math.floor(p * (100 - o.rate) / 100)) : o.label; // 一覧は1行で短く
+          box.appendChild(h('<div class="sis-root sis-offer"><span class="sis-xoff">' + esc(short) + '</span></div>')); n++;
         });
       }
       if (PAGE === 'goods' && (!o.saleOnly || D.querySelector('.block-goods-price--default-price'))) {
