@@ -446,7 +446,7 @@
   function deadlineById(id) { return activeDeadlines().filter(function (x) { return x.d.id === id; })[0]; }
   function popupContext() {
     var need = (PC.rules || []).some(function (r) { return r.cart != null; });
-    return (need ? cart() : Promise.resolve(null)).then(function (c) { return { src: source(), visits: visits, isNew: isNew, cart: c, rank: ((D.getElementById('customer-rank') || {}).textContent || Q.get('sis_rank') || '').trim() }; });
+    return (need ? cart() : Promise.resolve(null)).then(function (c) { return { src: source(), visits: visits, isNew: isNew, cart: c, rank: (rankName() || Q.get('sis_rank') || '').trim() }; });
   }
   function ruleMatch(r, x) {
     if (r.off) return false;
@@ -692,11 +692,16 @@
   };
 
   /* 8. 会員ランク別UI */
+  function rankName() { // ログイン中の会員ランク（文字、なければランク画像のalt）
+    var e = D.getElementById('customer-rank'); if (!e) return '';
+    var t = e.textContent.trim(); if (t) return t;
+    var im = e.querySelector('img'); return im ? (im.getAttribute('alt') || '').trim() : '';
+  }
   function readRank() {
     return new Promise(function (res) {
       if (Q.get('sis_rank')) return res({ name: Q.get('sis_rank'), preview: true });
       var tries = 0; (function poll() {
-        var t = ((D.getElementById('customer-rank') || {}).textContent || '').trim();
+        var t = rankName();
         if (t) return res({ name: t });
         if (++tries > 12) return res(null); setTimeout(poll, 250);
       })();
