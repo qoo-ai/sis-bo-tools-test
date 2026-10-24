@@ -7,7 +7,7 @@
    ・登録の前に一覧で確認 →［登録する］で1本ずつ入れ、読み戻して照合する */
 (function(){
 "use strict";
-var W=window,D=document,VER='NEWS v1.1 (2026-10-24)';
+var W=window,D=document,VER='NEWS v1.2 (2026-10-24)';
 var ROOT='/'+location.pathname.split('/')[1]+'/';
 var host=location.hostname,ENV=/mercart-stg/.test(host)?'stg':/mercart-bo/.test(host)?'本番':null;
 var SHOP=ENV==='stg'?'https://shop.seesplanning.mercart-stg.net':'https://drugstores-shop.com';
@@ -145,7 +145,7 @@ function preview(L){body.innerHTML='';
   t.fixes.forEach(function(x){c.appendChild(el('div','color:#b06000','曜日を直しました：'+x));});
   if(!t.del){var dt=el('details');dt.appendChild(el('summary','cursor:pointer;color:#1a73e8','本文を見る'));var pv=el('div','border:1px solid #ddd;padding:6px;margin:4px 0;max-height:240px;overflow:auto');pv.innerHTML=t.html.replace(/<style[\s\S]*?<\/style>/,'').replace(/src="\//g,'src="'+SHOP+'/');var ims=pv.querySelectorAll('img');for(var i=0;i<ims.length;i++)ims[i].style.cssText='max-width:200px;height:auto';dt.appendChild(pv);c.appendChild(dt);}
   tr.appendChild(c);
-  tr.appendChild(el('td','padding:3px;vertical-align:top;white-space:nowrap',fmt(t.s).slice(5,16)+' 〜 '+(t.f?fmt(t.f).slice(5,16):'ずっと')));
+  tr.appendChild(el('td','padding:3px;vertical-align:top;white-space:nowrap',t.del?'押した時刻で掲載終了':fmt(t.s).slice(5,16)+' 〜 '+(t.f?fmt(t.f).slice(5,16):'ずっと')));
   t.st=el('td','padding:3px;vertical-align:top;white-space:nowrap',t.ex?'上書き #'+t.ex:t.del?'（BOに無い）':'新規');tr.appendChild(t.st);
   tb.appendChild(tr);});
  body.appendChild(tb);
