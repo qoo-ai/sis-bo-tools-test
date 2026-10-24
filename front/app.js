@@ -9,7 +9,8 @@
      sis_ab=<テストid>:<A|B>  ABテストの割付を固定
      sis_demo=1          BO設定待ち（クーポン未発行など）の施策を「設定待ち」表示で出す
      sis_debug=1         計測イベントの一覧パネルを出す
-     sis_chip=0          右下のSISチップを隠す（スクショ用） */
+     sis_chip=0          左下のSISチップを隠す（スクショ用）
+     sis_only=a,b        指定した施策だけ動かす（スクショ用） */
 (function () {
   'use strict';
   if (window.SIS && window.SIS.loaded) return;
@@ -254,12 +255,12 @@
   FX.welcome = function (forced) {
     if (!forced && (PAGE === 'order' || PAGE === 'cart' || ls('welcomeShown') || !isNew || source() === 'line')) return;
     var v = ab('welcome');
-    var head = v === 'B' ? '新作とシークレットセールを<br>LINEでいち早く' : 'LINE友だち追加で<br>WEBSHOP限定クーポン';
+    var head = v === 'B' ? '新作とシークレットセールを<br>LINEでいち早く' : 'LINE友だち追加で<br>500円OFFクーポン';
     var cp = coupon('welcome');
     setTimeout(function () {
       var m = modal('welcome',
         '<span class="sis-tag">はじめての方へ</span><h3>' + head + '</h3>' +
-        '<ul class="sis-list"><li>アンケート回答でWEBSHOP限定クーポン</li><li>お誕生月にバースデークーポン</li><li>友だち限定シークレットセールのご案内</li></ul>' +
+        '<ul class="sis-list"><li>' + esc(SHOP.linePerk || 'アンケート回答でWEBSHOP限定クーポン') + '</li><li>お誕生月にバースデークーポン</li><li>友だち限定シークレットセールのご案内</li></ul>' +
         (cp ? '<p style="margin:10px 0">' + ticket(cp) + '</p>' : '') +
         '<p><a class="sis-btn sis-line" href="' + esc(SHOP.lineUrl) + '" target="_blank" rel="noopener" data-sis="line">LINEで友だち追加</a></p>' +
         '<p><button class="sis-btn sis-ghost" data-sis-close="later" style="padding:8px 18px;font-size:13px">あとで見る</button></p>' +
@@ -330,12 +331,18 @@
   }
   FX.coupon = function (forced) {
     if (PAGE === 'order') return;
-    var c = coupon(isNew ? 'welcome' : 'repeat'); if (!c && forced) c = coupon('welcome');
-    if (!c) return;
-    if (!forced && !isNew) return;
-    var el = strip('coupon', '<span class="sis-tag">ご来店ありがとうございます</span> ' + esc(c.title || 'ご来店クーポン') + ' ' + ticket(c) + (c.expires ? ' <span>有効期限 ' + esc(c.expires) + '</span>' : ''));
-    var b = el.querySelector('[data-sis-copy]'); if (b) b.onclick = function () { try { navigator.clipboard.writeText(b.getAttribute('data-sis-copy')); } catch (e) {} b.textContent = 'コピーしました'; track('coupon', 'copy'); };
-    track('coupon', 'impression');
+    var list = (C.coupons || []).filter(function (c) {
+      if (/^kuji/.test(c.id)) return false;
+      if (c.expires && now() > new Date(c.expires)) return false;
+      if (c.audience === 'new' && !isNew) return false;
+      if (c.audience === 'repeat' && isNew) return false;
+      return c.code || DEMO;
+    });
+    if (!list.length) return;
+    var c = list[0];
+    var el = strip('coupon', '<span class="sis-tag">ご来店クーポン</span> <span>' + esc(c.title || '') + '</span> ' + ticket(c) + (c.expiresLabel ? ' <span style="font-size:12px;color:#888">有効期限 ' + esc(c.expiresLabel) + '</span>' : ''));
+    var b = el.querySelector('[data-sis-copy]'); if (b) b.onclick = function () { try { navigator.clipboard.writeText(b.getAttribute('data-sis-copy')); } catch (e) {} b.textContent = 'コピーしました'; track('coupon', 'copy', { sis_label: c.code }); };
+    track('coupon', 'impression', { sis_label: c.code || c.id });
   };
 
   /* 5. あと○円で送料無料・ノベルティのバー */
@@ -368,12 +375,13 @@
         out.push({ d: d, end: end });
       } else if (d.end) { var e = new Date(d.end), s = d.start ? new Date(d.start) : null; if (t < e && (!s || t >= s)) out.push({ d: d, end: e }); }
     });
-    (C.coupons || []).forEach(function (c) { if (c.code && c.expires) { var e = new Date(c.expires); if (now() < e) out.push({ d: { id: c.id, text: (c.value || '') + 'クーポン「' + c.code + '」', url: '/shop/cart/cart.aspx' }, end: e }); } });
+    (C.coupons || []).forEach(function (c) { if (c.code && c.expires) { var e = new Date(c.expires); if (now() < e) out.push({ d: { id: c.id, text: (c.value || '') + 'クーポン「' + c.code + '」' }, end: e }); } });
     return out;
   }
   FX.countdown = function () {
     if (PAGE === 'order') return;
     var list = activeDeadlines(); if (!list.length) return;
+    list.sort(function (p, q) { return p.end - q.end; });
     var x = list[0];
     var md = (x.end.getMonth() + 1) + '/' + x.end.getDate();
     var endLabel = x.end.getHours() === 0 ? (new Date(x.end - 1).getMonth() + 1) + '/' + new Date(x.end - 1).getDate() + ' 23:59' : md + ' ' + x.end.toTimeString().slice(0, 5);
@@ -455,7 +463,7 @@
         '<div class="sis-grid" style="grid-template-columns:repeat(' + (SP ? 1 : 3) + ',1fr)">' +
         '<a class="sis-card" style="padding:14px;font-size:14px" href="/shop/pages/guide.aspx#guide_07"><b style="color:#c4561a">🚚 送料</b><br>商品代金' + yen(SHOP.freeShipping) + '（税込）以上で送料無料</a>' +
         '<a class="sis-card" style="padding:14px;font-size:14px" href="' + esc(SHOP.rankPage) + '"><b style="color:#c4561a">🐷 会員ランク</b><br>お買い物金額に応じてクーポン・ポイントがアップ</a>' +
-        '<a class="sis-card" style="padding:14px;font-size:14px" href="' + esc(SHOP.linePage) + '"><b style="color:#c4561a">💬 LINE</b><br>アンケート回答でWEBSHOP限定クーポン</a>' +
+        '<a class="sis-card" style="padding:14px;font-size:14px" href="' + esc(SHOP.linePage) + '"><b style="color:#c4561a">💬 LINE</b><br>' + esc(SHOP.linePerk) + '</a>' +
         '</div>', slider, 'after');
     } else {
       var hist = D.getElementById('block_of_itemhistory');
@@ -680,7 +688,8 @@
     style();
     recordViewed();
     var order = ['countdown', 'source', 'coupon', 'rank', 'shipbar', 'newRepeat', 'catBanner', 'ranking', 'sizeMemo', 'lowStock', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'welcome', 'kuji', 'exit'];
-    order.forEach(function (k) { if (F[k] === false || !FX[k]) return; try { FX[k](false); } catch (e) { SIS.active[k] = 'エラー'; if (window.console) console.warn('[SIS]', k, e); } });
+    var only = (Q.get('sis_only') || '').split(',').filter(Boolean);
+    order.forEach(function (k) { if (F[k] === false || !FX[k] || only.length && only.indexOf(k) < 0) return; try { FX[k](false); } catch (e) { SIS.active[k] = 'エラー'; if (window.console) console.warn('[SIS]', k, e); } });
     var sh = Q.get('sis_show'); if (sh) setTimeout(function () { SIS.show(sh); }, 600);
     chip(); renderDebug();
   });
