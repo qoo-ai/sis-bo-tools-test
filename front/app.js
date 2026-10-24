@@ -142,7 +142,7 @@
     '.sis-sp .sis-modal h3{font-size:19px}',
     '.sis-sp .sis-fab{bottom:76px;width:68px;height:68px;font-size:12px}'
   ].join('\n');
-  function style() { if (D.getElementById('sis-css')) return; var s = D.createElement('style'); s.id = 'sis-css'; s.textContent = css; D.head.appendChild(s); D.documentElement.classList.add(SP ? 'sis-sp' : 'sis-pc'); }
+  function style() { if (D.getElementById('sis-css')) return; var s = D.createElement('style'); s.id = 'sis-css'; s.textContent = css + (Q.get('sis_noanim') === '1' ? '\n.sis-root,.sis-root *{animation:none!important;transition:none!important}' : ''); D.head.appendChild(s); D.documentElement.classList.add(SP ? 'sis-sp' : 'sis-pc'); }
 
   /* ---------- 部品 ---------- */
   var mainEl = function () { return D.querySelector('main.pane-main, main, .pane-main, #main, .pane-contents') || D.body; };
@@ -185,8 +185,28 @@
 
   /* ---------- 店舗データ（実データ） ---------- */
   var cartP = null;
+  function headerCount() { var e = D.querySelector('.block-headernav--cart-count, .js-cart-count'); return e ? num(e.textContent) : null; }
+  function parseCartPage(d) { // カート画面（PC・スマホ共通の部品名）から読む
+    var items = [];
+    d.querySelectorAll('.block-cart--goods-list-item').forEach(function (it) {
+      var box = it.closest('.block-cart--goods-list-item-container, .js-enhanced-ecommerce-item') || it.parentNode;
+      var a = box.querySelector('a[href*="/shop/g/g"]') || (box.parentNode && box.parentNode.querySelector('a[href*="/shop/g/g"]'));
+      var img = (box.parentNode || box).querySelector('.block-cart--goods-list-image img, img[src*="/img/goods/"]');
+      var qEl = it.querySelector('.block-cart--goods-list-item-qty, input[name*="qty"], select');
+      var vEl = it.querySelector('.block-cart--goods-list-item-comment');
+      var price = num((it.querySelector('.block-cart--goods-list-item-price') || {}).textContent);
+      var qty = qEl ? (num(qEl.value || qEl.textContent) || 1) : 1;
+      items.push({ name: ((it.querySelector('.block-cart--goods-list-item-name') || {}).textContent || '').replace(/\s+/g, ' ').trim(), href: a ? a.getAttribute('href') : '', code: codeOf(a && a.getAttribute('href')),
+        variation: vEl ? vEl.textContent.replace(/\s+/g, ' ').trim() : '', qty: qty, amt: price * qty, img: img ? img.getAttribute('src') : '' });
+    });
+    var sub = num((d.querySelector('.block-cart--subtotal-price') || {}).textContent);
+    var total = sub || items.reduce(function (s, i) { return s + i.amt; }, 0);
+    var snap = { items: items, total: total, count: items.reduce(function (s, i) { return s + i.qty; }, 0), at: Date.now() };
+    ls('cartSnap', snap); return snap;
+  }
   function cart(force) {
     if (cartP && !force) return cartP;
+    if (PAGE === 'cart') { cartP = Promise.resolve(parseCartPage(D)); return cartP; }
     cartP = get('/shop/js/cart.aspx', 6000).then(function (html) {
       var d = parseDoc('<div>' + html + '</div>'), items = [];
       d.querySelectorAll('.block-jscart--items').forEach(function (it) {
@@ -195,9 +215,13 @@
           variation: (it.querySelector('.variation-name') || {}).textContent || '', qty: num((it.querySelector('.block-jscart--qty') || {}).textContent) || 1,
           amt: num((it.querySelector('.block-jscart--amt') || {}).textContent) });
       });
-      var total = items.reduce(function (s, i) { return s + i.amt; }, 0);
-      var count = items.reduce(function (s, i) { return s + i.qty; }, 0);
-      return { items: items, total: total, count: count };
+      if (items.length) return { items: items, total: items.reduce(function (s, i) { return s + i.amt; }, 0), count: items.reduce(function (s, i) { return s + i.qty; }, 0) };
+      // スマホ版は軽いカート断片が空で返るため、ヘッダーの点数と、カート画面で読んだ内容を使う
+      var hc = headerCount();
+      if (!hc) return { items: [], total: 0, count: 0 };
+      var snap = ls('cartSnap');
+      if (snap && snap.count === hc && Date.now() - snap.at < 6 * 3600e3) return snap;
+      return get('/shop/cart/cart.aspx', 8000).then(function (h2) { return parseCartPage(parseDoc(h2)); });
     }).catch(function () { return { items: [], total: 0, count: 0, error: true }; });
     return cartP;
   }
@@ -625,7 +649,7 @@
     cart().then(function (c) {
       if (!c.count) return; ss('cartRemShown', 1);
       var first = c.items[0];
-      goodsInfo(first.code).then(function (g) {
+      (first.code ? goodsInfo(first.code) : Promise.resolve(first.img ? { img: first.img } : null)).then(function (g) {
         var rest = SHOP.freeShipping - c.total;
         var el = toast('cartReminder', (g && g.img ? '<img src="' + esc(g.img) + '" alt="">' : '') +
           '<div style="flex:1;font-size:14px"><b>前回のお買い物がカートに残っています</b><br>' + esc(first.name) + (c.items.length > 1 ? ' ほか' : '') + '（' + c.count + '点・' + yen(c.total) + '）' +
