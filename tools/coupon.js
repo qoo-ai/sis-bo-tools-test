@@ -103,7 +103,7 @@
     set('subtotal_min', c.min); set('subtotal_max', ''); set('condition_subtotal', c.min ? 'true' : '');
     set('customer_cnt_limit', c.per); set('condition_customer_cnt_limit', c.per ? 'true' : '');
     set('amount_cnt_limit', c.all); set('condition_amount_cnt_limit', c.all ? 'true' : '');
-    set('coupon_target', c.mem ? '1' : '0'); set('condition_coupon_target', c.mem ? 'true' : '');
+    set('coupon_target', '0'); set('condition_coupon_target', c.mem ? 'true' : ''); // 会員限定は condition_coupon_target だけで決まる（coupon_target は0のまま。1にすると「クーポン対象が大きすぎます」）
     for (var i = 1; i <= 5; i++) { set('event_' + i, c.ev[i - 1] || ''); set('x_event_' + i, c.xev[i - 1] || ''); }
     set('condition_goods_event', c.ev.length ? 'true' : ''); set('condition_x_goods_event', c.xev.length ? 'true' : '');
     set('status', c.on ? '0' : '1');
