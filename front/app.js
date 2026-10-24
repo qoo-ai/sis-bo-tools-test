@@ -207,7 +207,8 @@
     doc.querySelectorAll('a[href*="/shop/g/g"]').forEach(function (a) {
       var code = codeOf(a.getAttribute('href')); if (!code || seen[code]) return;
       var img = a.querySelector('img'); if (!img) return;
-      var box = a.closest('.block-goods-detail-j--goods, .block-thumbnail-t--goods, .block-pickup-list-p--goods, li, dl, [class*="--goods"]') || a.parentNode;
+      var box = a.parentNode, up = 0;
+      while (box && box.parentNode && !/[￥¥]\s?[\d,]+/.test(box.textContent) && up++ < 6) box = box.parentNode;
       var txt = box.textContent.replace(/\s+/g, ' ');
       var nameEl = box.querySelector('[class*="goods-name"], [class*="--name"]');
       var name = (nameEl ? nameEl.textContent : img.getAttribute('alt') || '').replace(/\s+/g, ' ').trim();
