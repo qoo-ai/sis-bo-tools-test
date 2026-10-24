@@ -17,7 +17,8 @@
   if (CFG.on === false) return;
   var CDN = window.SIS_CDN || '';
   var D = document, L = location;
-  var KOMONO0 = (CFG.komonoWords || []).map(function (w) { return w.toLowerCase(); });
+  var KW_DEFAULT = ['バッグ', 'リュック', '財布', '帽子', 'キャップ', 'ハット', 'ベルト', 'マフラー', 'ストール', '手袋', 'ソックス', '靴下', 'マスク', 'ヘアゴム', 'シュシュ', 'ヘアクリップ', 'ポーチ', 'エコバッグ', 'ハンカチ', 'タオル', 'キーホルダー'];
+  var KOMONO0 = (CFG.komonoWords || KW_DEFAULT).map(function (w) { return w.toLowerCase(); });
   /* 小物の判定：小物ページ（/shop/e/ekomono/）に載っている商品＝小物。名前の語（komonoWords）は予備。
      このサイトの小物はバッグ・リュック等で、靴下などの語では拾えなかった（2026-10-24 stg実測） */
   function pk(code) { var p = String(code || '').split('-'); return p.length < 4 ? code : p[0] + '-' + p[1].slice(0, -1) + '-' + p[2]; }
@@ -99,7 +100,7 @@
   if (SUF && SUF !== '_p1') return;                       // 並び替え・2ページ目以降はお客様の操作なので触らない
   var RULE = (CFG.pages || {})[EV] || CFG.defaultRule || 'mix';
   if (RULE === 'off') return;
-  var KOMONO = (CFG.komonoWords || []).map(function (w) { return w.toLowerCase(); });
+  var KOMONO = KOMONO0;
   var KSET = {};                                          // 小物ページの商品（run() の最初に読む）
   var MIX_EVERY = CFG.mixEvery || 4;                     // mix：売れ筋3枚ごとに在庫が多い商品を1枚
   var report = window.SIS_TIDY = { page: EV, rule: RULE, total: 0, hidden: 0, swapped: 0, merged: 0, komono: 0, unknown: 0 };
