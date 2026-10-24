@@ -280,7 +280,7 @@
         if (c.count > 0) {
           var rest = (SHOP.freeShipping || 0) - c.total;
           body = '<span class="sis-tag">お買い忘れはありませんか？</span><h3>カートに' + c.count + '点<br>（' + yen(c.total) + '）入っています</h3>' +
-            '<p>' + c.items.slice(0, 2).map(function (i) { return esc(i.name); }).join('<br>') + (c.items.length > 2 ? '<br>ほか' : '') + '</p>' +
+            '<p>' + c.items.slice(0, 2).map(function (i) { return esc(i.name) + ' <span style="color:#888;font-size:12px">' + esc(i.variation.trim()) + '</span>'; }).join('<br>') + (c.items.length > 2 ? '<br>ほか' : '') + '</p>' +
             (rest > 0 ? '<p>あと<b style="color:#c4561a">' + yen(rest) + '</b>で送料無料です</p>' : '<p><b style="color:#c4561a">送料無料ライン達成中</b>です</p>') +
             '<p style="margin-top:14px"><a class="sis-btn" href="/shop/cart/cart.aspx" data-sis="go">カートを見る</a></p>';
         } else {
