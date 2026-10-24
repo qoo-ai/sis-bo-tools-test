@@ -1047,7 +1047,7 @@
     if (PAGE === 'list' && inScope) {
       D.querySelectorAll('.block-goods-detail-j--price-items, .block-thumbnail-t--price-items, [class*="--price-items"]').forEach(function (box) {
         var p = num((box.querySelector('[class*="--price"]:not([class*="default"])') || box).textContent); if (!p) return;
-        box.appendChild(h('<div class="sis-root"><span class="sis-xoff">' + ic('tag') + esc(lab) + ' → ' + yen(Math.floor(p * (100 - rate) / 100)) + '</span></div>')); n++;
+        box.appendChild(h('<div class="sis-root"><span class="sis-xoff">' + ic('tag') + 'さらに' + rate + '%OFF → ' + yen(Math.floor(p * (100 - rate) / 100)) + '</span></div>')); n++;
       });
     }
     if (PAGE === 'goods' && D.querySelector('.block-goods-price--default-price')) {
