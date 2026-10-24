@@ -676,7 +676,7 @@
       if (c.audience === 'new' && !isNew) return false;
       if (c.audience === 'repeat' && isNew) return false;
       if (c.audience === 'guest' && rankName()) return false;
-      return c.code || DEMO;
+      return c.code || c.url || DEMO; // コードのない案内（会員登録の特典など）はリンク付きで出す
     });
     myCoupons().then(function (mine) {
       if (mine.length) { // ①会員が持っているクーポン（誕生日・毎月のランククーポンなど）が最優先
