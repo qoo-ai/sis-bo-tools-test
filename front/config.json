@@ -104,22 +104,30 @@
   },
   {
    "id": "kuji-a",
-   "code": "",
+   "code": "SISKUJI300",
    "value": "300円OFF",
    "weight": 70,
-   "_bo": "共通クーポンを発行して code を入れる"
+   "_bo": "stg BO 共通クーポン（イベントID siskuji300）2026-10-24作成・期間10/24〜11/30。本番は別途発行",
+   "expires": "2026-11-30T23:59:59+09:00",
+   "expiresLabel": "11/30(月)まで"
   },
   {
    "id": "kuji-b",
-   "code": "",
+   "code": "SISKUJI500",
    "value": "500円OFF",
-   "weight": 25
+   "weight": 25,
+   "expires": "2026-11-30T23:59:59+09:00",
+   "expiresLabel": "11/30(月)まで",
+   "_bo": "stg BO 共通クーポン（イベントID siskuji500）2026-10-24作成・期間10/24〜11/30。本番は別途発行"
   },
   {
    "id": "kuji-c",
-   "code": "",
+   "code": "SISKUJISHIP",
    "value": "送料無料",
-   "weight": 5
+   "weight": 5,
+   "expires": "2026-11-30T23:59:59+09:00",
+   "expiresLabel": "11/30(月)まで",
+   "_bo": "stg BO 共通クーポン（イベントID siskujiship）2026-10-24作成・期間10/24〜11/30。本番は別途発行"
   }
  ],
  "extraOff": {
