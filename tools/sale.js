@@ -409,7 +409,7 @@
     var v, miss = [];
     if ((v = toLocal(pickS(S, /^開始/)))) $('.start').value = v; else miss.push('開始');
     if ((v = toLocal(pickS(S, /^終了/)))) $('.end').value = v; else miss.push('終了');
-    if ((v = cellStr(pickS(S, /イベントコード/)))) $('.ev').value = v; else miss.push('イベントコード');
+    if ((v = cellStr(pickS(S, /イベントコード/)))) { $('.ev').value = v; if (!/^[A-Za-z0-9_-]{1,8}$/.test(v)) miss.push('イベントコードは半角英数字8文字まで（メルカートの決まり）'); } else miss.push('イベントコード');
     st.settings = { name: pickS(S, /フェア名|イベント名|セール名/), tpl: pickS(S, /ひな形/) };
     v = cellStr(pickS(S, /^購入グループ/)); $('.grp').value = '';
     if (v && !/^(なし|空欄|-|ー)$/.test(v)) { var gc = groupCode(v); if (gc) $('.grp').value = gc; else miss.push('購入グループ「' + v + '」がマスタに無い'); }
@@ -433,7 +433,7 @@
       pv.innerHTML = '<b>' + esc(st.settings.name || '（フェア名なし）') + '</b>　' + esc($('.ev').value) + '<br>' + esc(jp($('.start').value)) + ' 〜 ' + esc(jp($('.end').value)) +
         '<br>購入グループ：' + esc($('.grp').value ? $('.grp').value + ' ' + (st.groups[$('.grp').value] || '') : '付けない') + '（' + ($('.gwhen').value === 'start' ? '開始時刻' : '前日') + '）' +
         '<br>動いているクーポン：' + (st.couponStop ? 'セール中は止める（除外期間を入れる）' : '止めない') + '／新作・定番の行（P）：' + (st.keepP ? '取り込む' : '取り込まない') +
-        '<br>商品 ' + n + '行' + (miss.length ? '<br><span style="color:#c92a2a">⚠ 足りない：' + esc(miss.join('、')) + '</span>' : '');
+        (st.couponKeep ? '<br>止めないクーポン：' + esc(st.couponKeep) : '') + '<br>商品 ' + n + '行' + (miss.length ? '<br><span style="color:#c92a2a">⚠ 足りない：' + esc(miss.join('、')) + '</span>' : '');
       log('貼り付けを読み込んだ：商品 ' + n + '行' + (miss.length ? '／足りない：' + miss.join('、') : ''));
     } catch (er) { st.pasted = null; log('⚠ ' + er.message); }
   }
