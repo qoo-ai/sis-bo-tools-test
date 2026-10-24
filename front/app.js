@@ -66,7 +66,10 @@
   /* 在庫の言い方：在庫10点以下は「在庫残りわずか」、3点以下は「在庫残り3点・2点・1点」。
      在庫数はBOの在庫検索から貴社stgの sis_data.js に置いたもの（stock）。画面の在庫記号×（在庫なし）のほうを優先する */
   var STK = null;
-  function stockMap() { return STK ? Promise.resolve(STK) : siteData().then(function (d) { STK = (d && d.stock) || {}; return STK; }); }
+  function stockMap() { return STK ? Promise.resolve(STK) : siteData().then(function (d) {
+    var at = d && d.stockAt ? new Date(String(d.stockAt).slice(0, 16).replace(' ', 'T') + ':00+09:00') : null;
+    var fresh = at && !isNaN(at) && now() - at < ((C.stockMaxAgeHours || 36) * 3600e3); // 在庫数が古いとき（設定の時間を過ぎたら）は数字を出さず、在庫記号△の「在庫残りわずか」だけにする
+    STK = fresh && d.stock ? d.stock : {}; if (!fresh && d && d.stock) SIS.active.stock = '在庫数が古いため数字は出さない'; return STK; }); }
   function stockCount(code) {
     var dm = Q.get('sis_stock'); // 画面確認用：sis_stock=2（すべて残り2点）／sis_stock=1-80311-2630-02:3
     if (dm) { var p = dm.split(':'); if (p.length === 1) return +p[0]; if (p[0] === code) return +p[1]; }
