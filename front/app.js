@@ -524,8 +524,10 @@
     var hint;
     if (active && label(active) === memo) hint = h('<div class="sis-root sis-size-hint">✓ いつものサイズ「<b>' + esc(memo) + '</b>」を選んでいます（' + esc(cat) + '）</div>');
     else {
-      var a = target.querySelector('a'); var dis = /disable|soldout|nostock/.test(target.className);
-      hint = h('<div class="sis-root sis-size-hint">いつものサイズは「<b>' + esc(memo) + '</b>」です。' + (a && !dis ? ' <a href="' + esc(a.getAttribute('href')) + '">「' + esc(memo) + '」に切り替える ›</a>' : '（このカラーは「' + esc(memo) + '」の在庫がありません）') + '</div>');
+      var a = target.querySelector('a'), oc = (target.querySelector('[onclick]') || target).getAttribute('onclick') || '';
+      var href = a ? a.getAttribute('href') : (oc.match(/location\.href\s*=\s*['"]([^'"]+)['"]/) || [])[1];
+      var dis = /disable|soldout|nostock/.test(target.className);
+      hint = h('<div class="sis-root sis-size-hint">いつものサイズは「<b>' + esc(memo) + '</b>」です。' + (href && !dis ? ' <a href="' + esc(href) + '">「' + esc(memo) + '」に切り替える ›</a>' : '（このカラーは「' + esc(memo) + '」の在庫がありません）') + '</div>');
       var link = hint.querySelector('a'); if (link) link.onclick = function () { track('sizeMemo', 'switch', { sis_label: memo }); };
     }
     list.parentNode.insertBefore(hint, list); SIS.active.sizeMemo = 'on'; track('sizeMemo', 'impression', { sis_label: memo });
