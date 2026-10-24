@@ -178,7 +178,7 @@
     SIS.active[id] = 'on'; track(id, 'impression'); return el;
   }
   function card(g, opt) {
-    return '<a class="sis-card" href="' + esc(g.href) + '" data-sis-goods="' + esc(g.code) + '">' + (g.img ? '<img loading="lazy" src="' + esc(g.img) + '" alt="" onerror="var c=this.closest(\'.sis-card\');if(c)c.remove()">' : '<img alt="">') +
+    return '<a class="sis-card" href="' + esc(g.href) + '" data-sis-goods="' + esc(g.code) + '">' + (g.img ? '<img src="' + esc(g.img) + '" alt="" onerror="var c=this.closest(\'.sis-card\');if(c)c.remove()">' : '<img alt="">') +
       '<div class="sis-cn">' + esc(g.name) + '</div><div class="sis-cp">' + (g.price ? yen(g.price) : '') + '</div>' +
       (opt && opt.add ? '<button type="button" class="sis-add" data-sis-add="' + esc(g.code) + '">カートに入れる</button>' : '') + '</a>';
   }
@@ -543,9 +543,9 @@
     var s = D.getElementById('spec_stock_msg'); if (!s) return;
     var t = s.textContent.trim(); if (!/△|残りわずか|僅少/.test(t)) return;
     var price = D.querySelector('.block-goods-price');
-    if (price) price.parentNode.insertBefore(h('<div class="sis-root"><span class="sis-badge">残りわずか</span></div>'), price);
+    if (price) price.insertBefore(h('<div class="sis-root"><span class="sis-badge">残りわずか</span></div>'), price.firstChild);
     var btn = D.querySelector('.block-add-cart');
-    if (btn) btn.parentNode.insertBefore(h('<div class="sis-root" style="font-size:13px;color:#e8473b;font-weight:bold;margin:6px 0">このカラー・サイズは在庫が残りわずかです</div>'), btn);
+    if (btn) btn.insertBefore(h('<div class="sis-root" style="font-size:13px;color:#e8473b;font-weight:bold;margin:0 0 8px">このカラー・サイズは在庫が残りわずかです</div>'), btn.firstChild);
     SIS.active.lowStock = 'on'; track('lowStock', 'impression', { sis_label: codeOf(P) });
   };
 
