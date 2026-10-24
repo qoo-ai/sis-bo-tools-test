@@ -47,7 +47,7 @@
   }
   function codeOf(href) { var m = String(href || '').match(/\/shop\/g\/g([^/?#]+)\/?/); return m ? m[1] : null; }
   function pkey(code) { var p = String(code).split('-'); return p.length < 4 ? code : p[0] + '-' + p[1] + '-' + p[2]; } // 色違いをまとめた番号（商品番号-サイズ番号-シーズン）
-  function uniqProduct(arr) { var s = {}; return arr.filter(function (g) { var k = pkey(g.code), nm = (g.name || '').replace(/[\s（(].*$/, '') ? 'n:' + (g.name || '').trim() : ''; if (s[k] || (nm && s[nm])) return false; s[k] = 1; if (nm) s[nm] = 1; return true; }); } // 色・サイズ違い（同じ商品名）は1つにまとめる
+  function uniqProduct(arr) { var s = {}; return arr.filter(function (g) { var k = pkey(g.code), nm = (g.name || '').replace(/\s*[（(][^）)]*[）)]\s*$/, '').replace(/\s+/g, ' ').trim(); nm = nm ? 'n:' + nm : ''; if (s[k] || (nm && s[nm])) return false; s[k] = 1; if (nm) s[nm] = 1; return true; }); } // 色・サイズ違い（同じ商品名）は1つにまとめる
   function stem(code) { return pkey(code); }
 
   /* ---------- 訪問・セッション ---------- */
