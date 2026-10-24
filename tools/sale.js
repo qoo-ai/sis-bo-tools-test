@@ -24,6 +24,7 @@
     '<label>セール依頼シートの「セール」タブを貼り付け</label>' +
     '<div style="font-size:12px;color:#555">シートで Cmd＋A → Cmd＋C → 下の欄をクリックして Cmd＋V。設定も商品もシートから読みます（ここで入力する項目はありません）</div>' +
     '<textarea class="paste" style="width:100%;height:64px;box-sizing:border-box;font-size:11px" placeholder="ここに貼り付け"></textarea>' +
+    '<button class="rd" style="margin:2px 0 0;font-size:12px;padding:4px 8px">コピーした内容を読む（貼り付けできないとき）</button>' +
     '<div class="pv" style="font-size:12px;background:#f6f6f6;padding:6px;margin-top:4px;display:none"></div>' +
     '<details style="margin-top:6px"><summary style="font-size:12px;color:#888">予備：Excelファイルで読む（貼り付けが使えないとき）</summary>' +
     '<input type="file" class="inst" accept=".xlsx">' +
@@ -420,7 +421,10 @@
   }
   $('.paste').addEventListener('paste', function (e) {
     var t = e.clipboardData && e.clipboardData.getData('text/plain'); if (!t) return;
-    e.preventDefault(); this.value = '';
+    e.preventDefault(); this.value = ''; takePaste(t);
+  });
+  $('.rd').onclick = async function () { try { takePaste(await navigator.clipboard.readText()); } catch (er) { log('⚠ コピーした内容を読めない（ブラウザの許可）。欄をクリックして Cmd＋V してください'); } };
+  function takePaste(t) {
     try {
       var p = readPaste(t), miss = applySettings(p.S); st.pasted = p.table;
       var n = p.table.slice(1).filter(function (r) { var c = String(r[0] || '').trim(); return c && c !== '記入例' && c[0] !== '#'; }).length;
@@ -430,8 +434,8 @@
         '<br>動いているクーポン：' + (st.couponStop ? 'セール中は止める（除外期間を入れる）' : '止めない') + '／新作・定番の行（P）：' + (st.keepP ? '取り込む' : '取り込まない') +
         '<br>商品 ' + n + '行' + (miss.length ? '<br><span style="color:#c92a2a">⚠ 足りない：' + esc(miss.join('、')) + '</span>' : '');
       log('貼り付けを読み込んだ：商品 ' + n + '行' + (miss.length ? '／足りない：' + miss.join('、') : ''));
-    } catch (er) { st.pasted = null; log('⚠ ' + er.message); alert(er.message); }
-  });
+    } catch (er) { st.pasted = null; log('⚠ ' + er.message); }
+  }
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
   // ---------------------------------------------------------------- クーポン：セール期間中は止める（除外期間）

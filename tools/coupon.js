@@ -20,7 +20,7 @@
     '#sis34 pre{white-space:pre-wrap;background:#f6f6f6;padding:6px;max-height:200px;overflow:auto;margin:8px 0 0;font-size:12px}</style>' +
     '<div class="hd"><span>SIS クーポン設定（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span style="font-weight:normal;color:#888;font-size:11px">' + VER + '　<a href="#" class="x">×</a></span></div>' +
     '<div class="bd"><div style="font-size:12px;color:#555">セール依頼シートの「クーポン」タブで Cmd＋A → Cmd＋C → 下の欄をクリックして Cmd＋V</div>' +
-    '<textarea class="paste" placeholder="ここに貼り付け"></textarea><div class="pv"></div>' +
+    '<textarea class="paste" placeholder="ここに貼り付け"></textarea><button class="rd" style="margin-top:2px;font-size:12px;padding:4px 8px">コピーした内容を読む（貼り付けできないとき）</button><div class="pv"></div>' +
     '<button class="go" disabled>この内容で反映</button><pre class="log"></pre></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
@@ -77,6 +77,7 @@
       if ((xs && !xf) || (!xs && xf)) err.push('除外期間は開始と終了の両方');
       var ev = evs(get(r, 'ev')), xev = evs(get(r, 'xev'));
       if (ev.length > 5 || xev.length > 5) err.push('イベントは5つまで');
+      if (num(get(r, 'per')) && !/^(○|〇|はい|会員|true|1)$/i.test(get(r, 'mem'))) err.push('「1人○回まで」は会員限定に○のときだけ使える（メルカートの決まり）');
       out.push({ row: hi + 2 + i, id: id, name: get(r, 'name'), code: get(r, 'code') || id, b: b, s: s, f: f, xs: xs, xf: xf, ev: ev, xev: xev,
         min: num(get(r, 'min')), per: num(get(r, 'per')), all: num(get(r, 'all')), mem: /^(○|〇|はい|会員|true|1)$/i.test(get(r, 'mem')),
         on: !/^(無効|×|停止|off|いいえ)$/i.test(get(r, 'on')), err: err });
@@ -136,14 +137,14 @@
     $('.go').disabled = !(cnt.new + cnt.upd) || cnt.ng > 0;
     if (cnt.ng) log('⚠ 「直して」の行があるので反映できません。シートを直して貼り直してください');
   }
-  $('.paste').addEventListener('paste', function (e) {
-    var t = e.clipboardData && e.clipboardData.getData('text/plain'); if (!t) return;
-    e.preventDefault(); this.value = '';
+  function take(t) {
     (async function () {
       try { var list = read(t); log('貼り付け：' + list.length + '件を確認中…'); st.plan = await plan(list); show(st.plan); log('確認しました。表を見て「この内容で反映」'); }
-      catch (er) { log('⚠ ' + er.message); alert(er.message); }
+      catch (er) { log('⚠ ' + er.message); }
     })();
-  });
+  }
+  $('.paste').addEventListener('paste', function (e) { var t = e.clipboardData && e.clipboardData.getData('text/plain'); if (!t) return; e.preventDefault(); this.value = ''; take(t); });
+  $('.rd').onclick = async function () { try { take(await navigator.clipboard.readText()); } catch (e) { log('⚠ コピーした内容を読めない（ブラウザの許可）。欄をクリックして Cmd＋V してください'); } };
   $('.go').onclick = async function () {
     var todo = (st.plan || []).filter(function (x) { return x.act === 'new' || x.act === 'upd'; });
     if (!todo.length) return;
