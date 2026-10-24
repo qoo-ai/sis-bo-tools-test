@@ -587,7 +587,7 @@
       var v = ab('welcome');
       var head = v === 'B' ? 'セール・新作のお知らせを<br><em>LINEでいち早く</em>' : 'LINE友だち追加で<br><em>500円OFFクーポン</em>';
       return { tone: 'g', html: mhead('g', 'chat', '', head, r.img) + '<div class="sis-mbd">' +
-        '<div class="sis-perk3"><div><small>友だち追加＆アンケート</small><b>500<i>円OFF</i></b></div><div><small>お誕生月に</small><b>バースデー<i>クーポン</i></b></div><div><small>セール・新作の</small><b>お知らせ<i>いち早く</i></b></div></div>' +
+        '<div class="sis-perk3"><div><small>友だち追加で</small><b>500<i>円OFF</i></b></div><div><small>お誕生月に</small><b>バースデー<i>クーポン</i></b></div><div><small>セール・新作の</small><b>お知らせ<i>いち早く</i></b></div></div>' +
         '<a class="sis-btn sis-line sis-block" href="' + esc(SHOP.lineUrl) + '" target="_blank" rel="noopener" data-sis="go">LINEで友だち追加</a>' +
         '<button class="sis-link" data-sis-close="later">今はしない</button></div>', goal: 'line_click' };
     },
