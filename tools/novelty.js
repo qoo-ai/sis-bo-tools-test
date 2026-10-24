@@ -143,9 +143,8 @@
     ck('N02', '終了が開始より前', s.start && s.end && s.end <= s.start ? [s.start + ' → ' + s.end] : [], 'すぐ終わる');
     ck('N03', 'ノベルティが0件または6件以上', s.items.length < 1 || s.items.length > 5 ? [s.items.length + '件'] : [], 'メルカートの選択肢は5つまで（10/13 stg実測）');
     ck('N04', '在庫が0か空', s.items.filter(function (i) { return !(+i.stock > 0); }).map(function (i) { return i.code; }), '在庫0だと付与されない（選択肢にも出ない）');
-    var sorted = s.items.slice().sort(function (a, b) { return a.code < b.code ? -1 : 1; });
-    var nums = sorted.map(function (i) { return (i.name.match(/[①-⑳]|\d+/) || [''])[0]; });
-    ck('N05', '選択画面の並び（品番順）と商品名の番号が合わない', s.items.length > 1 && nums.join('') !== '①②③④⑤'.slice(0, nums.length) ? [sorted.map(function (i) { return i.code + '=' + i.name; }).join(' → ')] : [], '選択画面で①③⑤④②の順に並ぶ（10/15 15周年で発生）');
+    // 選択画面の並びは決められない（10/24 stg実測：品番順でも並び順でも名前順でもなく、BO内部の登録順。0031→0033→0032 と出た）
+    ck('N05', '商品名に①②③や「柄1」などの番号が入っている', s.items.length > 1 ? s.items.filter(function (i) { return /[①-⑳]|柄\s*\d|No\.?\s*\d/.test(i.name); }).map(function (i) { return i.name; }) : [], '選択画面の並びは指定できないため、番号を入れると①③②のように並ぶ（10/15 15周年で発生）。名前だけにする');
     var noImg = [];
     for (var i of s.items) { if (!(await imgOk(SHOP + '/img/goods/S/' + i.s))) noImg.push(i.s); if (!(await imgOk(SHOP + '/img/goods/L/' + i.l))) noImg.push(i.l); }
     ck('N06', '画像がこの環境にない（' + SHOP.replace('https://', '') + '）', noImg, '選択画面・注文に画像が出ない。CMS＞ファイル管理 /img/goods/s・/l に上げる');
@@ -175,7 +174,6 @@
       set('品番１', s.start.slice(0, 4) + 'ﾉﾍﾞﾙﾃｨ');
       ['掲載開始日', '販売開始日', '発売日'].forEach(function (k) { set(k, s.start); });
       ['掲載終了日', '販売終了日'].forEach(function (k) { set(k, s.end); });
-      set('並び順', String(500 + k)); // 選択画面の並び＝入力した順（10/24 stg：品番順でも名前順でもなかった）
       set('S画像ファイル', it.s); set('Ｌ画像ファイル', it.l); set('在庫数', it.stock || '0');
       rows.push(r);
     });
