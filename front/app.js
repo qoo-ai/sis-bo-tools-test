@@ -58,7 +58,10 @@
   ss('pv', (ss('pv') || 0) + 1);
 
   /* ---------- ABテスト・計測 ---------- */
-  function hash(s) { var x = 2166136261; for (var i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); } return x >>> 0; }
+  function hash(s) { // 訪問者ID全体から作る番号（末尾の数字ではない）。最後に混ぜ直して、施策ごとの振り分けが互いに偏らないようにする
+    var x = 2166136261; for (var i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); }
+    x ^= x >>> 16; x = Math.imul(x, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return x >>> 0;
+  }
   var abOverride = {}; (Q.get('sis_ab') || '').split(',').forEach(function (kv) { var p = kv.split(':'); if (p[1]) abOverride[p[0]] = p[1]; });
   function ab(test) {
     var t = (C.ab || {})[test]; if (!t || !F.ab) return 'A';
@@ -72,6 +75,7 @@
     var t = (C.ab || {})[feature]; if (t) e.sis_variant = ab(feature);
     for (var k in extra || {}) e[k] = extra[k];
     e.time = now().toTimeString().slice(0, 8);
+    if (/click|add|copy|draw|go/.test(action) && feature !== 'session') { var tc = ss('touched') || []; if (tc.indexOf(feature) < 0) { tc.push(feature); ss('touched', tc); } } // 注文完了のときに「この訪問で触った施策」として送る
     SIS.events.push(e); renderDebug();
     var staff = true; // 現在は関係者限定（?sis=p）でのみ読み込まれる
     if (F.ga4 && (!staff || (C.ga4 || {}).sendInStaffMode)) { try { (window.dataLayer = window.dataLayer || []).push(e); } catch (x) {} }
@@ -268,7 +272,55 @@
     '.sis-sp .sis-tk-r code{font-size:16px}',
     '.sis-sp .sis-toast{flex-wrap:wrap;padding:12px 44px 12px 12px;gap:10px}.sis-sp .sis-toast .sis-thumbs img{width:48px;height:48px}.sis-sp .sis-toast .sis-tb{flex:1 1 calc(100% - 120px)}.sis-sp .sis-toast>.sis-btn{width:100%}',
     '.sis-sp .sis-sh-t h4{font-size:16px}.sis-sp .sis-sh{gap:10px}.sis-sp .sis-sh-ic{width:36px;height:36px}',
-    '.sis-sp .sis-ship-t{white-space:nowrap}.sis-sp .sis-trk-l{font-size:10px}'
+    '.sis-sp .sis-ship-t{white-space:nowrap}.sis-sp .sis-trk-l{font-size:10px}',
+    /* v4：見出し・帯のアイコンを外す（作り物っぽさを消す）。くじのボタンだけ残す */
+    '.sis-root .sis-ic{display:none}.sis-fab .sis-ic{display:inline-block}',
+    '.sis-bnr-ic,.sis-sh-ic,.sis-mic,.sis-ship-ic{display:none!important}',
+    '.sis-mhd{padding:24px 24px 18px}',
+    /* v4：上部の帯（サイトのバナーに近い面の帯。白カード＋影はやめる） */
+    '#sis-strips{gap:6px;margin:10px auto}',
+    '.sis-bnr{background:var(--sis-tonel,var(--sis-cl));border:0;box-shadow:none;border-radius:10px;padding:10px 18px;gap:16px}',
+    '.sis-bnr:before{display:none}',
+    '.sis-bnr-k{display:inline-block;font-size:11px;letter-spacing:.06em;padding:1px 8px;border-radius:4px;background:var(--sis-tone,var(--sis-c));color:#fff!important;margin-bottom:2px}',
+    '.sis-bnr-t{font-size:16px}.sis-bnr-t b{color:var(--sis-tone,var(--sis-cd))}',
+    '.sis-bnr .sis-tiles b{background:#fff;color:var(--sis-tone,var(--sis-p));box-shadow:inset 0 0 0 1.5px var(--sis-tone,var(--sis-p))}.sis-bnr .sis-tiles i{color:var(--sis-tone,var(--sis-p))}',
+    '.sis-bnr .sis-tk{--sis-holebg:var(--sis-tonel,var(--sis-cl))}',
+    '.sis-sp .sis-bnr{padding:10px 12px}.sis-sp .sis-bnr-r{padding-left:0}.sis-sp .sis-bnr-t{font-size:14px}',
+    /* v4：ヘッダーのバナーを2つに分ける（左＝今のバナー画像、右＝残り時間とコードのコピー） */
+    '.sis-hsplit{display:flex;height:100%;background:#fff}.sis-hsplit>a{flex:0 0 auto;display:block;height:100%}.sis-hsplit>a img{height:100%;width:auto;display:block}',
+    '.sis-hs-r{flex:1;display:flex;align-items:center;justify-content:center;gap:18px;padding:0 20px;background:var(--sis-pl);min-width:0}',
+    '.sis-hs-r .sis-hs-t{font-size:13px;font-weight:700;color:var(--sis-p);line-height:1.4}.sis-hs-r .sis-hs-t b{display:block;font-size:18px;color:var(--sis-ink)}',
+    '.sis-hs-code{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;border-radius:999px;background:#fff;border:2px dashed var(--sis-c)}.sis-hs-code code{font-family:inherit;font-size:18px;font-weight:800;letter-spacing:.06em;color:var(--sis-cd)}',
+    '.sis-hs-code button{min-height:34px;padding:0 14px;border-radius:999px;border:0;background:var(--sis-c);color:#fff;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit}',
+    '.sis-hsplit-sp{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;background:var(--sis-pl)}.sis-hsplit-sp .sis-hs-code code{font-size:15px}.sis-hsplit-sp .sis-tiles b{min-width:26px;font-size:14px;padding:2px}',
+    /* v4：左の「現在のランク」の下に特典と次のランクまでの金額 */
+    '.sis-rkbox{margin:8px 0 12px;padding:10px 10px 12px;border-radius:10px;background:var(--sis-pl);font-size:12px;line-height:1.5}',
+    '.sis-rkbox dl{margin:0 0 8px}.sis-rkbox dt{font-size:11px;color:var(--sis-mu)}.sis-rkbox dd{margin:0 0 4px;font-weight:700}',
+    '.sis-rkbox .sis-rk-next{padding-top:8px;border-top:1px dashed var(--sis-pm)}.sis-rkbox .sis-rk-next b{color:var(--sis-cd);font-size:15px}',
+    '.sis-rkbox .sis-trk{height:6px;background:#fff}.sis-rkbox .sis-trk i{background:var(--sis-p)}',
+    '.sis-rkbox .sis-rk-warn{margin-top:6px;color:var(--sis-r);font-weight:700}',
+    /* v4：Amazon型の売れ筋（タブ＋順位の札＋「◯で◯位」） */
+    '.sis-tabs{display:flex;gap:6px;margin:0 0 12px;overflow-x:auto;scrollbar-width:none}.sis-tabs button{flex:none;min-height:36px;padding:0 16px;border-radius:999px;border:1px solid var(--sis-ln);background:#fff;color:var(--sis-ink);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}',
+    '.sis-tabs button[aria-selected="true"]{background:var(--sis-p);border-color:var(--sis-p);color:#fff}',
+    '.sis-grid.sis-g5{grid-template-columns:repeat(5,1fr)}',
+    '.sis-rk{position:absolute;left:0;top:0;padding:3px 10px 3px 8px;background:var(--sis-c);color:#fff;font-weight:800;font-size:13px;border-radius:14px 0 10px 0}.sis-rk.r1{background:#E8613F}',
+    '.sis-rk~.sis-bd{top:34px}',
+    '.sis-best{display:inline-flex;align-items:center;gap:4px;margin:4px 0;padding:2px 8px;border-radius:4px;background:var(--sis-c);color:#fff;font-size:12px;font-weight:800;line-height:1.5}.sis-best span{font-weight:500}',
+    '.sis-best-g{display:inline-block;margin:8px 0 4px;padding:4px 10px;border-radius:4px;background:var(--sis-cl);color:var(--sis-cd);font-size:13px;font-weight:800}',
+    /* v4：一覧のサムネイルの在庫（メルカートの在庫記号 △・× をそのまま） */
+    '.sis-stk{position:absolute;left:6px;bottom:6px;z-index:2;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:800;color:#fff;background:var(--sis-r);pointer-events:none}.sis-stk.out{background:#6F6677}',
+    /* v4：カゴ落ち表示の商品ごとの状態 */
+    '.sis-crows{display:flex;flex-direction:column;gap:6px;margin:6px 0 0}.sis-crow{display:flex;align-items:center;gap:8px;font-size:12px}.sis-crow img{width:36px;height:36px;border-radius:6px;object-fit:cover;flex:none}',
+    '.sis-crow .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sis-st{flex:none;padding:1px 8px;border-radius:4px;font-size:11px;font-weight:800;color:#fff;background:var(--sis-r)}.sis-st.sale{background:var(--sis-c)}.sis-st.out{background:#6F6677}.sis-st.drop{background:#05964a}',
+    '.sis-toast.sis-wide{align-items:flex-start}',
+    /* v4：購入手続きでクーポンを入れたお知らせ */
+    '.sis-ordnote{margin:8px 0;padding:10px 12px;border-radius:8px;background:var(--sis-cl);color:var(--sis-ink);font-size:13px;line-height:1.5}.sis-ordnote b{color:var(--sis-cd)}',
+    /* v4：トップのスライダーに入れる「はじめての方へ」 */
+    '.sis-onb{display:flex!important;flex-direction:column;justify-content:center;gap:18px;width:100%;height:100%;min-height:300px;padding:36px 44px;background:var(--sis-pl);text-decoration:none!important;color:var(--sis-ink)!important;box-sizing:border-box}',
+    '.sis-onb h3{margin:0;font-size:30px;font-weight:800;line-height:1.3;color:var(--sis-p)}.sis-onb h3 small{display:block;font-size:14px;color:var(--sis-mu);font-weight:700;margin-bottom:6px}',
+    '.sis-onb ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.sis-onb li{background:#fff;border-radius:12px;padding:16px}.sis-onb li b{display:block;font-size:20px;color:var(--sis-cd);line-height:1.3}.sis-onb li span{font-size:13px;color:var(--sis-mu)}',
+    '.sis-onb .sis-btn{align-self:flex-start}',
+    '.sis-sp .sis-onb{padding:20px 16px;gap:12px;min-height:0}.sis-sp .sis-onb h3{font-size:20px}.sis-sp .sis-onb ol{grid-template-columns:1fr;gap:6px}.sis-sp .sis-onb li{padding:8px 12px}.sis-sp .sis-onb li b{font-size:15px;display:inline;margin-right:6px}'
   ].join('\n');
   function style() { if (D.getElementById('sis-css')) return; var s = D.createElement('style'); s.id = 'sis-css'; s.textContent = css + (Q.get('sis_noanim') === '1' ? '\n.sis-root,.sis-root *,.sis-root:before,.sis-fab:before{animation:none!important;transition:none!important}' : ''); D.head.appendChild(s); D.documentElement.classList.add(SP ? 'sis-sp' : 'sis-pc'); }
 
@@ -369,6 +421,7 @@
     var sub = num((d.querySelector('.block-cart--subtotal-price') || {}).textContent);
     var total = sub || items.reduce(function (s, i) { return s + i.amt; }, 0);
     var snap = { items: items, total: total, count: items.reduce(function (s, i) { return s + i.qty; }, 0), at: Date.now() };
+    var cp = ls('cartPrices') || {}; items.forEach(function (i) { if (i.code && i.qty && !cp[i.code]) cp[i.code] = Math.round(i.amt / i.qty); }); ls('cartPrices', cp); // 次の訪問で「値下がり」を出すため、入れたときの価格を覚える
     ls('cartSnap', snap); return snap;
   }
   function cart(force) {
@@ -575,20 +628,68 @@
     return '<span class="sis-tk"><span class="sis-tk-l">' + left + '</span><span class="sis-tk-r"><span><small>クーポンコード</small>' +
       (c.code ? '<code>' + esc(c.code) + '</code></span><button type="button" data-sis-copy="' + esc(c.code) + '">コピー</button>' : '<code class="sis-pending">BOで発行後に表示</code></span>') + '</span></span>';
   }
+  function myCoupons() { // ログイン中の会員が持っているクーポン（マイページ「クーポンの確認」の表をそのまま読む。誕生日・毎月のランククーポンなど）
+    if (Q.get('sis_mycoupon')) { var p = Q.get('sis_mycoupon').split('|'); return Promise.resolve([{ code: p[0], title: p[1] || '', value: p[2] || '', until: p[3] || '', preview: true }]); }
+    if (!rankName()) return Promise.resolve([]);
+    var c = ss('myCoupons'); if (c && Date.now() - c.t < 30 * 60e3) return Promise.resolve(c.list);
+    return get('/shop/customer/coupon.aspx', 8000).then(function (html) {
+      var d = parseDoc(html), out = [];
+      [].slice.call(d.querySelectorAll('table')).forEach(function (t) {
+        var hd = [].slice.call(t.querySelectorAll('th')).map(function (x) { return x.textContent.replace(/\s+/g, ''); });
+        var ic2 = hd.indexOf('クーポンコード'); if (ic2 < 0) return;
+        var iname = hd.indexOf('クーポンイベント名'), ival = hd.indexOf('クーポン特典'), iper = hd.indexOf('有効期間');
+        [].slice.call(t.querySelectorAll('tr')).forEach(function (tr) {
+          var td = [].slice.call(tr.querySelectorAll('td')).map(function (x) { return x.textContent.replace(/\s+/g, ' ').trim(); });
+          if (td.length < 3 || !td[ic2]) return;
+          var per = td[iper] || '', m = per.match(/[～~]\s*(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+          out.push({ code: td[ic2], title: td[iname] || '', value: (td[ival] || '').replace(/\s*引き$/, 'OFF'), until: m ? (+m[2]) + '/' + (+m[3]) + 'まで' : '' });
+        });
+      });
+      ss('myCoupons', { t: Date.now(), list: out }); return out;
+    }).catch(function () { return []; });
+  }
   FX.coupon = function (forced) {
     if (PAGE === 'order') return;
     var list = (C.coupons || []).filter(function (c) {
       if (/^kuji/.test(c.id)) return false;
+      if (c.inHeader) return false; // ヘッダーのバナーに出ているクーポンは帯に重ねない
       if (c.expires && now() > new Date(c.expires)) return false;
       if (c.audience === 'new' && !isNew) return false;
       if (c.audience === 'repeat' && isNew) return false;
+      if (c.audience === 'guest' && rankName()) return false;
       return c.code || DEMO;
     });
-    if (!list.length) return;
-    var c = list[0];
-    var el = strip('coupon', { tone: 'sale', icon: 'ticket', kicker: 'ご来店クーポン', title: esc(c.title || ''), sub: c.expiresLabel ? '有効期限 ' + esc(c.expiresLabel) + '・ご注文手続きでコードを入力' : '', right: ticket(c) });
-    bindCopy(el, 'coupon');
-    track('coupon', 'impression', { sis_label: c.code || c.id });
+    myCoupons().then(function (mine) {
+      if (mine.length) { // ①会員が持っているクーポン（誕生日・毎月のランククーポンなど）が最優先
+        var m = mine[0];
+        var el = strip('coupon', { tone: 'p', kicker: 'お持ちのクーポン' + (mine.length > 1 ? ' ' + mine.length + '枚' : ''), title: esc(m.title) + '　<b>' + esc(m.value) + '</b>', sub: (m.until ? esc(m.until) + '・' : '') + 'ご注文手続きの「利用可能なクーポンを表示」から選べます', right: ticket({ value: m.value, code: m.code }) });
+        bindCopy(el, 'coupon'); track('coupon', 'impression', { sis_label: 'mine' }); return;
+      }
+      if (!list.length) return;
+      var c = list[0]; // ②ログインしていない人には会員登録の特典など（設定にあるもの）
+      var el2 = strip('coupon', { tone: 'sale', kicker: c.kicker || 'ご来店クーポン', title: esc(c.title || ''), sub: c.expiresLabel ? '有効期限 ' + esc(c.expiresLabel) + '・ご注文手続きでコードを入力' : (c.sub || ''), right: c.url ? '<a class="sis-btn sis-sm" href="' + esc(c.url) + '">' + esc(c.cta || '詳しく見る') + '</a>' : ticket(c) });
+      bindCopy(el2, 'coupon'); track('coupon', 'impression', { sis_label: c.code || c.id });
+    });
+  };
+
+  /* 4b. ヘッダーのバナーを2つに分ける（左＝今のバナー画像、右＝クーポンの残り時間とコードのコピー） */
+  FX.headerSplit = function () {
+    var cfg = C.headerSplit || {}; if (!cfg.on && !Q.get('sis_hsplit')) return;
+    var box = D.querySelector(cfg.selector || '#header-news2'); if (!box) return;
+    var c = (C.coupons || []).filter(function (x) { return x.code && x.code === (cfg.coupon || '') && (!x.expires || now() < new Date(x.expires)); })[0]; if (!c) return;
+    var bg = (getComputedStyle(box).backgroundImage.match(/url\("?([^")]+)"?\)/) || [])[1]; if (!bg) return;
+    var link = box.closest('a') || box.querySelector('a'), href = link ? link.getAttribute('href') : (cfg.href || '');
+    var end = c.expires ? new Date(c.expires) : null;
+    var right = (end ? '<div class="sis-hs-t">' + esc(c.expiresLabel || '') + '　終了まで<b>' + tiles(end) + '</b></div>' : '') +
+      '<div class="sis-hs-code"><code>' + esc(c.code) + '</code><button type="button" data-sis-copy="' + esc(c.code) + '">コピー</button></div>';
+    if (!SP) {
+      box.style.backgroundImage = 'none';
+      box.innerHTML = ''; box.appendChild(h('<div class="sis-root sis-hsplit"><a href="' + esc(href || '#') + '"><img src="' + esc(bg) + '" alt=""></a><div class="sis-hs-r">' + right + '</div></div>'));
+    } else {
+      box.parentNode.insertBefore(h('<div class="sis-root sis-hsplit-sp">' + right + '</div>'), box.nextSibling);
+    }
+    runTiles(D.querySelector('.sis-hsplit, .sis-hsplit-sp')); bindCopy(D.querySelector('.sis-hsplit, .sis-hsplit-sp'), 'headerSplit');
+    SIS.active.headerSplit = 'on'; track('headerSplit', 'impression', { sis_label: c.code });
   };
 
   /* 5. あと○円で送料無料・ノベルティのバー（カートに入れた人だけ、全ページの下に固定） */
@@ -605,13 +706,20 @@
   FX.shipbar = function () {
     var cfg = C.shipbar || {};
     if (PAGE === 'order' || PAGE === 'cart' || ss('shipbarClosed')) return;
-    cart().then(function (c) {
+    Promise.all([cart(), readRank().then(function (r) { return r && !r.preview || Q.get('sis_hist') ? r && rankStatus(r) : null; })]).then(function (rr) {
+      var c = rr[0], rs = rr[1];
       if (c.error || (!c.count && !cfg.showWhenEmpty)) return;
       var free = SHOP.freeShipping || 0, nov = C.novelty || {};
       var rest = free - c.total, pct = Math.min(100, Math.round(c.total / free * 100));
-      var html = '<span class="sis-ship-ic' + (rest > 0 ? '' : ' sis-done') + '">' + ic(rest > 0 ? 'truck' : 'check') + '</span><div class="sis-ship-m">' +
+      var rankBar = '';
+      if (rest <= 0 && rs && rs.up && rs.amt != null) { // 送料無料を越えたら、次の会員ランクまでのバーに切り替える（この注文も足して計算）
+        var after = rs.amt + c.total, need = Math.max(0, rs.up.min - after), rp = Math.min(100, Math.round(after / rs.up.min * 100));
+        rankBar = need > 0 ? '<div class="sis-ship-t">送料無料ライン達成。あと <b>' + yen(need) + '</b>（' + rs.nextLabel + 'の判定まで）で「' + esc(rs.up.name) + '」</div><div class="sis-trk"><i style="width:' + rp + '%;background:var(--sis-p)"></i><u style="left:' + rp + '%;border-color:var(--sis-p)"></u></div><div class="sis-trk-l"><span>3ヶ月の累計 ' + yen(after) + '（この注文を含む）</span><span>' + yen(rs.up.min) + '</span></div>'
+          : '<div class="sis-ship-t">送料無料ライン達成。この注文で' + rs.nextLabel + 'に「' + esc(rs.up.name) + '」へ</div>';
+      }
+      var html = '<div class="sis-ship-m">' +
         (rest > 0 ? '<div class="sis-ship-t">あと <b>' + yen(rest) + '</b> で送料無料</div><div class="sis-trk"><i style="width:' + pct + '%"></i><u style="left:' + pct + '%"></u></div><div class="sis-trk-l"><span>カート ' + yen(c.total) + '</span><span>' + yen(free) + '</span></div>'
-          : '<div class="sis-ship-t" style="color:#05964a">送料無料ライン達成！</div><div class="sis-trk-l"><span>カート ' + yen(c.total) + '（' + yen(free) + '以上）</span></div>');
+          : rankBar || '<div class="sis-ship-t" style="color:#05964a">送料無料ライン達成！</div><div class="sis-trk-l"><span>カート ' + yen(c.total) + '（' + yen(free) + '以上）</span></div>');
       if (nov.on) { var nr = nov.threshold - c.total; html += '<div class="sis-trk-l"><span>' + (nr > 0 ? 'あと ' + yen(nr) + ' で ' + esc(nov.label) : esc(nov.label) + ' 対象') + '</span></div>'; }
       html += '</div><a class="sis-btn sis-sm" href="/shop/cart/cart.aspx">' + ic('cart') + 'カートを見る</a>';
       if (cfg.position === 'top') { strip('shipbar', '<div class="sis-ship" style="padding:0;width:100%">' + html + '</div>'); }
@@ -682,7 +790,8 @@
           setTimeout(function () { btns.forEach(function (o, oi) { if (o === b) return; var p = others.shift() || win; o.querySelector('.sis-kc-b').innerHTML = face(p) + '<small>ほかの賞</small>'; o.classList.add('sis-open', 'sis-dim'); }); }, 700);
           setTimeout(function () {
             confetti(box);
-            m.querySelector('#sis-kuji-r').innerHTML = '<div class="sis-res"><h4>おめでとうございます！ ' + esc(win.value || 'クーポン') + '</h4><p style="margin:0 0 10px">' + ticket(win) + '</p><p class="sis-note" style="margin:0 0 14px">ご注文手続きの画面でコードを入力してください' + (win.expiresLabel ? '（有効期限 ' + esc(win.expiresLabel) + '）' : '') + '</p>' +
+            ls('kujiWin', { code: win.code, value: win.value, exp: win.expires || null, t: Date.now() }); // ご注文手続きの画面でクーポン欄に自動で入れる
+            m.querySelector('#sis-kuji-r').innerHTML = '<div class="sis-res"><h4>おめでとうございます！ ' + esc(win.value || 'クーポン') + '</h4><p style="margin:0 0 10px">' + ticket(win) + '</p><p class="sis-note" style="margin:0 0 14px"><b>ご注文手続きの画面で、クーポン欄に自動で入ります</b>（コピー不要）' + (win.expiresLabel ? '・有効期限 ' + esc(win.expiresLabel) : '') + '</p>' +
               '<a class="sis-btn sis-block" href="' + esc(SHOP.salePage) + '">このクーポンでお買い物' + ic('arrow') + '</a><button class="sis-link" data-sis-close="later">閉じる</button></div>';
             var cl = m.querySelector('#sis-kuji-r [data-sis-close]'); if (cl) cl.onclick = function () { m.sisClose('later'); };
             bindCopy(m, 'kuji'); track('kuji', 'draw', { sis_label: win.id });
@@ -697,6 +806,26 @@
     D.body.appendChild(fab); SIS.active.kuji = 'on'; track('kuji', 'impression');
   };
 
+  /* 7b. 購入手続き：くじで当たったクーポンをクーポン欄に入れておく（お客様はコピー・貼り付け不要） */
+  FX.orderCoupon = function () {
+    if (PAGE !== 'order') return;
+    var w = ls('kujiWin'); if (!w || !w.code || (w.exp && now() > new Date(w.exp)) || w.used) return;
+    var inp = D.querySelector('input[name="coupon"]'); if (!inp || inp.value) return;
+    inp.value = w.code; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
+    var note = h('<div class="sis-root sis-ordnote">ご来店くじの <b>' + esc(w.value || 'クーポン') + '</b>（' + esc(w.code) + '）を入れてあります。使わない場合は消してください。</div>');
+    (inp.closest('td, dd, div') || inp.parentNode).appendChild(note);
+    SIS.active.orderCoupon = 'on'; track('orderCoupon', 'autofill', { sis_label: w.code });
+  };
+  /* 7c. 注文完了：この端末で買ったことを覚える／この訪問で触った施策を「購入」として送る */
+  FX.orderDone = function () {
+    if (PAGE !== 'order' || !/ご注文ありがとうございま|ご注文が完了|ご注文を受け付け/.test(D.body.textContent)) return;
+    if (ss('orderDone')) return; ss('orderDone', 1);
+    ls('bought', Date.now()); var w = ls('kujiWin'); if (w) { w.used = true; ls('kujiWin', w); }
+    var touched = ss('touched') || [];
+    track('session', 'purchase', { sis_label: touched.join(',') || 'none' });
+    SIS.active.orderDone = 'on';
+  };
+
   /* 8. 会員ランク別UI */
   function rankName() { // ログイン中の会員ランク（文字、なければランク画像のalt）
     var e = D.getElementById('customer-rank'); if (!e) return '';
@@ -706,6 +835,7 @@
   function readRank() {
     return new Promise(function (res) {
       if (Q.get('sis_rank')) return res({ name: Q.get('sis_rank'), preview: true });
+      if (!D.getElementById('customer-rank') && D.readyState !== 'loading') return res(null); // ログインしていない
       var tries = 0; (function poll() {
         var t = rankName();
         if (t) return res({ name: t });
@@ -713,20 +843,70 @@
       })();
     });
   }
+  /* 会員の購入金額（マイページ「購入履歴」の注文日と注文金額合計を足す。キャンセルは除く）。端末が違っても会員ごとに同じ */
+  var histP = null;
+  function orderHistory() {
+    if (histP) return histP;
+    if (Q.get('sis_hist')) { // 画面確認用：sis_hist=2026-09-10:12000,2026-10-05:8000
+      histP = Promise.resolve(Q.get('sis_hist').split(',').map(function (s) { var p = s.split(':'); return { date: new Date(p[0] + 'T12:00:00+09:00'), amt: +p[1] }; })); return histP;
+    }
+    if (!rankName()) { histP = Promise.resolve(null); return histP; }
+    var c = ss('hist'); if (c && Date.now() - c.t < 30 * 60e3) { histP = Promise.resolve(c.list.map(function (x) { return { date: new Date(x.d), amt: x.a }; })); return histP; }
+    histP = get('/shop/customer/history.aspx', 8000).then(function (html) {
+      var d = parseDoc(html), out = [];
+      [].slice.call(d.querySelectorAll('table')).forEach(function (t) {
+        var hd = [].slice.call(t.querySelectorAll('th')).map(function (x) { return x.textContent.replace(/\s+/g, ''); });
+        var idt = hd.indexOf('注文日'), iam = hd.indexOf('注文金額合計'), ist = hd.indexOf('処理状態'); if (idt < 0 || iam < 0) return;
+        [].slice.call(t.querySelectorAll('tr')).forEach(function (tr) {
+          var td = [].slice.call(tr.querySelectorAll('td')).map(function (x) { return x.textContent.replace(/\s+/g, ' ').trim(); });
+          var m = (td[idt] || '').match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/); if (!m) return;
+          if (ist >= 0 && /キャンセル|取消/.test(td[ist] || '')) return;
+          out.push({ date: new Date(+m[1], +m[2] - 1, +m[3], 12), amt: num(td[iam]) });
+        });
+      });
+      ss('hist', { t: Date.now(), list: out.map(function (x) { return { d: +x.date, a: x.amt }; }) }); return out;
+    }).catch(function () { return null; });
+    return histP;
+  }
+  function rankStatus(r) { // ランクは「過去3ヶ月の累計」で毎月1日に更新（会員ランクについて）。次の1日は「今月＋前の2ヶ月」で決まる前提
+    var ranks = C.ranks || [], i = -1;
+    ranks.forEach(function (x, k) { if (r.name.indexOf(x.name) >= 0 && i < 0) i = k; });
+    if (i < 0) return Promise.resolve(null);
+    return orderHistory().then(function (hist) {
+      var t = now(), next = new Date(t.getFullYear(), t.getMonth() + 1, 1), from = new Date(t.getFullYear(), t.getMonth() - ((C.ranksWindowMonths || 3) - 1), 1);
+      var amt = hist ? hist.filter(function (x) { return x.date >= from && x.date < next; }).reduce(function (s, x) { return s + x.amt; }, 0) : null;
+      var me = ranks[i], up = ranks[i - 1], down = ranks[i + 1];
+      var keep = amt != null ? Math.max(0, (me.min || 0) - amt) : null;
+      return { me: me, up: up, down: down, amt: amt, toUp: up && amt != null ? Math.max(0, up.min - amt) : null, toKeep: keep, next: next, from: from, nextLabel: (next.getMonth() + 1) + '/1' };
+    });
+  }
+  function perksOf(me) {
+    var p = [];
+    if (me.monthly) p.push(['毎月のクーポン', me.monthly]);
+    if (me.pointDay) p.push(['22・23日ポイント', me.pointDay]);
+    p.push(['お誕生日クーポン', me.birthday]);
+    return p;
+  }
   FX.rank = function () {
     if (PAGE === 'order') return;
-    readRank().then(function (r) {
-      if (!r) return;
-      var ranks = C.ranks || [], i = -1;
-      ranks.forEach(function (x, k) { if (r.name.indexOf(x.name) >= 0 && i < 0) i = k; });
-      if (i < 0) return;
-      var me = ranks[i], up = ranks[i - 1];
-      var perks = [];
-      if (me.monthly) perks.push('毎月のクーポン <b>' + esc(me.monthly) + '</b>');
-      if (me.pointDay) perks.push('22・23日ポイント <b>' + esc(me.pointDay) + '</b>');
-      perks.push('誕生日 <b>' + esc(me.birthday) + '</b>');
-      var amt = r.amount, sub = up ? (amt != null ? '次の「' + esc(up.name) + '」まであと <b>' + yen(Math.max(0, up.min - amt)) + '</b>（3ヶ月の累計 ' + yen(amt) + '）' : '次は「' + esc(up.name) + '」（3ヶ月で' + yen(up.min) + '以上）') : '最上位ランクです';
-      strip('rank', { tone: 'p', icon: 'crown', kicker: '<span class="sis-rank">' + ic('crown') + esc(me.name) + '</span>', title: perks.join('　'), sub: sub, right: '<a class="sis-btn sis-sm sis-pur" href="' + esc(SHOP.rankPage) + '">特典を見る</a>' });
+    readRank().then(function (r) { return r && rankStatus(r); }).then(function (st) {
+      if (!st) return;
+      var me = st.me, up = st.up;
+      var nextTxt = up ? (st.amt != null ? '<div>' + st.nextLabel + 'の判定まで　あと <b>' + yen(st.toUp) + '</b> で<br>「' + esc(up.name) + '」</div>' : '<div>次は「' + esc(up.name) + '」（3ヶ月で' + yen(up.min) + '以上）</div>') : '<div>最上位ランクです</div>';
+      var pct = up && st.amt != null ? Math.min(100, Math.round(st.amt / up.min * 100)) : 0;
+      var warn = st.toKeep ? '<div class="sis-rk-warn">このままだと' + st.nextLabel + 'に「' + esc(st.down ? st.down.name : '') + '」へ（維持まであと ' + yen(st.toKeep) + '）</div>' : '';
+      // ①PC：左の「現在のランク」の下に入れる（メルカートのランク画像はそのまま）
+      var rkEl = D.getElementById('customer-rank'), side = rkEl && rkEl.closest('.block-side-rank, .pane-left-menu, aside, .pane-side, [class*="left"]');
+      var holder = rkEl ? (rkEl.closest('[class*="rank"]') && rkEl.closest('[class*="rank"]') !== rkEl ? rkEl.closest('[class*="rank"]') : rkEl) : null;
+      if (!SP && holder && side) {
+        var box = h('<div class="sis-root sis-rkbox" id="sis-rkbox"><dl>' + perksOf(me).map(function (p) { return '<dt>' + esc(p[0]) + '</dt><dd>' + esc(p[1]) + '</dd>'; }).join('') + '</dl>' +
+          '<div class="sis-rk-next">' + nextTxt + (pct ? '<div class="sis-trk"><i style="width:' + pct + '%"></i></div><div class="sis-trk-l"><span>3ヶ月 ' + yen(st.amt) + '</span><span>' + yen(up.min) + '</span></div>' : '') + warn + '</div></div>');
+        holder.parentNode.insertBefore(box, holder.nextSibling); SIS.active.rank = 'サイドバー'; track('rank', 'impression', { sis_label: me.name }); return;
+      }
+      // ②スマホなど左の枠がない画面：上部の帯
+      strip('rank', { tone: 'p', kicker: esc(me.name), title: perksOf(me).map(function (p) { return esc(p[0]) + ' <b>' + esc(p[1]) + '</b>'; }).join('　'),
+        sub: up ? (st.amt != null ? st.nextLabel + 'の判定まで あと<b>' + yen(st.toUp) + '</b>で「' + esc(up.name) + '」' + (st.toKeep ? '／このままだと「' + esc(st.down.name) + '」へ' : '') : '次は「' + esc(up.name) + '」（3ヶ月で' + yen(up.min) + '以上）') : '最上位ランクです',
+        right: '<a class="sis-btn sis-sm sis-pur" href="' + esc(SHOP.rankPage) + '">特典を見る</a>' });
       track('rank', 'impression', { sis_label: me.name });
     });
   };
@@ -735,14 +915,22 @@
   FX.newRepeat = function () {
     if (PAGE !== 'top') return Promise.resolve(false);
     var slider = D.getElementById('block_of_top_body') || mainEl().firstElementChild;
-    if (isNew) {
+    return firstTimer().then(function (first) {
+    if (first) {
+      var nr = C.newRepeat || {};
+      if ((nr.mode === 'slider' && !rankName() || Q.get('sis_onb') === 'slider') && window.jQuery && jQuery('#top-slider').hasClass('slick-initialized')) { // メインバナーの先頭に「はじめての方へ」を1枚足す
+        var slide = '<div class="sis-root"><a class="sis-onb" href="/shop/pages/guide.aspx"><h3><small>はじめての方へ</small>drug store\'s WEBSHOPの3つのお得</h3><ol>' +
+          '<li><b>' + yen(SHOP.freeShipping) + '以上で送料無料</b><span>商品代金（税込）の合計で判定</span></li><li><b>会員ランクで毎月クーポン</b><span>お買い物金額に応じてアップ</span></li><li><b>LINEで500円OFF</b><span>' + esc(SHOP.linePerk) + '</span></li></ol><span class="sis-btn sis-pur">ご利用ガイドを見る</span></a></div>';
+        jQuery('#top-slider').slick('slickAdd', slide, 0, true); jQuery('#top-slider').slick('slickGoTo', 0, true);
+        SIS.active.newRepeat = 'メインバナー'; track('newRepeat', 'impression', { sis_label: 'slider' }); return true;
+      }
       section('newRepeat', shead({ tone: 'p', icon: 'spark', title: 'はじめての方へ　お買い物ガイド', sub: 'drug store\'s WEBSHOPで知っておくとお得な3つ' }) +
         '<div class="sis-guide">' +
         '<a class="sis-gc" href="/shop/pages/guide.aspx#guide_07"><span class="sis-sh-ic">' + ic('truck') + '</span><div><b>' + yen(SHOP.freeShipping) + '以上で送料無料</b><span>商品代金（税込）の合計で判定します</span></div></a>' +
         '<a class="sis-gc" href="' + esc(SHOP.rankPage) + '"><span class="sis-sh-ic">' + ic('crown') + '</span><div><b>会員ランクで毎月クーポン</b><span>お買い物金額に応じてクーポン・ポイントがアップ</span></div></a>' +
         '<a class="sis-gc" href="' + esc(SHOP.linePage) + '"><span class="sis-sh-ic">' + ic('chat') + '</span><div><b>LINEで500円OFF</b><span>' + esc(SHOP.linePerk) + '</span></div></a>' +
         '</div>', slider, 'after');
-      return Promise.resolve(true);
+      return true;
     } else {
       var hist = D.getElementById('block_of_itemhistory');
       var mine = (ls('viewed') || []).slice(0, SP ? 4 : 4);
@@ -755,7 +943,18 @@
         return true;
       });
     }
+    });
   };
+  /* 「はじめての方」の判定：①ログイン中なら会員の購入履歴（端末をまたいで共通）を優先し、購入があれば出さない
+     ②この端末で注文完了したことがあれば出さない ③ログインしていなければ、この端末の来店回数（設定の回数まで） */
+  function firstTimer() {
+    if (Q.get('sis_visit')) return Promise.resolve(Q.get('sis_visit') === 'new');
+    if (ls('bought')) return Promise.resolve(false);
+    return readRank().then(function (r) {
+      if (!r) return isNew;
+      return orderHistory().then(function (hist) { return hist ? hist.length === 0 : isNew; });
+    });
+  }
 
   /* 10. 閲覧カテゴリ別バナー ／ よく見るジャンルを上に並べ替え */
   var CB = C.catBanner || {};
@@ -885,14 +1084,15 @@
       return Promise.all([Promise.all(uniq.map(function (x) { return goodsInfo(x.code); })), saleDl ? saleSet() : Promise.resolve({})]).then(function (r) {
         var infos = r[0], sale = r[1], pick = null;
         uniq.forEach(function (x, i) {
-          var g = infos[i]; if (pick || !g || g.soldout) return;
-          var why = /△|残りわずか/.test(g.stock) ? 'low' : saleDl && sale[pkey(x.code)] ? 'saleEnd' : x.price && g.price && g.price < x.price ? 'drop' : null;
+          var g = infos[i]; if (pick || !g) return;
+          if (g.soldout && x.kind !== 'cart') return; // カートに入れた商品だけ「売り切れました」も知らせる（次は早めに買ってもらうため）
+          var why = g.soldout ? 'gone' : /△|残りわずか/.test(g.stock) ? 'low' : saleDl && sale[pkey(x.code)] ? 'saleEnd' : x.price && g.price && g.price < x.price ? 'drop' : null;
           if (!why || (!forced && shown[pkey(x.code) + why] && Date.now() - shown[pkey(x.code) + why] < cap)) return;
           pick = { x: x, g: g, why: why };
         });
         if (!pick) return;
         var from = { cart: 'カートに入れた', dwell: 'じっくり見ていた', fav: 'お気に入りの' }[pick.x.kind] || '気になっていた';
-        var W = { low: ['r', 'fire', '在庫が残りわずかです', 'sis-t-r', '残りわずか'], saleEnd: ['c', 'clock', 'セール価格は' + (saleDl ? (new Date(saleDl.end - 1).getMonth() + 1) + '/' + new Date(saleDl.end - 1).getDate() : '') + ' 23:59まで', '', 'まもなく終了'], drop: ['g', 'tag', yen(pick.x.price - pick.g.price) + ' 値下がりしました', 'sis-t-g', '値下がり'] }[pick.why];
+        var W = { gone: ['r', 'fire', 'このカラー・サイズは売り切れました', 'sis-t-r', '売り切れ'], low: ['r', 'fire', '在庫が残りわずかです', 'sis-t-r', '残りわずか'], saleEnd: ['c', 'clock', 'セール価格は' + (saleDl ? (new Date(saleDl.end - 1).getMonth() + 1) + '/' + new Date(saleDl.end - 1).getDate() : '') + ' 23:59まで', '', 'まもなく終了'], drop: ['g', 'tag', yen(pick.x.price - pick.g.price) + ' 値下がりしました', 'sis-t-g', '値下がり'] }[pick.why];
         var sec0 = forced ? 0 : (cfg.durationSec == null ? 5 : cfg.durationSec);
         var el = h('<a class="sis-root sis-alert" href="' + esc(pick.g.href) + '">' + (pick.g.img ? '<img src="' + esc(pick.g.img) + '" alt="">' : '') +
           '<div class="sis-tb"><span class="sis-tag ' + W[3] + '">' + ic(W[1]) + W[4] + '</span><div class="sis-ts" style="font-size:11px;margin-top:4px">' + from + '商品</div><div class="sis-tt">' + esc(pick.g.name) + '</div><div class="sis-why ' + W[0] + '">' + W[2] + '</div></div><button class="sis-x" aria-label="閉じる">×</button>' +
@@ -943,6 +1143,40 @@
     SIS.active.lowStock = 'on'; track('lowStock', 'impression', { sis_label: codeOf(P) });
   };
 
+  /* 12a. 一覧のサムネイルにも「残りわずか」「在庫なし」（メルカートのクイックビューの在庫記号 △・× を、画面に見えた商品だけ取りに行く） */
+  var qvCache = {}, qvQueue = [], qvRunning = 0;
+  function quickStock(code) {
+    var k = pkey(code);
+    if (!qvCache[k]) {
+      var c = ss('qv_' + k); if (c && Date.now() - c.t < 10 * 60e3) qvCache[k] = Promise.resolve(c.m);
+      else qvCache[k] = new Promise(function (res) { qvQueue.push(function () {
+        return get('/shop/goods/quickviewajax.aspx?goods=' + encodeURIComponent(code), 6000).then(function (html) {
+          var t = parseDoc(html).body.textContent.replace(/\s+/g, ' '), m = {}, re = /商品コード\s*([\w-]+)\s*在庫\s*([○△×])/g, x;
+          while ((x = re.exec(t))) m[x[1]] = x[2];
+          ss('qv_' + k, { t: Date.now(), m: m }); res(m);
+        }).catch(function () { res({}); });
+      }); pump(); });
+    }
+    return qvCache[k].then(function (m) { return m[code] || null; });
+  }
+  function pump() { while (qvRunning < 3 && qvQueue.length) { qvRunning++; qvQueue.shift()().then(function () { qvRunning--; pump(); }); } }
+  FX.listStock = function () {
+    if (PAGE !== 'list' && PAGE !== 'top') return;
+    var n = 0, io = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); mark(e.target); } }); }, { rootMargin: '200px' }) : null;
+    function mark(img) {
+      var a = img.closest('a'), code = a && codeOf(a.getAttribute('href')); if (!code) return;
+      quickStock(code).then(function (s) {
+        if (s !== '△' && s !== '×') return;
+        var wrap = img.parentNode; if (wrap.querySelector('.sis-stk')) return;
+        if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
+        wrap.appendChild(h('<span class="sis-root sis-stk' + (s === '×' ? ' out' : '') + '">' + (s === '×' ? 'この色・サイズは在庫なし' : '残りわずか') + '</span>'));
+        n++; SIS.active.listStock = n + '件';
+      });
+    }
+    [].slice.call(D.querySelectorAll('a[href*="/shop/g/g"] img')).forEach(function (img) { if (img.closest('.sis-root')) return; if (io) io.observe(img); else mark(img); });
+    SIS.active.listStock = SIS.active.listStock || '確認中';
+  };
+
   /* 12b. 人気の実数（旅行サイト型：見られた回数・カートに入った回数・売れた点数。GA4の実数だけ）
      数字は貴社サイト側のファイル（BO＞JavaScript管理の sis_data.js）に置き、SISの配信には貴社のデータを置かない */
   var dataP = null;
@@ -973,7 +1207,7 @@
   FX.proof = function () {
     if (PAGE !== 'goods') return;
     var cfg = C.proof || {}, min = cfg.min || { views: 50, carts: 5, sold: 3 };
-    Promise.all([popular(), rankData()]).then(function (r) {
+    Promise.all([popular(), rankData(), weekly()]).then(function (r) {
       var pop = r[0], rk = r[1]; if (!pop) { SIS.active.proof = 'データ待ち'; return; }
       var codes = familyCodes(), s = popSum(pop.items || {}, codes), rows = [];
       var d = pop.days || 7, rank = null;
@@ -981,7 +1215,9 @@
       if (s[2] >= min.sold) rows.push('<li class="hot">' + ic('fire') + '<span>この' + d + '日間で <b>' + s[2] + '点</b> 売れています</span></li>');
       if (s[1] >= min.carts) rows.push('<li>' + ic('cart') + '<span>この' + d + '日間で <b>' + s[1] + '回</b> カートに入りました</span></li>');
       if (s[0] >= min.views) rows.push('<li>' + ic('eye') + '<span>この' + d + '日間で <b>' + s[0].toLocaleString() + '回</b> 見られています</span></li>');
-      if (rank && rank <= 10) rows.push('<li>' + ic('crown') + '<span>売れ筋ランキング <b>' + rank + '位</b>（' + esc((rk && rk.period) || '') + '）</span></li>');
+      if (rank && rank <= 10 && !(r[2] && r[2].index)) rows.push('<li>' + ic('crown') + '<span>売れ筋ランキング <b>' + rank + '位</b>（' + esc((rk && rk.period) || '') + '）</span></li>');
+      var wk = r[2] && (function () { var v = null; codes.forEach(function (c) { var x = r[2].index[pkey(c)]; if (x && x.r && (!v || x.r < v.r)) v = x; }); return v; })();
+      if (wk && wk.r <= 10) rows.push('<li><span>週間売れ筋ランキング（' + esc(wk.g) + '） <b>' + wk.r + '位</b></span></li>');
       var st = ((D.getElementById('spec_stock_msg') || {}).textContent || '').trim();
       if (/△|残りわずか/.test(st)) rows.push('<li class="hot">' + ic('fire') + '<span>このカラー・サイズは <b>在庫が残りわずか</b></span></li>');
       if (!rows.length) return;
@@ -991,20 +1227,35 @@
       SIS.active.proof = rows.length + '行'; track('proof', 'impression', { sis_value: s[2] });
     });
   };
-  FX.proofList = function () { // 一覧・トップの商品に「この7日間で◯点売れ」
+  /* 週間の売れ筋（ジャンル別TOP10）。Amazonの「ベストセラー1位（カテゴリ）」と同じ見せ方で、商品ページ・一覧にも順位を出す */
+  function weekly() { return siteData().then(function (d) {
+    var w = d && d.rank7; if (!w) return null;
+    if (!w.index) { w.index = {}; (w.genres || []).forEach(function (g) { (g.items || []).forEach(function (code, i) { var k = pkey(code); if (g.name === '総合') { (w.index[k] = w.index[k] || {}).all = i + 1; } else { (w.index[k] = w.index[k] || {}).g = g.name; w.index[k].r = i + 1; } }); }); }
+    return w;
+  }); }
+  FX.proofList = function () { // 一覧のサムネイルの下に「トップス 週間3位」（ジャンルTOP10に入っている商品だけ）
     if (PAGE !== 'list' && PAGE !== 'top') return;
-    var min = ((C.proof || {}).listMinSold) || 5;
-    popular().then(function (pop) {
-      if (!pop) return; var n = 0, done = {};
+    weekly().then(function (w) {
+      if (!w) return; var n = 0, done = {};
       [].slice.call(D.querySelectorAll('a[href*="/shop/g/g"]')).forEach(function (a) {
         if (a.closest('.sis-root') || !a.querySelector('img')) return;
-        var code = codeOf(a.getAttribute('href')), v = code && pop.items[pkey(code)];
-        if (!v || v[2] < min || v[1] > v[0] || done[code]) return; done[code] = 1;
+        var code = codeOf(a.getAttribute('href')), v = code && w.index[pkey(code)];
+        if (!v || !v.r || v.r > 10 || done[pkey(code)]) return; done[pkey(code)] = 1;
         var box = a.parentNode, up = 0; while (box && !/[￥¥]\s?[\d,]+/.test(box.textContent) && up++ < 5) box = box.parentNode;
         if (!box || box.querySelector('.sis-sold')) return;
-        box.appendChild(h('<div class="sis-root sis-sold"><span class="sis-tag sis-t-r" style="margin-top:4px">' + ic('fire') + 'この' + (pop.days || 7) + '日間で' + v[2] + '点売れ</span></div>')); n++;
+        box.appendChild(h('<div class="sis-root sis-sold"><span class="sis-best">' + esc(v.g) + ' 週間' + v.r + '位</span></div>')); n++;
       });
       if (n) { SIS.active.proofList = n + '件'; track('proofList', 'impression', { sis_value: n }); }
+    });
+  };
+  FX.bestBadge = function () { // 商品ページ：商品名の近くに「トップス 週間売れ筋 1位」
+    if (PAGE !== 'goods') return;
+    weekly().then(function (w) {
+      if (!w) return; var v = null; familyCodes().forEach(function (c) { var x = w.index[pkey(c)]; if (x && x.r && x.r <= 10 && (!v || x.r < v.r)) v = x; });
+      if (!v) return;
+      var nm = D.querySelector('.block-goods-name, h1.block-goods-name--text, h1'); if (!nm) return;
+      nm.parentNode.insertBefore(h('<div class="sis-root"><a class="sis-best-g" href="/?sis_rank_tab=' + encodeURIComponent(v.g) + '#sis-sec-ranking" style="text-decoration:none">' + esc(v.g) + ' 週間売れ筋 ' + v.r + '位</a></div>'), nm);
+      SIS.active.bestBadge = v.g + v.r + '位'; track('bestBadge', 'impression', { sis_label: v.g + ':' + v.r });
     });
   };
 
@@ -1031,6 +1282,27 @@
   /* 13. 売れ筋ランキング（貴社サイト側の sis_data.js があるときだけ） */
   FX.ranking = function () {
     if (PAGE !== 'top' && PAGE !== 'list') return Promise.resolve(false);
+    return weekly().then(function (w) {
+      if (!w) return legacyRanking();
+      var genres = (w.genres || []).filter(function (g) { return (g.items || []).length >= 3; }); if (!genres.length) return false;
+      var anchor = D.getElementById('block_of_event');
+      var el = section('ranking', shead({ tone: 'p', title: '週間売れ筋ランキング', sub: esc(w.period || '') + 'の購入数順（drug store\'s WEBSHOPの実績）・毎週更新' }) +
+        '<div class="sis-tabs" role="tablist">' + genres.map(function (g, i) { return '<button type="button" role="tab" aria-selected="' + (i === 0) + '" data-g="' + i + '">' + esc(g.name) + '</button>'; }).join('') + '</div><div class="sis-grid sis-g5" id="sis-rank-grid"><div class="sis-note">読み込み中…</div></div>', anchor, 'before');
+      function show(i) {
+        [].slice.call(el.querySelectorAll('.sis-tabs button')).forEach(function (b) { b.setAttribute('aria-selected', String(+b.getAttribute('data-g') === i)); });
+        var codes = genres[i].items.slice(0, 14);
+        Promise.all(codes.map(goodsInfo)).then(function (arr) {
+          var rows = []; arr.forEach(function (g) { if (g && g.price && !g.soldout && rows.length < 10) rows.push(g); });
+          el.querySelector('#sis-rank-grid').innerHTML = rows.map(function (g, k) { return card(g, { badge: '' }).replace('<div class="sis-im">', '<div class="sis-im"><span class="sis-rk' + (k === 0 ? ' r1' : '') + '">' + (k + 1) + '位</span>'); }).join('');
+          track('ranking', 'tab', { sis_label: genres[i].name });
+        });
+      }
+      el.querySelectorAll('.sis-tabs button').forEach(function (b) { b.onclick = function () { show(+b.getAttribute('data-g')); }; });
+      var want = Q.get('sis_rank_tab'), start = 0; genres.forEach(function (g, i) { if (g.name === want) start = i; });
+      show(start); return true;
+    });
+  };
+  function legacyRanking() {
     return rankData().then(function (rk) {
       if (!rk) throw 0; var list = (rk.items || []).slice(0, 8); if (!list.length) return false;
       return Promise.all(list.map(function (x) { return goodsInfo(x.code); })).then(function (arr) {
@@ -1043,9 +1315,39 @@
         return true;
       });
     }).catch(function () { SIS.active.ranking = 'データ待ち'; return false; });
-  };
+  }
 
   /* 14. さらに◯%OFF表示（BOでプロモーションを作ってから） */
+  /* 14. いま使えるクーポン・まとめ割を、商品の価格の横に出す（クーポン・キャンペーンがある期間だけ）
+     例：boohallo26（セール品にも使える500円OFF）／まとめてお得キャンペーン（2点で10%・3点以上で20%OFF、2026-07に実施） */
+  FX.offers = function () {
+    var list = (C.offers || []).filter(function (o) { return !o.off && (!o.from || now() >= new Date(o.from)) && (!o.to || now() < new Date(o.to)); }); if (!list.length) return;
+    var n = 0;
+    list.forEach(function (o) {
+      var inScope = !o.scopePaths || !o.scopePaths.length || o.scopePaths.some(function (p) { return P.indexOf(p) === 0; });
+      var txt = o.type === 'bundle' ? o.label : (o.code ? 'クーポン「' + o.code + '」で' : '') + o.label;
+      if (PAGE === 'list' && inScope) {
+        D.querySelectorAll('.block-goods-detail-j--price-items, .block-thumbnail-t--price-items, [class*="--price-items"]').forEach(function (box) {
+          if (o.saleOnly && !/通常価格/.test(box.textContent)) return; if (box.querySelector('.sis-offer')) return;
+          var p = num((box.querySelector('[class*="--price"]:not([class*="default"])') || box).textContent);
+          var pay = o.type === 'yen' && p > o.yen ? '（1点なら ' + yen(p - o.yen) + '）' : o.type === 'percent' && p ? ' → ' + yen(Math.floor(p * (100 - o.rate) / 100)) : '';
+          box.appendChild(h('<div class="sis-root sis-offer"><span class="sis-xoff">' + esc(txt) + esc(pay) + '</span></div>')); n++;
+        });
+      }
+      if (PAGE === 'goods' && (!o.saleOnly || D.querySelector('.block-goods-price--default-price'))) {
+        var pr = D.querySelector('.block-goods-price--price'), p = num(pr && pr.textContent);
+        if (pr && p) { var pay = o.type === 'yen' && p > o.yen ? '　この商品1点なら ' + yen(p - o.yen) : o.type === 'percent' ? '　お支払い ' + yen(Math.floor(p * (100 - o.rate) / 100)) : ''; pr.parentNode.appendChild(h('<div class="sis-root sis-offer"><span class="sis-xoff" style="font-size:14px;padding:6px 12px">' + esc(txt) + esc(pay) + (o.until ? '（' + esc(o.until) + '）' : '') + '</span></div>')); n++; }
+      }
+      if (PAGE === 'cart' && o.type === 'bundle' && o.tiers) {
+        cart(true).then(function (c) {
+          var t = o.tiers.filter(function (x) { return x.n > c.count; })[0], cur = o.tiers.filter(function (x) { return x.n <= c.count; }).pop();
+          var msg = t ? 'あと' + (t.n - c.count) + '点で <b>さらに' + t.rate + '%OFF</b>（' + esc(o.name || 'まとめ割') + '）' : '<b>' + cur.rate + '%OFF</b> が適用される点数です（' + esc(o.name || 'まとめ割') + '）';
+          var anchor = D.querySelector('.block-cart--container') || D.querySelector('.block-cart'); if (anchor) anchor.parentNode.insertBefore(h('<div class="sis-root sis-ordnote" style="max-width:1200px;margin:10px auto">' + msg + '</div>'), anchor);
+        });
+      }
+    });
+    if (n) { SIS.active.offers = n + '件'; track('offers', 'impression', { sis_value: n }); }
+  };
   FX.extraOff = function () {
     var x = C.extraOff || {}; if (!x.on && !DEMO) return;
     var rate = x.rate || 20, lab = (x.label || 'カートでさらに{rate}%OFF').replace('{rate}', rate) + (x.on ? '' : '（BO設定待ちのプレビュー）');
@@ -1102,16 +1404,27 @@
     if (!forced && (PAGE === 'cart' || PAGE === 'order' || !newSession || ss('cartRemShown'))) return;
     cart().then(function (c) {
       if (!c.count) return; ss('cartRemShown', 1);
-      var first = c.items[0];
+      var first = c.items[0], prev = ls('cartPrices') || {}, nowP = {};
       Promise.all(c.items.slice(0, 6).map(function (i) { return i.code ? goodsInfo(i.code) : Promise.resolve(null); })).then(function (gs) {
-        var g = gs[0] || (first.img ? { img: first.img } : null), rest = SHOP.freeShipping - c.total;
-        var low = gs.filter(function (x) { return x && /△|残りわずか/.test(x.stock); });
-        if (low.length) { SIS.active.cartReminder = '在庫△' + low.length; track('cartReminder', 'low_stock', { sis_value: low.length }); }
-        var imgs = gs.map(function (x, i) { return (x && x.img) || (c.items[i] && c.items[i].img) || ''; }).filter(Boolean).slice(0, 3);
-        var el = toast('cartReminder', (imgs.length ? '<span class="sis-thumbs">' + imgs.map(function (s) { return '<img src="' + esc(s) + '" alt="">'; }).join('') + '</span>' : '') +
-          '<div class="sis-tb"><div class="sis-tt">カートに' + c.count + '点 残っています</div><div class="sis-ts">' + esc(first.name.slice(0, 22)) + (c.items.length > 1 ? ' ほか' : '') + '・' + yen(c.total) + (rest > 0 ? '・あと' + yen(rest) + 'で送料無料' : '・送料無料') + '</div>' +
-          (low.length ? '<span class="sis-low">' + ic('fire') + (low.length > 1 ? low.length + '点が' : '') + '在庫残りわずか</span>' : '') + '</div>' +
+        var rest = SHOP.freeShipping - c.total, cnt = { out: 0, low: 0, sale: 0, drop: 0 };
+        // 商品ごとの状態：在庫切れ（×）／残りわずか（△）／前に見たときより値下がり／セール中（通常価格つき）
+        var rows = c.items.slice(0, 6).map(function (it, k) {
+          var g = gs[k] || {}, unit = it.qty ? Math.round(it.amt / it.qty) : 0, p0 = prev[it.code];
+          if (it.code && (g.price || unit)) nowP[it.code] = g.price || unit;
+          var st = g.soldout ? ['out', '在庫切れになりました'] : g.low ? ['low', '残りわずか'] : p0 && g.price && g.price < p0 ? ['drop', yen(p0 - g.price) + '値下がり'] : g.orig && g.price && g.orig > g.price ? ['sale', 'セール中'] : null;
+          var dm = (Q.get('sis_cartstate') || '').split(',')[k]; // 画面確認用：sis_cartstate=out,low,drop
+          if (dm) st = { out: ['out', '在庫切れになりました'], low: ['low', '残りわずか'], drop: ['drop', '¥500値下がり'], sale: ['sale', 'セール中'] }[dm] || st;
+          if (st) cnt[st[0]]++;
+          return { img: g.img || it.img, name: it.name, st: st };
+        });
+        ls('cartPrices', nowP);
+        var flagged = rows.filter(function (r) { return r.st; });
+        if (flagged.length) { SIS.active.cartReminder = Object.keys(cnt).filter(function (k) { return cnt[k]; }).map(function (k) { return k + cnt[k]; }).join(' '); track('cartReminder', 'status', { sis_label: SIS.active.cartReminder }); }
+        var show = (flagged.length ? flagged : rows).slice(0, 3);
+        var el = toast('cartReminder', '<div class="sis-tb"><div class="sis-tt">カートに' + c.count + '点 残っています</div><div class="sis-ts">' + yen(c.total) + (rest > 0 ? '・あと' + yen(rest) + 'で送料無料' : '・送料無料') + (cnt.out ? '・<b style="color:var(--sis-r)">売り切れた商品があります</b>' : '') + '</div>' +
+          '<div class="sis-crows">' + show.map(function (r) { return '<div class="sis-crow">' + (r.img ? '<img src="' + esc(r.img) + '" alt="">' : '') + '<span class="nm">' + esc(r.name) + '</span>' + (r.st ? '<span class="sis-st ' + r.st[0] + '">' + esc(r.st[1]) + '</span>' : '') + '</div>'; }).join('') + '</div></div>' +
           '<a class="sis-btn sis-sm" style="flex:none" href="/shop/cart/cart.aspx">カートへ</a>');
+        el.classList.add('sis-wide');
         el.querySelector('a.sis-btn').onclick = function () { track('cartReminder', 'click'); };
       });
     });
@@ -1173,7 +1486,7 @@
   }
 
   /* ---------- 関係者チップ ---------- */
-  var NAMES = { proof: '人気の実数（旅行サイト型）', proofList: '一覧の「◯点売れ」', interestTop: '気になる商品（トップ）', popup: 'ポップアップ枠', interestAlert: '気になる商品のお知らせ', eventOrder: 'イベント枠の並べ替え', exit: '離脱時ポップアップ', source: '流入元別の出し分け', coupon: '入店時クーポン', shipbar: '送料無料バー', countdown: '期限カウントダウン', kuji: 'くじ', rank: '会員ランク別UI', newRepeat: '新規／リピーター', catBanner: '閲覧カテゴリ別バナー', sizeMemo: 'サイズ記憶', modelSize: 'サイズの目安', lowStock: '在庫僅少バッジ', ranking: '売れ筋ランキング', extraOff: 'さらに◯%OFF', coord: 'コーデまとめ買い', cartReminder: 'カゴ落ち表示', crossSell: 'カート内クロスセル' };
+  var NAMES = { headerSplit: 'ヘッダーの分割（残り時間・コード）', orderCoupon: '購入手続きでくじのクーポンを自動入力', orderDone: '注文完了の記録', listStock: '一覧の在庫（残りわずか・在庫なし）', bestBadge: '商品ページの週間順位', offers: 'クーポン・まとめ割の表示', proof: '人気の実数（旅行サイト型）', proofList: '一覧の週間順位', interestTop: '気になる商品（トップ）', popup: 'ポップアップ枠', interestAlert: '気になる商品のお知らせ', eventOrder: 'イベント枠の並べ替え', exit: '離脱時ポップアップ', source: '流入元別の出し分け', coupon: '入店時クーポン', shipbar: '送料無料バー', countdown: '期限カウントダウン', kuji: 'くじ', rank: '会員ランク別UI', newRepeat: '新規／リピーター', catBanner: '閲覧カテゴリ別バナー', sizeMemo: 'サイズ記憶', modelSize: 'サイズの目安', lowStock: '在庫僅少バッジ', ranking: '売れ筋ランキング', extraOff: 'さらに◯%OFF', coord: 'コーデまとめ買い', cartReminder: 'カゴ落ち表示', crossSell: 'カート内クロスセル' };
   function chip() {
     if (Q.get('sis_chip') === '0') return;
     var c = h('<button class="sis-root sis-chip">SIS施策 ON</button>'); var panel;
@@ -1196,7 +1509,7 @@
     style();
     recordViewed();
     trackInterest();
-    var order = ['countdown', 'source', 'coupon', 'rank', 'shipbar', 'eventOrder', 'interestTop', 'newRepeat', 'catBanner', 'ranking', 'proofList', 'sizeMemo', 'modelSize', 'lowStock', 'proof', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'interestAlert', 'popup', 'kuji', 'exit'];
+    var order = ['orderCoupon', 'orderDone', 'headerSplit', 'countdown', 'source', 'coupon', 'rank', 'shipbar', 'eventOrder', 'interestTop', 'newRepeat', 'catBanner', 'ranking', 'proofList', 'listStock', 'bestBadge', 'sizeMemo', 'modelSize', 'lowStock', 'proof', 'offers', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'interestAlert', 'popup', 'kuji', 'exit'];
     var slot = C.topSlot || {};
     if (PAGE === 'top' && slot.mode === 'one' && !Q.get('sis_only')) { // トップの「あなた向け枠」は優先順に1つだけ出す
       var so = (slot.order || ['interestTop', 'newRepeat', 'catBanner', 'ranking']).filter(function (k) { return F[k] !== false && FX[k]; });
