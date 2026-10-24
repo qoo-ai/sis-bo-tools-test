@@ -415,7 +415,8 @@
     if (v && !/^(なし|空欄|-|ー)$/.test(v)) { var gc = groupCode(v); if (gc) $('.grp').value = gc; else miss.push('購入グループ「' + v + '」がマスタに無い'); }
     v = cellStr(pickS(S, /入れる時/)); $('.gwhen').value = /開始/.test(v) ? 'start' : 'now';
     v = cellStr(pickS(S, /重なる/)); $('.mode').value = /前日|翌朝|A/.test(v) && !/時刻ちょうど/.test(v) ? 'gap' : 'timed';
-    v = cellStr(pickS(S, /クーポン/)); st.couponStop = !/止めない|しない|いいえ|×/.test(v);
+    v = cellStr(pickS(S, /動いているクーポン|^クーポン/)); st.couponStop = !/止めない|しない|いいえ|×/.test(v);
+    st.couponKeep = cellStr(pickS(S, /止めないクーポン/));
     v = cellStr(pickS(S, /新作・定番|定価の行|^P/)); st.keepP = /取り込む|入れる|はい|○/.test(v) && !/取り込まない/.test(v);
     return miss;
   }
@@ -459,10 +460,14 @@
     return out;
   }
   async function couponPlan(a) { // セール期間に有効なクーポン → 止める／止めない（理由つき）
-    var S = dtNum(a.start), E = dtNum(a.end), now = dtNum(new Date(Date.now() + 9 * 3600000).toISOString().replace('T', ' ')), list = await couponList(), go = [], skip = [];
+    var S = dtNum(a.start), E = dtNum(a.end), now = dtNum(new Date(Date.now() + 9 * 3600000).toISOString().replace('T', ' ')), list = await couponList(), go = [], skip = [], noTerm = 0;
+    var keep = {}; String(st.couponKeep || '').split(/[,、，\s]+/).filter(Boolean).forEach(function (x) { keep[x] = 1; });
     list.forEach(function (c) {
       if (!c.on) return;
-      if (c.term && (dtNum(c.term[1]) < S || dtNum(c.term[0]) > E)) return; // セール期間と重ならない
+      // 止めるのは「共通クーポンで、有効期間がセール期間と重なるもの」だけ。期間の決まっていないクーポン（会員特典・ユニーク等）は止めない
+      if (c.type !== 0 || !c.term) { noTerm++; return; }
+      if (dtNum(c.term[1]) < S || dtNum(c.term[0]) > E) return; // セール期間と重ならない
+      if (keep[c.id]) { skip.push(c.id + '（シートで「止めない」）'); return; }
       if (c.x) {
         var xs = dtNum(c.x[0]), xe = dtNum(c.x[1]);
         if (xs === S && Math.floor(xe / 100) === Math.floor(E / 100)) { skip.push(c.id + '（すでにセール期間を除外済み）'); return; }
@@ -470,6 +475,7 @@
       }
       go.push(c);
     });
+    if (noTerm) skip.push('有効期間の決まっていないクーポン・ユニーククーポン ' + noTerm + '件は止めない');
     return { go: go, skip: skip };
   }
   async function couponSetX(c, xs, xe, on) { // 除外期間を入れる（on=false で外す）。前の値を返す
