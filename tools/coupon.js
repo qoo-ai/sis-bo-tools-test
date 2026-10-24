@@ -62,7 +62,7 @@
     if (hi < 0) throw new Error('「クーポンID」の見出しがない（「クーポン」タブを Cmd＋A でまるごとコピー）');
     var H = rows[hi].map(function (v) { return String(v).trim(); }), col = function (re) { return H.findIndex(function (h) { return re.test(h); }); };
     var C = { id: col(/^クーポンID$/), name: col(/クーポン名/), code: col(/コード/), bonus: col(/特典|割引/), s: col(/有効期間.*開始|^開始/), f: col(/有効期間.*終了|^終了/),
-      xs: col(/除外期間.*開始/), xf: col(/除外期間.*終了/), ev: col(/^対象イベント/), xev: col(/除外イベント/), min: col(/円以上|最低/), per: col(/1人|１人/), all: col(/先着/), mem: col(/会員限定/), on: col(/^状態|有効/) };
+      xs: col(/除外期間.*開始/), xf: col(/除外期間.*終了/), ev: col(/^対象イベント/), xev: col(/除外イベント/), min: col(/円以上|最低/), per: col(/1人|１人/), all: col(/先着/), mem: col(/会員限定/), on: col(/^(状態|有効区分|有効／無効)$/) };
     var get = function (r, k) { return C[k] >= 0 ? String(r[C[k]] == null ? '' : r[C[k]]).trim() : ''; };
     var out = [];
     rows.slice(hi + 1).forEach(function (r, i) {
