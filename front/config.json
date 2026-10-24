@@ -1,0 +1,54 @@
+{
+ "_readme": "drug store's 売上施策の設定。数字・期限・クーポンはすべて実在のもの（ガイド／BO設定）だけを書く。施策を止めるときは on を false にしてコミット。全停止は enabled を false。",
+ "enabled": true,
+ "version": "1.0.0",
+
+ "shop": {
+  "freeShipping": 5000,
+  "freeShippingSource": "ご利用ガイド「送料について」（商品代金5,000円税込以上で送料無料）",
+  "lineUrl": "https://liff.line.me/2007351655-eqKw4QNW/landing?follow=%40665vyfpd&lp=oAANS6&liff_id=2007351655-eqKw4QNW",
+  "linePage": "/shop/pages/line-drugstores.aspx",
+  "coordPage": "/shop/pages/0903code-top.aspx",
+  "rankPage": "/shop/pages/rank.aspx",
+  "salePage": "/shop/e/especial/",
+  "saleName": "15周年special SALE",
+  "newPage": "/shop/e/enew/"
+ },
+
+ "novelty": { "on": false, "threshold": 8800, "label": "15周年マグカップ", "url": "/shop/pages/web15th.aspx", "_note": "2026-10-23 終了告知あり。次のノベルティ開始時に threshold・label・url を書き換えて on:true" },
+
+ "ranks": [
+  { "name": "VIPig",            "min": 120000, "birthday": "20%OFF", "pointDay": "5倍", "monthly": "20%OFF" },
+  { "name": "ぶたのおひめさま", "min": 70000,  "birthday": "15%OFF", "pointDay": "4倍", "monthly": "15%OFF" },
+  { "name": "セレブぶた",       "min": 35000,  "birthday": "10%OFF", "pointDay": "3倍", "monthly": "10%OFF" },
+  { "name": "おしゃれぶた",     "min": 15000,  "birthday": "10%OFF", "pointDay": "2倍", "monthly": "10%OFF" },
+  { "name": "こぶた",           "min": 0,      "birthday": "500円OFF", "pointDay": null, "monthly": null }
+ ],
+ "ranksSource": "会員ランクについて（/shop/pages/rank.aspx）",
+
+ "deadlines": [
+  { "id": "pointday", "label": "会員ランク ポイントデー", "rule": "monthlyDays", "days": [22, 23], "endHour": 24, "url": "/shop/pages/rank.aspx", "text": "ポイント最大5倍デー", "_source": "rank.aspx『22・23日ポイントデー』" }
+ ],
+
+ "coupons": [
+  { "id": "welcome", "code": "", "title": "はじめてのお買い物クーポン", "value": "", "audience": "new", "_bo": "BO＞プロモーション＞クーポン で発行し、code と value を入れると表示される" },
+  { "id": "kuji-a", "code": "", "value": "", "weight": 70 },
+  { "id": "kuji-b", "code": "", "value": "", "weight": 25 },
+  { "id": "kuji-c", "code": "", "value": "", "weight": 5 }
+ ],
+
+ "extraOff": { "on": false, "rate": 20, "scopePaths": ["/shop/e/especial/"], "label": "カートでさらに{rate}%OFF", "_bo": "BO＞プロモーション で対象イベントに『さらに20%OFF』を作ってから on:true" },
+
+ "ab": {
+  "welcome": { "variants": ["A", "B"], "goal": "line_click" }
+ },
+
+ "features": {
+  "welcome": true, "exit": true, "source": true, "coupon": true, "shipbar": true,
+  "countdown": true, "kuji": true, "rank": true, "newRepeat": true, "catBanner": true,
+  "sizeMemo": true, "lowStock": true, "ranking": true, "extraOff": true, "coord": true,
+  "cartReminder": true, "crossSell": true, "ab": true, "ga4": true
+ },
+
+ "ga4": { "sendInStaffMode": false, "eventName": "sis_event" }
+}
