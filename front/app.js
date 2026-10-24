@@ -438,7 +438,7 @@
     SIS.active[id] = 'on'; track(id, 'impression'); return el;
   }
   function evSection(id, title, href, inner, sub) { // 新しい枠は、ミニバナー（FEATURE）の下に、イベントページの1つとして入れる（見出しは店舗のイベントと同じ部品）
-    var ev = D.getElementById('block_of_event'), f2 = D.getElementById('block_of_free2');
+    var ev = D.getElementById('block_of_event'), f2 = D.getElementById('block_of_free2') || D.getElementById('block_of_top_free2');
     var html = '<div class="block-top-event sis-evwrap"><h2 class="block-top-event--header">' + (href ? '<a href="' + esc(href) + '">' + title + '</a>' : title) + '</h2>' + (sub ? '<p class="sis-evsub">' + sub + '</p>' : '') + inner + '</div>';
     var el = ev ? section(id, html, ev, 'before') : f2 ? section(id, html, f2, 'after') : section(id, html, D.getElementById('block_of_top_body') || mainEl().firstElementChild, 'after');
     el.classList.add('sis-ev'); return el;
