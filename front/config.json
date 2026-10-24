@@ -149,8 +149,14 @@
   }
  },
  "tidy": {
-  "_readme": "イベントページの整理（守り・tidy.js）。pages はページ名（/shop/e/e○○/ の○○）ごとの並べ方：new=今の並び（新着）／mix=売れ筋と在庫の混合／sales=売れ筋順／off=触らない。小物は komonoWords を名前に含む商品で、どのページでも最後",
+  "_readme": "イベントページとトップの並び（tidy.js v2）。pages=ページごとの並べ方（new=登録の並び／mix=売れ筋3＋在庫十分1の繰り返し・人と日でゆらぐ／sales=売れ筋順／off=触らない）。priority=かぶり防止の優先順（上のページから上段 dedupeTop 枚を決め、下のページの上段には出さない）。lastEvents=そのイベントに載せた商品はどのページでも最後（komono=小物、back=後回し）。firstEvents=先頭固定（pin）。komonoWords=名前で小物とみなす語（予備）",
   "on": true,
+  "topOn": true,
+  "priority": ["special","sale2","new","osusume","stan","70off","50off","30off","15off","stan-in","stan-st"],
+  "dedupeTop": 12,
+  "lastEvents": ["komono","back"],
+  "firstEvents": ["pin"],
+  "listTtlMin": 60,
   "defaultRule": "mix",
   "pages": {
    "new": "new",
