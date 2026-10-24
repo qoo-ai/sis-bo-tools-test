@@ -693,7 +693,7 @@
         if (code) list.unshift({ code: code, name: i.name, kind: 'cart', t: Date.now() });
       });
       var seenK = {}, uniq = [];
-      list.forEach(function (x) { if (!seenK[x.code] && x.code !== here) { seenK[x.code] = 1; uniq.push(x); } });
+      list.forEach(function (x) { var k = pkey(x.code); if (!seenK[k] && k !== pkey(here)) { seenK[k] = 1; uniq.push(x); } });
       uniq = uniq.slice(0, cfg.maxItems || 6); if (!uniq.length) return;
       var shown = ls('alertSeen') || {}, cap = (cfg.capHours || 24) * 3600e3;
       var saleDl = activeDeadlines().filter(function (x) { return x.d.id === (cfg.saleDeadline || 'sale15') && x.end - now() < (cfg.saleEndHours || 48) * 3600e3; })[0];
@@ -702,7 +702,7 @@
         uniq.forEach(function (x, i) {
           var g = infos[i]; if (pick || !g || g.soldout) return;
           var why = /△|残りわずか/.test(g.stock) ? 'low' : saleDl && sale[pkey(x.code)] ? 'saleEnd' : x.price && g.price && g.price < x.price ? 'drop' : null;
-          if (!why || (!forced && shown[x.code + why] && Date.now() - shown[x.code + why] < cap)) return;
+          if (!why || (!forced && shown[pkey(x.code) + why] && Date.now() - shown[pkey(x.code) + why] < cap)) return;
           pick = { x: x, g: g, why: why };
         });
         if (!pick) return;
@@ -719,7 +719,7 @@
         })();
         function show() {
         D.body.appendChild(el); var fix = D.getElementById('sis-shipfix'); if (fix) el.style.bottom = (fix.getBoundingClientRect().height + 16 + parseInt(fix.style.bottom || 0)) + 'px';
-        shown[pick.x.code + pick.why] = Date.now(); ls('alertSeen', shown); SIS.active.interestAlert = pick.why;
+        shown[pkey(pick.x.code) + pick.why] = Date.now(); ls('alertSeen', shown); SIS.active.interestAlert = pick.why;
         track('interestAlert', 'show', { sis_label: pick.why });
         var sec = forced ? 0 : (cfg.durationSec == null ? 5 : cfg.durationSec);
         if (sec > 0 && !Q.get('sis_hold')) setTimeout(function () { el.style.opacity = '0'; setTimeout(function () { el.remove(); }, 400); }, sec * 1000);
