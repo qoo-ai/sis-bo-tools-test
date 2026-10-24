@@ -684,6 +684,7 @@
   FX.interestAlert = function (forced) {
     var cfg = C.interest || {};
     if (PAGE === 'order') return;
+    if (!forced && !FX.interestAlert.waited) { FX.interestAlert.waited = 1; return setTimeout(function () { FX.interestAlert(false); }, ((C.popup || {}).delaySec || 3) * 1000 + 1500); } // ポップアップの判定が済んでから
     var here = codeOf(P), days = (cfg.windowDays || 14) * 864e5;
     var list = (ls('interest') || []).filter(function (x) { return Date.now() - x.t < days; });
     cart().then(function (c) {
@@ -711,11 +712,18 @@
           '<div style="font-size:13px;line-height:1.5"><span style="font-size:11px;color:#888">' + from + '商品</span><br>' + esc(pick.g.name.slice(0, 26)) + '<br>' + msg + '</div><button class="sis-x" aria-label="閉じる" style="top:2px;right:2px">×</button></a>');
         el.querySelector('.sis-x').onclick = function (ev) { ev.preventDefault(); el.remove(); track('interestAlert', 'close'); };
         el.addEventListener('click', function () { track('interestAlert', 'click', { sis_label: pick.why }); });
+        var waited = 0;
+        (function place() { // ポップアップが開いている間は待ち、閉じてから出す（同時に2つ出さない）
+          if (D.querySelector('.sis-modal') && waited++ < 120 && !forced) return setTimeout(place, 1000);
+          show();
+        })();
+        function show() {
         D.body.appendChild(el); var fix = D.getElementById('sis-shipfix'); if (fix) el.style.bottom = (fix.getBoundingClientRect().height + 16 + parseInt(fix.style.bottom || 0)) + 'px';
         shown[pick.x.code + pick.why] = Date.now(); ls('alertSeen', shown); SIS.active.interestAlert = pick.why;
         track('interestAlert', 'show', { sis_label: pick.why });
         var sec = forced ? 0 : (cfg.durationSec == null ? 5 : cfg.durationSec);
         if (sec > 0 && !Q.get('sis_hold')) setTimeout(function () { el.style.opacity = '0'; setTimeout(function () { el.remove(); }, 400); }, sec * 1000);
+        }
       });
     });
   };
