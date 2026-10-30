@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v1.2 (2026-10-30)';
+  var VER = 'T35 v1.3 (2026-10-30)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -131,7 +131,7 @@
   async function prevCouponExtras(id) {
     try {
       var d = await doc('coupon/event_detail.aspx?mode=update&coupon_type=1&coupon_event=' + encodeURIComponent(id));
-      var f = d.forms[0]; if (!f.querySelector('[name=cmdUpdate]')) return null;
+      var f = d.forms[0]; if (new FormData(f).get('coupon_event') !== id) return null;
       var g = function (n) { var e = f.querySelector('[name=' + n + ']'); return e ? e.value : ''; };
       var c = function (n) { var e = f.querySelector('[name=' + n + ']'); return !!(e && e.checked); };
       return { freespace: g('freespace'), freespace_sp: g('freespace_sp'), remarks: g('remarks'), ret: c('is_coupon_return'), sp: c('smartphone_is_pc') };
