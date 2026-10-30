@@ -20,6 +20,7 @@ var TOOLS=[
  {id:"sale", name:"セール1ボタン", desc:"セール指示書 → メルカート取込ファイル一式（T-19）", where:'bo', grp:'test', on:true, path:'tools/sale.js'},
  {id:"yoyaku", name:"予約取込", desc:"商品インポート画面で、決めた時刻に［取込］を押す", where:'bo', grp:'test', on:true, path:'tools/yoyaku.js'},
  {id:"keeper", name:"セッション維持", desc:"作業中だけ、約5分の自動ログアウトを防ぐ（延長の確認が出たら自動で「続けて使用する」）。OFFにするかタブを閉じるまで有効", where:'bo', grp:'test', on:true, path:'tools/keeper.js'},
+ {id:"member", name:"会員ランク特典（月初）", desc:"1日7時のランク更新のあと（3営業日以内）に①確認→②反映：12グループ取込・人数照合・クーポン9種。お知らせメールの宛先も出す（#SP-1M）", where:'bo', grp:'test', on:true, path:'tools/member.js'},
  {id:"novelty", name:"ノベルティの開始・終了", desc:"品番・条件・期間 → ノベルティ商品の取込／キャンペーン入力／コメント付与・撤去（#SP-1V）", where:'bo', grp:'test', on:true, path:'tools/novelty.js'},
  {id:"sanrio", name:"サンリオ掲載終了日延長（1回限り）", desc:"サンリオ14件の掲載終了日を2027/12/01に（在庫・状態はそのまま）。［取込］の手前まで", where:'bo', grp:'test', on:true, path:'tools/sanrio_end.js'}
 ];
