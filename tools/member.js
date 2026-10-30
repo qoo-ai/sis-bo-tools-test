@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v1.3 (2026-10-30)';
+  var VER = 'T35 v1.4 (2026-10-30)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -159,6 +159,7 @@
   var EXCLUDE = '不正クレジット使用不可会員', KOBUTA = ['こぶた', 'こぶた(CP)'], RANK4 = ['おしゃれぶた', 'セレブぶた', 'ぶたのおひめさま', 'VIPIG'];
   var KNOWN = ['こぶた', 'おしゃれぶた', 'セレブぶた', 'ぶたのおひめさま', 'VIPig', 'こぶた(CP)', EXCLUDE, 'ゲスト', 'クレジット、paypayのみ可', 'close', 'test', 'テスト', 'クレジット注文のみ可'];
   var up = function (s) { return (s || '').toUpperCase(); };
+  var BDAY5 = function (r) { return KOBUTA.indexOf(r) >= 0 || RANK4.indexOf(up(r)) >= 0; }; // お誕生日クーポンがあるランク
   function bmonth(s) { if (!s) return null; var m = s.match(/^\d{4}[\/-](\d{1,2})[\/-]\d{1,2}/); return m ? +m[1] : '?'; }
   function prevYm(ym) { var p = ym.split('-').map(Number), y = p[0], m = p[1] - 1; if (!m) { m = 12; y--; } return y + '-' + ('0' + m).slice(-2); }
   function build(ym, mem, prev, keepAll) {
@@ -174,7 +175,7 @@
       ['【☆' + ym + '誕生日】おしゃれぶた', '誕生日グループ', function (x) { return isb(x.b) && x.rank === 'おしゃれぶた'; }],
       ['【☆' + ym + '誕生日】VIPIG', '誕生日グループ', function (x) { return isb(x.b) && up(x.rank) === 'VIPIG'; }],
       [ym + '得々クーポン配布メール', '非誕生日グループ全員', function (x) { return RANK4.indexOf(up(x.rank)) >= 0; }],
-      [ym + '誕生日クーポン配布メール', '誕生日グループ全員', function (x) { return isb(x.b); }],
+      [ym + '誕生日クーポン配布メール', '誕生日グループ全員', function (x) { return isb(x.b) && BDAY5(x.rank); }],
       ['【' + ym + 'ランクキープ】VIPIG', keepAll ? '今月VIPIG全員' : '2ヶ月連続VIPIG', function (x) { return up(x.rank) === 'VIPIG' && (keepAll || prev.has(x.no)); }]
     ];
     var ms = mem.map(function (x) { return { no: x.no, rank: x.rank, b: bmonth(x.birth) }; });
@@ -182,7 +183,7 @@
     G.forEach(function (g) { var a = ms.filter(function (x) { return x.rank !== EXCLUDE && g[2](x); }); a.forEach(function (x) { assign.push([g[0], x.no]); }); counts[g[0]] = a.length; });
     var rc = {}; ms.forEach(function (x) { rc[x.rank] = (rc[x.rank] || 0) + 1; });
     var unk = Object.keys(rc).filter(function (r) { return KNOWN.indexOf(r) < 0; });
-    var nb = ms.filter(function (x) { return isb(x.b) && x.rank !== EXCLUDE; }).length;
+    var nb = ms.filter(function (x) { return isb(x.b) && BDAY5(x.rank); }).length, nbOut = ms.filter(function (x) { return isb(x.b) && !BDAY5(x.rank) && x.rank !== EXCLUDE; }).length;
     var bt = G.slice(4, 9).reduce(function (s, g) { return s + counts[g[0]]; }, 0), rt = G.slice(0, 4).reduce(function (s, g) { return s + counts[g[0]]; }, 0);
     var dup = ms.length - new Set(ms.map(function (x) { return x.no; })).size, badb = ms.filter(function (x) { return x.b === '?'; }).length;
     var checks = [
@@ -192,6 +193,7 @@
       ['生年月日が日付でない', badb, badb ? 'NG' : 'OK', '誕生日グループから漏れる'],
       ['会員番号の重複', dup, dup ? 'NG' : 'OK', ''],
       ['誕生日5グループの合計＝誕生日メールの人数', bt + ' / ' + counts[G[10][0]], bt === counts[G[10][0]] && bt === nb ? 'OK' : 'NG', ''],
+      ['誕生月だがクーポンの無いランク（ゲスト等・取り込まない）', nbOut, 'OK', ''],
       ['得々メールの人数＝ランク別4グループの合計', counts[G[9][0]] + ' / ' + rt, counts[G[9][0]] === rt ? 'OK' : 'NG', '']
     ];
     return { ym: ym, groups: G.map(function (g) { return [g[0], g[1]]; }), assign: assign, counts: counts, checks: checks, ok: checks.every(function (c) { return c[2] === 'OK'; }) };
