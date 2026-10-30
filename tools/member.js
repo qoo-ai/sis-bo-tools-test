@@ -3,12 +3,13 @@
  * やること：今月のランク・生年月日を会員検索から読む → 12グループに振り分け → 会員グループ取込（グループ→メンバー）→ 人数照合
  *          → クーポン9種（お誕生日5・とこトンとん得々4）を作成。お知らせメール3通は ③ から宛先グループを開いて送る。
  * 月末23:50のバックアップは不要：先月のVIPigは「先月1日に作った YYYY-MM会員ランクVIPIG グループ」から読む（ランクは1日7時にしか変わらない）。
+ * ③のリンクは会員一覧を最大件数30000で開く（そこから［メール送信］→テンプレート）。
  * 何度押しても二重にならない：今月のグループ・クーポンが既にあれば作らずに飛ばす。途中で止まっても、もう一度②で続きから。
  * ルールは member_tools.py（9/1・10/1の実取込と照合済み）と同じ。前提：会員検索の「表示項目の選択」に 会員ランク・生年月日。
  */
 (function () {
   'use strict';
-  var VER = 'T35 v1.1 (2026-10-30)';
+  var VER = 'T35 v1.2 (2026-10-30)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -233,8 +234,8 @@
   function recompute() { S.res = build(S.ym, S.mem, S.prev, S.keepAll); render(); }
   function renderMail() {
     var names = [[S.ym + '得々クーポン配布メール', 'とこトンとん得々クーポン付与のお知らせ'], [S.ym + '誕生日クーポン配布メール', 'お誕生日クーポン付与のお知らせ'], ['【' + S.ym + 'ランクキープ】VIPIG', 'VIPigランク継続のお礼']];
-    var h = '<h4>③ お知らせメール3通（②のあとに）</h4><div class="mu" style="font-size:12px">ランクアップのお知らせは10時にメルカートが自動で送るので不要。下のリンクで宛先グループを開き、メールテンプレートで送る。会員を表示したら最大件数を30000にしてから送る（100人だけに届く事故の防止）。</div><table>';
-    names.forEach(function (n) { var g = S.glink[n[0]]; h += '<tr><td>' + esc(n[1]) + '</td><td>' + esc(n[0]) + '</td><td>' + (g ? '<a target="_blank" href="' + esc(BO + '/customergroup/' + g.replace(/^.*customergroup\//, '')) + '">グループを開く（' + S.gex[n[0]] + '人）</a>' : '<span class="mu">②のあとに出る</span>') + '</td></tr>'; });
+    var h = '<h4>③ お知らせメール3通（②のあとに）</h4><div class="mu" style="font-size:12px">ランクアップのお知らせは10時にメルカートが自動で送るので不要。リンクを押すと、宛先グループの会員一覧が最大件数30000で開く（100人だけに届く事故は起きない）。件数を確かめて［メール送信］→ テンプレートを選ぶ →［下記のメールリストで確定する］→ テスト送信 → 一括送信。</div><table>';
+    names.forEach(function (n) { var c = S.gex[n[0]]; h += '<tr><td>' + esc(n[1]) + '</td><td>' + esc(n[0]) + '</td><td>' + (c != null ? '<a target="_blank" href="' + esc(BO + '/customer/search.aspx?cgname=' + encodeURIComponent(n[0]) + '&disp.divcgname=open&max=30000') + '">宛先' + c + '人を開く</a>' : '<span class="mu">②のあとに出る</span>') + '</td></tr>'; });
     $('.ml').innerHTML = h + '</table>';
   }
   async function check() {
