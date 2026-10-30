@@ -8,7 +8,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v1.0 (2026-10-30)';
+  var VER = 'T35 v1.1 (2026-10-30)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -243,7 +243,11 @@
       var ym = $('.ym').value.trim(); if (!/^\d{4}-\d{2}$/.test(ym)) throw new Error('対象月は 2026-11 の形で');
       S = { ym: ym, keepAll: false };
       S.mem = await members(); log('今月の会員 ' + S.mem.length + '人');
-      var pv = await members({ cgname: prevYm(ym) + '会員ランクVIPIG' }); S.prev = new Set(pv.map(function (x) { return x.no; })); S.prevVip = S.prev.size; log('先月のVIPig ' + S.prevVip + '人');
+      var pg = prevYm(ym) + '会員ランクVIPIG', pex = (await groupList(pg)).filter(function (g) { return g.name === pg; })[0];
+      var pv = pex && pex.count ? await members({ cgname: pg }) : [];
+      S.prev = new Set(pv.map(function (x) { return x.no; })); S.prevVip = S.prev.size;
+      if (pex && pex.count && pv.length !== pex.count) throw new Error('先月のVIPigグループ（' + pex.count + '人）を読み切れない（' + pv.length + '人）');
+      log('先月のVIPig ' + S.prevVip + '人' + (pex ? '' : '（グループなし）'));
       S.res = build(ym, S.mem, S.prev, false); S.cps = coupons(ym);
       var gl = await groupList(ym); S.gex = {}; S.glink = {}; gl.forEach(function (g) { S.gex[g.name] = g.count; S.glink[g.name] = g.href; });
       var cl = await couponList(ym); S.cex = {}; cl.forEach(function (c) { S.cex[c.id] = c; });
