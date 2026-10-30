@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v1.4 (2026-10-30)';
+  var VER = 'T35 v1.5 (2026-10-30)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -23,15 +23,15 @@
     '#sis35 .ok{color:#2b8a3e;font-weight:bold}#sis35 .ng{color:#c92a2a;font-weight:bold}#sis35 .wa{color:#e8590c;font-weight:bold}#sis35 .mu{color:#868e96}' +
     '#sis35 button{padding:8px 12px;margin:8px 6px 0 0;border-radius:6px;border:1px solid #888;background:#f8f8f8;cursor:pointer}#sis35 button.go{background:' + C1 + ';color:#fff;border:none;font-weight:bold}#sis35 button:disabled{opacity:.45;cursor:not-allowed}' +
     '#sis35 h4{margin:12px 0 2px;font-size:13px}#sis35 pre{white-space:pre-wrap;background:#f6f6f6;padding:6px;max-height:160px;overflow:auto;margin:8px 0 0;font-size:11px}#sis35 a{color:#1971c2}</style>' +
-    '<div class="hd"><span>SIS 会員ランク特典（月初）（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span style="font-weight:normal;color:#888;font-size:11px">' + VER + '　<a href="#" class="x">×</a></span></div>' +
+    '<div class="hd"><span>SIS 会員ランク特典（月初）（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
     '<div class="bd"><div>対象月 <input class="ym" value="' + ymNow + '" style="width:80px"> ' +
-    '<span class="mu" style="font-size:12px">1日7時のランク更新のあと、3営業日以内に。押すのは①→②の2回だけ</span></div>' +
+    '</div>' +
     '<button class="ck go">① 確認（書き込みなし）</button><button class="run go" disabled>② この内容で反映</button>' +
-    '<div class="pv"></div><div class="ml"></div><pre class="log"></pre></div>';
+    '<div class="pv"></div><div class="ml"></div><pre class="log" style="display:none"></pre></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
   $('.x').onclick = function (e) { e.preventDefault(); box.remove(); };
-  function log(m) { $('.log').textContent = new Date().toLocaleTimeString('ja-JP') + ' ' + m + '\n' + $('.log').textContent; }
+  function log(m) { console.log('[SIS35]', m); $('.log').textContent = new Date().toLocaleTimeString('ja-JP') + ' ' + m + '\n' + $('.log').textContent; }
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 
@@ -216,17 +216,21 @@
 
   // ---------- 画面 ----------
   var S = null;
+  function st(ex, want, unit) { // 状態の表示：これから作る／作成済み／人数が違う
+    if (ex == null) return '<td>これから作る</td>';
+    if (want == null || +ex === want) return '<td class="ok">作成済み</td>';
+    return '<td class="ng">作成済みだが' + unit + 'が違う（' + esc(ex) + '）</td>';
+  }
   function render() {
-    var r = S.res, h = '<h4>チェック</h4><table>';
-    r.checks.forEach(function (c) { h += '<tr><td class="' + (c[2] === 'OK' ? 'ok' : 'ng') + '">' + c[2] + '</td><td>' + esc(c[0]) + '</td><td>' + esc(c[1]) + '</td><td class="mu">' + (c[2] === 'OK' ? '' : esc(c[3])) + '</td></tr>'; });
-    h += '</table>';
-    if (!S.prevVip && !S.keepAll) h += '<div class="wa">先月の「' + esc(prevYm(S.ym)) + '会員ランクVIPIG」グループが見つかりません。<label><input type="checkbox" class="ka"> 今月のVIPig全員をランクキープのお礼の宛先にする</label></div>';
-    h += '<h4>会員グループ（12）</h4><table><tr><th>グループ</th><th>入る人数</th><th>BOの今</th></tr>';
-    r.groups.forEach(function (g) { var ex = S.gex[g[0]]; h += '<tr><td>' + esc(g[0]) + '</td><td>' + r.counts[g[0]] + '</td><td class="' + (ex == null ? 'mu' : ex === r.counts[g[0]] ? 'ok' : 'wa') + '">' + (ex == null ? 'まだ無い' : ex + '人' + (ex === r.counts[g[0]] ? '（済）' : '（人数が違う）')) + '</td></tr>'; });
-    h += '</table><h4>クーポン（9）有効期間 ' + esc(S.cps[0].s.slice(0, 10)) + '〜' + esc(S.cps[0].f.slice(0, 10)) + '</h4><table><tr><th>ID</th><th>値引き</th><th>発行先</th><th>BOの今</th></tr>';
-    S.cps.forEach(function (c) { var ex = S.cex[c.id]; h += '<tr><td>' + esc(c.id) + '</td><td>' + (c.kind === 'yen' ? '￥' + c.v + '引き' : c.v + '％引き') + '</td><td>' + esc(c.group) + '</td><td class="' + (ex ? 'ok' : 'mu') + '">' + (ex ? '作成済（' + esc(ex.count) + '枚）' : 'まだ無い') + '</td></tr>'; });
-    h += '</table><div class="mu" style="font-size:11px">先月分のクーポンの文言（フリースペース等）：' + (S.extraFrom ? esc(S.extraFrom) + ' から引き継ぐ' : '見つからないので空のまま作る') + '</div>';
-    $('.pv').innerHTML = h;
+    var r = S.res, ng = r.checks.filter(function (c) { return c[2] !== 'OK'; });
+    var h = ng.length ? '<div class="ng">反映できません：' + ng.map(function (c) { return esc(c[0]) + '（' + esc(c[1]) + '）' + (c[3] ? '→' + esc(c[3]) : ''); }).join('／') + '</div>'
+                      : '<div class="ok">問題なし。下の内容で反映します。</div>';
+    if (!S.prevVip && !S.keepAll) h += '<div class="ng"><label><input type="checkbox" class="ka"> 先月のVIPigグループが無いので、今月のVIPig全員をお礼の宛先にする</label></div>';
+    h += '<h4>会員グループ（12）</h4><table><tr><th>グループ</th><th>人数</th><th>状態</th></tr>';
+    r.groups.forEach(function (g) { h += '<tr><td>' + esc(g[0]) + '</td><td>' + r.counts[g[0]] + '人</td>' + st(S.gex[g[0]], r.counts[g[0]], '人数') + '</tr>'; });
+    h += '</table><h4>クーポン（9）' + esc(S.cps[0].s.slice(5, 10)) + '〜' + esc(S.cps[0].f.slice(5, 10)) + '</h4><table><tr><th>クーポン</th><th>値引き</th><th>発行枚数</th><th>状態</th></tr>';
+    S.cps.forEach(function (c) { var ex = S.cex[c.id]; h += '<tr><td>' + esc(c.name.replace(/^\d+年\d+月/, '')) + '</td><td>' + (c.kind === 'yen' ? c.v + '円引き' : c.v + '%引き') + '</td><td>' + r.counts[c.group] + '枚</td>' + st(ex ? ex.count : null, r.counts[c.group], '枚数') + '</tr>'; });
+    $('.pv').innerHTML = h + '</table>';
     var ka = $('.ka'); if (ka) ka.onchange = function () { S.keepAll = ka.checked; recompute(); };
     var gAll = r.groups.every(function (g) { return S.gex[g[0]] === r.counts[g[0]]; }), cAll = S.cps.every(function (c) { return S.cex[c.id]; });
     $('.run').disabled = !r.ok || (gAll && cAll);
@@ -235,13 +239,13 @@
   }
   function recompute() { S.res = build(S.ym, S.mem, S.prev, S.keepAll); render(); }
   function renderMail() {
-    var names = [[S.ym + '得々クーポン配布メール', 'とこトンとん得々クーポン付与のお知らせ'], [S.ym + '誕生日クーポン配布メール', 'お誕生日クーポン付与のお知らせ'], ['【' + S.ym + 'ランクキープ】VIPIG', 'VIPigランク継続のお礼']];
-    var h = '<h4>③ お知らせメール3通（②のあとに）</h4><div class="mu" style="font-size:12px">ランクアップのお知らせは10時にメルカートが自動で送るので不要。リンクを押すと、宛先グループの会員一覧が最大件数30000で開く（100人だけに届く事故は起きない）。件数を確かめて［メール送信］→ テンプレートを選ぶ →［下記のメールリストで確定する］→ テスト送信 → 一括送信。</div><table>';
-    names.forEach(function (n) { var c = S.gex[n[0]]; h += '<tr><td>' + esc(n[1]) + '</td><td>' + esc(n[0]) + '</td><td>' + (c != null ? '<a target="_blank" href="' + esc(BO + '/customer/search.aspx?cgname=' + encodeURIComponent(n[0]) + '&disp.divcgname=open&max=30000') + '">宛先' + c + '人を開く</a>' : '<span class="mu">②のあとに出る</span>') + '</td></tr>'; });
+    var names = [[S.ym + '得々クーポン配布メール', 'とこトンとん得々クーポンのお知らせ'], [S.ym + '誕生日クーポン配布メール', 'お誕生日クーポンのお知らせ'], ['【' + S.ym + 'ランクキープ】VIPIG', 'VIPig継続のお礼']];
+    var h = '<h4>お知らせメール（3）</h4><table><tr><th>メール</th><th>宛先</th><th>③ 送る</th></tr>';
+    names.forEach(function (n) { var c = S.gex[n[0]]; h += '<tr><td>' + esc(n[1]) + '</td><td>' + S.res.counts[n[0]] + '人</td><td>' + (c != null ? '<a target="_blank" href="' + esc(BO + '/customer/search.aspx?cgname=' + encodeURIComponent(n[0]) + '&disp.divcgname=open&max=30000') + '">宛先を開く</a>' : '②のあと') + '</td></tr>'; });
     $('.ml').innerHTML = h + '</table>';
   }
   async function check() {
-    $('.ck').disabled = true; $('.run').disabled = true; $('.pv').innerHTML = '読み込み中…（会員数が多いと30秒ほど）';
+    $('.ck').disabled = true; $('.run').disabled = true; $('.pv').innerHTML = '読み込み中…';
     try {
       var ym = $('.ym').value.trim(); if (!/^\d{4}-\d{2}$/.test(ym)) throw new Error('対象月は 2026-11 の形で');
       S = { ym: ym, keepAll: false };
@@ -284,8 +288,8 @@
       if (cbad.length) throw new Error('クーポンの発行枚数がグループの人数と違う：' + cbad.map(function (c) { return c.id; }).join('、'));
       log('クーポン9種とも、発行枚数＝グループの人数');
       render();
-      $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok" style="font-size:14px">✅ ②まで完了。続けて③のお知らせメールを送ってください。</div>');
-    } catch (e) { render(); $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">止めました：' + esc(e.message) + '<br>直してからもう一度①→②（済んだところは飛ばします）</div>'); log('NG ' + e.message); }
+      $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok" style="font-size:14px">✅ ②まで完了。続けて③でメールを送る</div>');
+    } catch (e) { render(); $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">止めました：' + esc(e.message) + '</div>'); log('NG ' + e.message); }
     $('.ck').disabled = false;
   }
   $('.ck').onclick = check; $('.run').onclick = run;
