@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v1.5 (2026-10-30)';
+  var VER = 'T35 v1.6 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -248,6 +248,8 @@
     $('.ck').disabled = true; $('.run').disabled = true; $('.pv').innerHTML = '読み込み中…';
     try {
       var ym = $('.ym').value.trim(); if (!/^\d{4}-\d{2}$/.test(ym)) throw new Error('対象月は 2026-11 の形で');
+      var nd = new Date(), first = new Date(+ym.slice(0, 4), +ym.slice(5, 7) - 1, 1, 7, 30);
+      if (!STG && nd < first) throw new Error(ym + ' 分は ' + (first.getMonth() + 1) + '/1 7:30 以降に（1日7時のランク更新より前だと、先月のランクで作ってしまう）');
       S = { ym: ym, keepAll: false };
       S.mem = await members(); log('今月の会員 ' + S.mem.length + '人');
       var pg = prevYm(ym) + '会員ランクVIPIG', pex = (await groupList(pg)).filter(function (g) { return g.name === pg; })[0];
