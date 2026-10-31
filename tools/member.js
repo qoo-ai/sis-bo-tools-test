@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v1.7 (2026-11-01)';
+  var VER = 'T35 v1.8 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -26,7 +26,7 @@
     '<div class="hd"><span>SIS 会員ランク特典（月初）（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
     '<div class="bd"><div>対象月 <input class="ym" value="' + ymNow + '" style="width:80px"> ' +
     '</div>' +
-    '<button class="ck go">① 確認（書き込みなし）</button><button class="run go" disabled>② この内容で反映</button>' +
+    '<button class="ck go">① 確認（書き込みなし）</button><button class="run go" disabled>② この内容で反映</button><button class="undo" style="display:none">②を取り消す</button>' +
     '<div class="pv"></div><div class="ml"></div><pre class="log" style="display:none"></pre></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
@@ -251,6 +251,8 @@
     var gAll = r.groups.every(function (g) { return S.gex[g[0]] === r.counts[g[0]]; }), cAll = S.cps.every(function (c) { return S.cex[c.id]; });
     $('.run').disabled = !r.ok || (gAll && cAll) || (!STG && S.extraN < S.cps.length);
     $('.run').textContent = gAll && cAll ? '② 反映済み' : '② この内容で反映';
+    var any = r.groups.some(function (g) { return S.gex[g[0]] != null; }) || S.cps.some(function (c) { return S.cex[c.id]; });
+    $('.undo').style.display = any ? '' : 'none';
     renderMail();
   }
   function recompute() { S.res = build(S.ym, S.mem, S.prev, S.keepAll); render(); }
@@ -310,5 +312,33 @@
     } catch (e) { render(); $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">止めました：' + esc(e.message) + '</div>'); log('NG ' + e.message); }
     $('.ck').disabled = false;
   }
-  $('.ck').onclick = check; $('.run').onclick = run;
+  // ②の取り消し：この月にツールが作るクーポン9種とグループ12個だけを消す（メールを送る前に使う。送ったメールは戻せない）
+  var undoArmed = false;
+  async function undo() {
+    if (!undoArmed) { undoArmed = true; $('.undo').textContent = 'もう一度押すと ' + S.ym + ' 分を消す'; $('.undo').style.background = '#c92a2a'; $('.undo').style.color = '#fff'; return; }
+    $('.undo').disabled = true; $('.ck').disabled = true; $('.run').disabled = true;
+    try {
+      var n1 = 0, n2 = 0;
+      for (var c of S.cps) {
+        var u = 'coupon/event_detail.aspx?mode=update&coupon_type=1&coupon_event=' + encodeURIComponent(c.id);
+        var d = await doc(u), f = d.forms[0]; if (new FormData(f).get('coupon_event') !== c.id) continue;
+        var fd = fdOf(f); fd.set('cmdDelete', f.querySelector('[name=cmdDelete]').value);
+        await (await fetch(BO + '/' + u, { method: 'POST', body: fd, credentials: 'include' })).text(); n1++; log('クーポン削除 ' + c.id);
+      }
+      var names = S.res.groups.map(function (g) { return g[0]; });
+      var gl = await groupList(S.ym);
+      for (var g of gl) {
+        if (names.indexOf(g.name) < 0) continue;
+        var id = (g.href.match(/customer_group_id=(\d+)/) || [])[1]; if (!id) continue;
+        var u2 = 'customergroup/detail.aspx?customer_group_id=' + id, d2 = await doc(u2), f2 = d2.forms[0], fd2 = fdOf(f2);
+        fd2.set('cmdDelete', f2.querySelector('[name=cmdDelete]').value);
+        await (await fetch(BO + '/' + u2, { method: 'POST', body: fd2, credentials: 'include' })).text(); n2++; log('グループ削除 ' + g.name);
+      }
+      undoArmed = false; $('.undo').textContent = '②を取り消す'; $('.undo').style.background = ''; $('.undo').style.color = '';
+      await check();
+      $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok">取り消しました（クーポン' + n1 + '種・グループ' + n2 + '個を削除）。直してからもう一度①→②</div>');
+    } catch (e) { $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">取り消しの途中で止まりました：' + esc(e.message) + '</div>'); }
+    $('.undo').disabled = false;
+  }
+  $('.ck').onclick = check; $('.run').onclick = run; $('.undo').onclick = undo;
 })();
