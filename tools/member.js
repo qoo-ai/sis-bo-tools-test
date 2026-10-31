@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v1.6 (2026-11-01)';
+  var VER = 'T35 v1.7 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -86,8 +86,12 @@
     var fd = await live('customer/search.aspx', function (d) { return new FormData(d.forms[0]); });
     fd.set('mode', 'CSV'); fd.set('max', '30000'); fd.set('cmdsearch', '1'); fd.set('searched', '1');
     Object.keys(cond || {}).forEach(function (k) { fd.set(k, cond[k]); });
-    var r = await fetch(BO + '/customer/search.aspx', { method: 'POST', body: fd, credentials: 'include' });
-    var t = new TextDecoder('shift_jis').decode(await r.arrayBuffer()), rows = parseCSV(t);
+    var t = '';
+    for (var i = 0; i < 4; i++) { // 「The service is unavailable.」が一時的に返ることがある（2026-11-01 本番実測）
+      t = new TextDecoder('shift_jis').decode(await (await fetch(BO + '/customer/search.aspx', { method: 'POST', body: fd, credentials: 'include' })).arrayBuffer());
+      if (!/service is unavailable/i.test(t)) break; await sleep(10000);
+    }
+    var rows = parseCSV(t);
     if (!rows.length || (rows[0].indexOf('会員番号') < 0 && t.length < 500)) return [];
     var h = rows[0], iNo = h.indexOf('会員番号'), iR = h.indexOf('会員ランク'), iB = h.indexOf('生年月日');
     if (iNo < 0) throw new Error('会員検索のCSVが取れない（ログイン切れの可能性）');
@@ -128,33 +132,43 @@
       .filter(function (c) { return c[1] && c[1].indexOf(prefix) === 0; }).map(function (c) { return { id: c[1], name: c[2], term: c[3], count: c[5], bonus: c[6], status: c[7] }; });
   }
   // 先月の同じクーポンの「フリースペース・備考・再利用・スマホ同一」を引き継ぐ（無ければ空のまま）
+  // 先月の同じクーポンの設定（除外商品・対象条件・フリースペース・再利用など）を丸ごと読む。無ければ null
   async function prevCouponExtras(id) {
     try {
       var d = await doc('coupon/event_detail.aspx?mode=update&coupon_type=1&coupon_event=' + encodeURIComponent(id));
-      var f = d.forms[0]; if (new FormData(f).get('coupon_event') !== id) return null;
-      var g = function (n) { var e = f.querySelector('[name=' + n + ']'); return e ? e.value : ''; };
-      var c = function (n) { var e = f.querySelector('[name=' + n + ']'); return !!(e && e.checked); };
-      return { freespace: g('freespace'), freespace_sp: g('freespace_sp'), remarks: g('remarks'), ret: c('is_coupon_return'), sp: c('smartphone_is_pc') };
+      var f = d.forms[0], fd = new FormData(f); if (fd.get('coupon_event') !== id) return null;
+      var e = []; fd.forEach(function (v, k) { e.push([k, String(v)]); });
+      return { entries: e, xgoods: e.filter(function (x) { return /^x_gname_\d+$/.test(x[0]) && x[1]; }).map(function (x) { return x[1]; }),
+               xterm: e.some(function (x) { return x[0] === 'condition_x_term' && x[1] && x[1] !== 'false'; }) };
     } catch (e) { return null; }
   }
-  async function createCoupon(c, extra) {
+  var SKIP = /^(__|mode$|coupon_type$|coupon_event$|name$|customer_group_name$|coupon_count$|s_dt$|f_dt$|x_s_dt$|x_f_dt$|condition_x_term$|amount|cmd|bonus_type_dummy$|customer_allotment_dummy$|smartphone_is_pc$|is_coupon_return$)/;
+  function condSig(entries) { // 引き継ぐ条件の中身（照合用）
+    return entries.filter(function (x) { return !SKIP.test(x[0]) && x[1] !== '' && !/^(bonus_type|coupon_cut_price|coupon_cut_ratio|coupon_point_ratio|customer_allotment|status|condition_term)$/.test(x[0]); })
+      .map(function (x) { return x[0] + '=' + x[1]; }).sort().join('|');
+  }
+  async function createCoupon(c, prev) {
     var path = 'coupon/event_detail.aspx?mode=regist&coupon_type=1';
     var d = await doc(path), f = d.forms[0], fd = fdOf(f);
+    if (prev) {
+      prev.entries.forEach(function (x) { if (!SKIP.test(x[0])) fd.set(x[0], x[1]); });
+      var has = function (n) { return prev.entries.some(function (x) { return x[0] === n; }); };
+      if (has('smartphone_is_pc')) fd.set('smartphone_is_pc', '1'); else fd.delete('smartphone_is_pc');
+      if (has('is_coupon_return')) fd.set('is_coupon_return', '1'); else fd.delete('is_coupon_return');
+    } else fd.set('smartphone_is_pc', '1');
     fd.set('coupon_event', c.id); fd.set('name', c.name);
     fd.set('bonus_type', c.kind === 'yen' ? '0' : '1'); fd.set(c.kind === 'yen' ? 'coupon_cut_price' : 'coupon_cut_ratio', String(c.v));
     fd.set('customer_allotment', '0'); fd.set('customer_group_name', c.group);
-    fd.set('condition_term', '1'); fd.set('s_dt', c.s); fd.set('f_dt', c.f); fd.set('status', '0');
-    if (extra) {
-      fd.set('freespace', extra.freespace || ''); fd.set('freespace_sp', extra.freespace_sp || ''); fd.set('remarks', extra.remarks || '');
-      if (extra.ret) fd.set('is_coupon_return', '1'); else fd.delete('is_coupon_return');
-      if (extra.sp) fd.set('smartphone_is_pc', '1'); else fd.delete('smartphone_is_pc');
-    } else fd.set('smartphone_is_pc', '1');
+    fd.set('condition_term', 'true'); fd.set('s_dt', c.s); fd.set('f_dt', c.f); fd.set('status', '0');
     fd.set('cmdInsert', f.querySelector('[name=cmdInsert]').value);
     var t = new DOMParser().parseFromString(await (await fetch(BO + '/' + path, { method: 'POST', body: fd, credentials: 'include' })).text(), 'text/html').body.textContent.replace(/\s+/g, ' ');
     var err = (t.match(/[^ ]{0,30}(入力して|できません|存在しません|エラー|不正|重複)[^ ]{0,30}/) || [''])[0];
     if (err) throw new Error('クーポン ' + c.id + ' を作れない：' + err);
+    if (prev) { // 作ったクーポンを読み戻して、先月と同じ条件（除外商品など）が入ったか確かめる
+      var mine = await prevCouponExtras(c.id);
+      if (!mine || condSig(mine.entries) !== condSig(prev.entries)) throw new Error('クーポン ' + c.id + ' の条件が先月と違う（除外商品など）。クーポンイベント管理で確認');
+    }
   }
-
   // ---------- ルール（member_tools.py と同じ） ----------
   var EXCLUDE = '不正クレジット使用不可会員', KOBUTA = ['こぶた', 'こぶた(CP)'], RANK4 = ['おしゃれぶた', 'セレブぶた', 'ぶたのおひめさま', 'VIPIG'];
   var KNOWN = ['こぶた', 'おしゃれぶた', 'セレブぶた', 'ぶたのおひめさま', 'VIPig', 'こぶた(CP)', EXCLUDE, 'ゲスト', 'クレジット、paypayのみ可', 'close', 'test', 'テスト', 'クレジット注文のみ可'];
@@ -230,10 +244,12 @@
     r.groups.forEach(function (g) { h += '<tr><td>' + esc(g[0]) + '</td><td>' + r.counts[g[0]] + '人</td>' + st(S.gex[g[0]], r.counts[g[0]], '人数') + '</tr>'; });
     h += '</table><h4>クーポン（9）' + esc(S.cps[0].s.slice(5, 10)) + '〜' + esc(S.cps[0].f.slice(5, 10)) + '</h4><table><tr><th>クーポン</th><th>値引き</th><th>発行枚数</th><th>状態</th></tr>';
     S.cps.forEach(function (c) { var ex = S.cex[c.id]; h += '<tr><td>' + esc(c.name.replace(/^\d+年\d+月/, '')) + '</td><td>' + (c.kind === 'yen' ? c.v + '円引き' : c.v + '%引き') + '</td><td>' + r.counts[c.group] + '枚</td>' + st(ex ? ex.count : null, r.counts[c.group], '枚数') + '</tr>'; });
-    $('.pv').innerHTML = h + '</table>';
+    var pe = S.extra[S.cps[0].tail];
+    h += '</table><div>' + (S.extraN === S.cps.length ? '先月と同じ条件で作る' + (pe && pe.xgoods.length ? '（除外商品：' + esc(pe.xgoods.join('、')) + '）' : '') : '<span class="ng">先月のクーポンが' + (S.cps.length - S.extraN) + '種見つからない（条件を引き継げない）</span>') + '</div>';
+    $('.pv').innerHTML = h;
     var ka = $('.ka'); if (ka) ka.onchange = function () { S.keepAll = ka.checked; recompute(); };
     var gAll = r.groups.every(function (g) { return S.gex[g[0]] === r.counts[g[0]]; }), cAll = S.cps.every(function (c) { return S.cex[c.id]; });
-    $('.run').disabled = !r.ok || (gAll && cAll);
+    $('.run').disabled = !r.ok || (gAll && cAll) || (!STG && S.extraN < S.cps.length);
     $('.run').textContent = gAll && cAll ? '② 反映済み' : '② この内容で反映';
     renderMail();
   }
@@ -260,8 +276,8 @@
       S.res = build(ym, S.mem, S.prev, false); S.cps = coupons(ym);
       var gl = await groupList(ym); S.gex = {}; S.glink = {}; gl.forEach(function (g) { S.gex[g.name] = g.count; S.glink[g.name] = g.href; });
       var cl = await couponList(ym); S.cex = {}; cl.forEach(function (c) { S.cex[c.id] = c; });
-      S.extra = {}; S.extraFrom = '';
-      for (var c of S.cps) { var e = await prevCouponExtras(prevYm(ym) + c.tail); if (e) { S.extra[c.tail] = e; S.extraFrom = prevYm(ym) + '分'; } }
+      S.extra = {}; S.extraN = 0;
+      for (var c of S.cps) { var e = await prevCouponExtras(prevYm(ym) + c.tail); if (e) { S.extra[c.tail] = e; S.extraN++; } }
       render();
     } catch (e) { $('.pv').innerHTML = '<div class="ng">止めました：' + esc(e.message) + '</div>'; log('NG ' + e.message); }
     $('.ck').disabled = false;
