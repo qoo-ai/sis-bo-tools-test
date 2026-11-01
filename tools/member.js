@@ -296,7 +296,7 @@
     var names = [[S.ym + '得々クーポン配布メール', 'とこトンとん得々クーポンのお知らせ'], [S.ym + '誕生日クーポン配布メール', 'お誕生日クーポンのお知らせ'], ['【' + S.ym + 'ランクキープ】VIPIG', 'VIPig継続のお礼']];
     var h = '<h4>お知らせメール（3）</h4><table><tr><th>メール</th><th>宛先</th><th>状態</th></tr>';
     names.forEach(function (n, i) { var c = S.gex[n[0]], sent = (S.mlog || []).filter(function (x) { return x.tmpl.indexOf(TMPL[i]) >= 0; });
-      var stt = S.mlog === null ? '<td class="wa">確認できない（一括メール発行履歴を見る）</td>' : sent.length ? '<td class="ok">送付済（' + sent.map(function (x) { return esc(x.start.slice(5, 16)) + '・' + esc(x.sent) + '通'; }).join('／') + '）</td>'
+      var stt = S.mlog === null ? '<td class="wa">確認できない（一括メール発行履歴を見る）</td>' : sent.length ? '<td class="ok">送付済（' + sent.map(function (x) { return esc(x.start.slice(5).replace(/:\d+$/, '')) + '・' + esc(x.sent) + '通'; }).join('／') + '）</td>'
         : '<td>未送付' + (c != null ? '　<a target="_blank" href="' + esc(BO + '/customer/search.aspx?cgname=' + encodeURIComponent(n[0]) + '&disp.divcgname=open&max=30000') + '">宛先を開く</a>' : '') + '</td>';
       h += '<tr><td>' + esc(n[1]) + '</td><td>' + S.res.counts[n[0]] + '人</td>' + stt + '</tr>'; });
     $('.ml').innerHTML = h + '</table>';
