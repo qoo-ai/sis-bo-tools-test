@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.2 (2026-11-01)';
+  var VER = 'T35 v2.3 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -243,7 +243,7 @@
   function render() {
     var r = S.res, ng = r.checks.filter(function (c) { return c[2] !== 'OK'; });
     var h = ng.length ? '<div class="ng">反映できません：' + ng.map(function (c) { return esc(c[0]) + '（' + esc(c[1]) + '）' + (c[3] ? '→' + esc(c[3]) : ''); }).join('／') + '</div>'
-                      : '<div class="ok">問題なし。下の内容で反映します。</div>';
+                      : '<div class="ok">下の内容で問題なければ、「② この内容で反映」を押してください。</div>';
     var gAll = r.groups.every(function (g) { return S.gex[g[0]] === r.counts[g[0]]; }), cAll = S.cps.every(function (c) { return S.cex[c.id]; });
     if (!ng.length && gAll && cAll) h = '<div class="ok">' + esc(S.ym) + ' 分は作成済。②は不要</div>';
     if (!S.prevVip && !S.keepAll) h += '<div class="ng"><label><input type="checkbox" class="ka"> 先月のVIPigグループが無いので、今月のVIPig全員をお礼の宛先にする</label></div>';
