@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.4 (2026-11-01)';
+  var VER = 'T35 v2.5 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -253,7 +253,7 @@
     S.cps.forEach(function (c) { var ex = S.cex[c.id]; h += '<tr><td>' + esc(c.name.replace(/^\d+年\d+月/, '')) + '</td><td>' + (c.kind === 'yen' ? c.v + '円引き' : c.v + '%引き') + '</td><td>' + r.counts[c.group] + '枚</td>' + st(ex ? ex.count : null, r.counts[c.group], '枚数') + '</tr>'; });
     h += '</table>';
     if (S.extraN < S.cps.length) h += '<div class="ng">先月のクーポンが' + (S.cps.length - S.extraN) + '種見つからない（条件を引き継げない）</div>';
-    h += '<h4>除外商品（9種共通）</h4><div class="mu">先月のクーポンに入っているものを引き継ぐ。外すならチェックを外す／足すなら商品コードを入れて追加。次の月はこの結果を引き継ぐ</div><table><tr><th></th><th>商品コード</th><th>商品名</th></tr>';
+    h += '<h4>クーポン対象外商品（9種共通）</h4><div class="mu">クーポンの利用対象外の商品を追加・削除してください。翌月は、前月の設定を引き継ぎます。</div><table><tr><th></th><th>商品コード</th><th>商品名</th></tr>';
     xgAll().forEach(function (g) { h += '<tr><td><input type="checkbox" class="xgc" data-code="' + esc(g.code) + '"' + (S.xgDel[g.code] ? '' : ' checked') + (cAll ? ' disabled' : '') + '></td><td>' + esc(g.code) + '</td><td>' + esc(g.name || '') + '</td></tr>'; });
     if (!xgAll().length) h += '<tr><td></td><td colspan="2">なし</td></tr>';
     h += '</table>' + (cAll ? '' : '<div><input class="xgn" placeholder="商品コード（例 69-00018-2599-99）" style="width:230px"> <button class="xga" style="margin:4px 0 0;padding:4px 10px">追加</button> <span class="xgm"></span></div>');
