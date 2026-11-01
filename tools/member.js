@@ -1,15 +1,15 @@
 /* SIS 会員ランク特典（月初）— T-35（#SP-1M）
- * 毎月1日7時のランク更新のあと（1日〜3営業日以内）に、BOでブックマーク →「会員ランク特典（月初）」→ 開くと自動で読み込み → 「この内容で反映」。
+ * 毎月1日7時のランク更新のあと（1日〜3営業日以内）に、BOでブックマーク →「会員ランク特典（月初）」→ 開くと自動で読み込み → ①グループとクーポンを作成 → ②メール送信を進める。
  * やること：今月のランク・生年月日を会員検索から読む → 12グループに振り分け → 会員グループ取込（グループ→メンバー）→ 人数照合
  *          → クーポン9種（お誕生日5・とこトンとん得々4）を作成。お知らせメール3通は「宛先を開く」から送る。
  * 月末23:50のバックアップは不要：先月のVIPigは「先月1日に作った YYYY-MM会員ランクVIPIG グループ」から読む（ランクは1日7時にしか変わらない）。
  * 「宛先を開く」は会員一覧を最大件数30000で開く（そこから［メール送信］→テンプレート）。
- * 何度押しても二重にならない：今月のグループ・クーポンが既にあれば作らずに飛ばす。途中で止まっても、もう一度「この内容で反映」で続きから。
+ * 何度押しても二重にならない：今月のグループ・クーポンが既にあれば作らずに飛ばす。途中で止まっても、もう一度①で続きから。
  * ルールは member_tools.py（9/1・10/1の実取込と照合済み）と同じ。前提：会員検索の「表示項目の選択」に 会員ランク・生年月日。
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.10 (2026-11-01)';
+  var VER = 'T35 v2.11 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -25,7 +25,7 @@
     '#sis35 h4{margin:12px 0 2px;font-size:13px}#sis35 pre{white-space:pre-wrap;background:#f6f6f6;padding:6px;max-height:160px;overflow:auto;margin:8px 0 0;font-size:11px}#sis35 a{color:#1971c2}</style>' +
     '<div class="hd"><span>SIS 会員ランク特典（月初）（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
     '<div class="bd"><div>対象月：<input class="ym" value="' + ymNow + '" style="width:80px"> の月初分</div>' +
-    '<button class="ck" style="display:none"></button><button class="run go" disabled>この内容で反映</button><button class="mail go" disabled>テスト送信まで進める</button><button class="undo" style="display:none">クーポンを取り消す</button>' +
+    '<button class="ck" style="display:none"></button><button class="run go" disabled>①グループとクーポンを作成</button><button class="mail go" disabled>②メール送信を進める</button><button class="undo" style="display:none">クーポンを取り消す</button>' +
     '<div class="bz" style="display:none;margin-top:8px"></div><div class="pv"></div><div class="ml"></div><pre class="log" style="display:none"></pre></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
@@ -123,7 +123,7 @@
       if (me && /success/i.test(me.status)) { log('取込完了（success）'); return; }
       if (me && /error|fail|エラー/i.test(me.status)) throw new Error('取込エラー：' + me.status + '（会員グループインポートの処理状況ログを確認）');
     }
-    throw new Error('取込が8分で終わらない（会員グループインポートの処理状況ログを確認し、終わってからもう一度「この内容で反映」）');
+    throw new Error('取込が8分で終わらない（会員グループインポートの処理状況ログを確認し、終わってからもう一度①）');
   }
   async function couponList(prefix) {
     var d = await doc('coupon/event_list.aspx?coupon_event=' + encodeURIComponent(prefix) + '&cmdSearch=1');
@@ -242,14 +242,14 @@
   }
   function render() {
     var r = S.res, ng = r.checks.filter(function (c) { return c[2] !== 'OK'; });
-    var h = ng.length ? '<div class="ng">反映できません：' + ng.map(function (c) { return esc(c[0]) + '（' + esc(c[1]) + '）' + (c[3] ? '→' + esc(c[3]) : ''); }).join('／') + '</div>'
-                      : '<div class="ok">下の内容で問題なければ、「この内容で反映」を押してください。</div>';
+    var h = ng.length ? '<div class="ng">作成できません：' + ng.map(function (c) { return esc(c[0]) + '（' + esc(c[1]) + '）' + (c[3] ? '→' + esc(c[3]) : ''); }).join('／') + '</div>'
+                      : '<div class="ok">下の内容で問題なければ、「①グループとクーポンを作成」を押してください。</div>';
     var gAll = r.groups.every(function (g) { return S.gex[g[0]] === r.counts[g[0]]; }), cAll = S.cps.every(function (c) { return S.cex[c.id]; });
     var mSent = (S.mlog || []).length ? TMPL.filter(function (t) { return S.mlog.some(function (x) { return x.tmpl.indexOf(t) >= 0; }); }).length : 0;
     var phase = !(gAll && cAll) ? 0 : mSent < 3 ? 1 : 2;
-    var flow = ['反映', 'メール送信（' + mSent + '/3）'];
+    var flow = ['グループとクーポンを作成', 'メール送信（' + mSent + '/3）'];
     h = '<div style="margin:6px 0 4px">' + flow.map(function (t, i) { var n = ('0' + (i + 1)).slice(-2); return '<span style="display:inline-block;margin-right:6px;padding:2px 8px;border-radius:4px;' + (i < phase ? 'color:#2b8a3e">' + n + ' ' + esc(t) + ' ✓' : i === phase ? 'background:#e7f5ff;color:#1971c2;font-weight:bold">' + n + ' ' + esc(t) + ' ← いまここ' : 'color:#adb5bd">' + n + ' ' + esc(t)) + '</span>'; }).join('') + (phase === 2 ? '<span class="ok">すべて完了</span>' : '') + '</div>' + h;
-    if (!ng.length && phase === 1) h = h.replace(/<div class="ok">下の内容で問題なければ[^<]*<\/div>/, '<div class="ok">反映済。「テスト送信まで進める」を押すと、3通分のタブが開きます。各タブでテスト送信→一括送信を押してください。</div>');
+    if (!ng.length && phase === 1) h = h.replace(/<div class="ok">下の内容で問題なければ[^<]*<\/div>/, '<div class="ok">「②メール送信を進める」を押すと、3通分のタブが開きます。<br>各タブでテスト送信→一括送信を押してください。</div>');
     if (!ng.length && phase === 2) h = h.replace(/<div class="ok">下の内容で問題なければ[^<]*<\/div>/, '');
     if (!S.prevVip && !S.keepAll) h += '<div class="ng"><label><input type="checkbox" class="ka"> 先月のVIPigグループが無いので、今月のVIPig全員をお礼の宛先にする</label></div>';
     h += '<h4>会員グループ（12）</h4><table><tr><th>グループ</th><th>人数</th><th>状態</th></tr>';
@@ -279,7 +279,7 @@
       xa.disabled = false;
     };
     $('.run').disabled = !r.ok || (gAll && cAll) || (!STG && S.extraN < S.cps.length);
-    $('.run').textContent = gAll && cAll ? '反映済' : 'この内容で反映';
+    $('.run').textContent = gAll && cAll ? 'グループとクーポン作成済' : '①グループとクーポンを作成';
     var any = r.groups.some(function (g) { return S.gex[g[0]] != null; }) || S.cps.some(function (c) { return S.cex[c.id]; });
     $('.undo').style.display = any ? '' : 'none';
     renderMail();
@@ -323,13 +323,14 @@
     var names = MAILS(), made = S.gex[names[0][0]] != null;
     var h = '<h4>お知らせメール（3）</h4><table><tr><th>メール</th><th>宛先</th><th>状態</th></tr>';
     names.forEach(function (n, i) { var sent = sentOf(i), ps = (S.mprep || {})[i];
-      var stt = S.mlog === null ? '<td class="wa">確認できない</td>' : sent.length ? '<td class="ok">送付済（' + sent.map(function (x) { return esc(x.start.slice(5).replace(/:\d+$/, '')) + '・' + esc(x.sent) + '通'; }).join('／') + '）</td>'
-        : ps ? '<td class="' + (ps.c || '') + '">' + esc(ps.t) + '</td>' : '<td>未送付</td>';
+      var stt = S.mlog === null ? '<td class="wa">確認できない</td>' : sent.length ? '<td class="ok">送信済み</td>'
+        : ps ? '<td class="' + (ps.c || '') + '">' + esc(ps.t) + '</td>' : '<td>未送信</td>';
       h += '<tr><td>' + esc(n[1]) + '</td><td>' + S.res.counts[n[0]] + '人</td>' + stt + '</tr>'; });
     h += '</table><div style="margin-top:6px">テスト送信先（カンマ区切り）<br><input class="tm" style="width:100%;box-sizing:border-box" value="' + esc((S.tmail || []).join(', ')) + '"><div class="mu">翌月は、今月の送信先を引き継ぎます。</div></div>';
     $('.ml').innerHTML = h;
-    var todo = names.some(function (n, i) { return !sentOf(i).length && !((S.mprep || {})[i] && S.mprep[i].c === 'ok'); }); // 準備OKのものは二度開かない（開き直すならツールを開き直す）
+    var todo = names.some(function (n, i) { return !sentOf(i).length && !((S.mprep || {})[i] && S.mprep[i].ok); }); // 準備できたものは二度開かない（開き直すならツールを開き直す）
     $('.mail').disabled = !made || S.mlog === null || !todo || S.mbusy;
+    $('.mail').textContent = names.every(function (n, i) { return sentOf(i).length; }) ? 'メール送信済み' : '②メール送信を進める';
   }
   // テスト送信先：今月の「得々クーポン配布メール」グループの備考に保存（無ければ先月のグループ→既定）。BOに置くので誰のPCでも同じ
   var TM_DEF = ['qoo.masuda@gmail.com', 'seki_yu@drugstores.co.jp', 'info@drugstores-shop.com'];
@@ -372,7 +373,7 @@
   async function mailPrep(i, grp, w, list) {
     var want = S.res.counts[grp], t0 = Date.now();
     var show = function (m, c) { S.mprep[i] = { t: m, c: c }; var td = $('.ml').querySelectorAll('tr')[i + 1]; if (td) { td.cells[2].textContent = m; td.cells[2].className = c || ''; } };
-    var wait = async function (ok) { for (var k = 0; k < 120; k++) { await sleep(500); try { if (w.closed) throw new Error('タブが閉じられた'); var d = w.document; if (d.readyState === 'complete' && ok(d, w.location.pathname)) return d; } catch (e) { if (/閉じ/.test(e.message)) throw e; } show('準備中（' + fmt((Date.now() - t0) / 1000) + '）'); } throw new Error('タブが進まない（ログイン切れの可能性）'); };
+    var wait = async function (ok) { for (var k = 0; k < 120; k++) { await sleep(500); try { if (w.closed) throw new Error('タブが閉じられた'); var d = w.document; if (d.readyState === 'complete' && ok(d, w.location.pathname)) return d; } catch (e) { if (/閉じ/.test(e.message)) throw e; } show('準備中'); } throw new Error('タブが進まない（ログイン切れの可能性）'); };
     var num = function (d) { return +(((d.body.innerText.match(/([\d,]+)\s*件/) || [])[1] || '0').replace(/,/g, '')); };
     try {
       w.location.href = BO + '/customer/search.aspx?cgname=' + encodeURIComponent(grp) + '&disp.divcgname=open&max=30000';
@@ -392,11 +393,11 @@
       var am = d.querySelector('[name=adminmail]'); if (!am) throw new Error('テスト送信先の欄が無い');
       am.value = list.join(','); am.dispatchEvent(new Event('change', { bubbles: true }));
       if (!(d.querySelector('[name=subject_text]') || {}).value) throw new Error('件名が空');
-      show('準備OK（' + want + '件）→ タブでテスト送信', 'ok');
-    } catch (e) { show('止まった：' + e.message, 'ng'); }
+      show('未送信'); S.mprep[i].ok = 1;
+    } catch (e) { show('エラー：' + e.message, 'ng'); }
   }
   // 処理中の表示：「読み込み中…（平均◯ほどで完了・経過◯）」。平均は実際にかかった時間の直近5回（ブラウザに保存）
-  var DEF = { ck: 30, run: 180, undo: 40 }, LBL = { ck: '読み込み中', run: '反映中', undo: '取り消し中' }, bzT = null, bz0 = 0, bzK = '';
+  var DEF = { ck: 30, run: 180, undo: 40 }, LBL = { ck: '読み込み中', run: '作成中', undo: '取り消し中' }, bzT = null, bz0 = 0, bzK = '';
   function fmt(sec) { sec = Math.round(sec); return sec < 60 ? sec + '秒' : Math.floor(sec / 60) + '分' + (sec % 60 ? sec % 60 + '秒' : ''); }
   function hist(k) { try { return JSON.parse(localStorage.getItem('sis35_t_' + (STG ? 'stg_' : '') + k) || '[]'); } catch (e) { return []; } }
   // いまどの工程か：01 02 … と並べ、作業中の工程だけ色づけ（作業中 ◯秒経過）、終わった工程は ✓、これからの工程は灰色
@@ -479,7 +480,7 @@
       var cbad = S.cps.filter(function (c) { var x = S.cex[c.id]; return !x || +x.count !== r.counts[c.group]; });
       if (cbad.length) throw new Error('クーポンの発行枚数がグループの人数と違う：' + cbad.map(function (c) { return c.id; }).join('、'));
       log('クーポン9種とも、発行枚数＝グループの人数');
-      busyOff(true); render(); // 冒頭に「反映済。続けてお知らせメール」と 02 ← いまここ が出る
+      busyOff(true); render(); // 冒頭に②の案内と 02 ← いまここ が出る
     } catch (e) { busyOff(false); render(); $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">止めました：' + esc(e.message) + '</div>'); log('NG ' + e.message); }
     $('.ck').disabled = false;
   }
