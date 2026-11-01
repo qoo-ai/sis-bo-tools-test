@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.3 (2026-11-01)';
+  var VER = 'T35 v2.4 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -21,7 +21,7 @@
     '#sis35 .hd{padding:8px 12px;background:' + C2 + ';font-weight:bold;display:flex;justify-content:space-between}#sis35 .bd{padding:10px 12px}' +
     '#sis35 table{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}#sis35 td,#sis35 th{border-bottom:1px solid #eee;padding:3px 4px;text-align:left;vertical-align:top}' +
     '#sis35 .ok{color:#2b8a3e;font-weight:bold}#sis35 .ng{color:#c92a2a;font-weight:bold}#sis35 .wa{color:#e8590c;font-weight:bold}#sis35 .mu{color:#868e96}' +
-    '#sis35 button{padding:8px 12px;margin:8px 6px 0 0;border-radius:6px;border:1px solid #888;background:#f8f8f8;cursor:pointer}#sis35 button.go{background:' + C1 + ';color:#fff;border:none;font-weight:bold}#sis35 button:disabled{opacity:.45;cursor:not-allowed}' +
+    '#sis35 button{padding:8px 12px;margin:8px 6px 0 0;border-radius:6px;border:1px solid #888;background:#f8f8f8;cursor:pointer}#sis35 button.go{background:' + C1 + ';color:#fff;border:none;font-weight:bold}#sis35 button:disabled{opacity:.45;cursor:not-allowed}#sis35 button.dn{background:#dee2e6;color:#868e96;border:1px solid #ced4da;font-weight:normal}' +
     '#sis35 h4{margin:12px 0 2px;font-size:13px}#sis35 pre{white-space:pre-wrap;background:#f6f6f6;padding:6px;max-height:160px;overflow:auto;margin:8px 0 0;font-size:11px}#sis35 a{color:#1971c2}</style>' +
     '<div class="hd"><span>SIS 会員ランク特典（月初）（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
     '<div class="bd"><div>対象月：<input class="ym" value="' + ymNow + '" style="width:80px"> の月初分</div>' +
@@ -275,7 +275,7 @@
     };
     $('.run').disabled = !r.ok || (gAll && cAll) || (!STG && S.extraN < S.cps.length);
     $('.run').textContent = gAll && cAll ? '② 反映済' : '② この内容で反映';
-    $('.ck').classList.remove('go'); // ①を押したら①は灰色、②を目立たせる
+    $('.ck').classList.remove('go'); $('.ck').classList.add('dn'); // ①を押したら①は灰色、②を目立たせる
     var any = r.groups.some(function (g) { return S.gex[g[0]] != null; }) || S.cps.some(function (c) { return S.cex[c.id]; });
     $('.undo').style.display = any ? '' : 'none';
     renderMail();
