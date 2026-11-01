@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.6 (2026-11-01)';
+  var VER = 'T35 v2.7 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -21,12 +21,12 @@
     '#sis35 .hd{padding:8px 12px;background:' + C2 + ';font-weight:bold;display:flex;justify-content:space-between}#sis35 .bd{padding:10px 12px}' +
     '#sis35 table{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}#sis35 td,#sis35 th{border-bottom:1px solid #eee;padding:3px 4px;text-align:left;vertical-align:top}' +
     '#sis35 .ok{color:#2b8a3e;font-weight:bold}#sis35 .ng{color:#c92a2a;font-weight:bold}#sis35 .wa{color:#e8590c;font-weight:bold}#sis35 .mu{color:#868e96}' +
-    '#sis35 button{padding:8px 12px;margin:8px 6px 0 0;border-radius:6px;border:1px solid #888;background:#f8f8f8;cursor:pointer}#sis35 button.go{background:' + C1 + ';color:#fff;border:none;font-weight:bold}#sis35 button:disabled{opacity:.45;cursor:not-allowed}#sis35 button.dn{background:#dee2e6;color:#868e96;border:1px solid #ced4da;font-weight:normal}' +
+    '#sis35 button{padding:8px 12px;margin:8px 6px 0 0;border-radius:6px;border:1px solid #888;background:#f8f8f8;cursor:pointer}#sis35 button.go{background:' + C1 + ';color:#fff;border:none;font-weight:bold}#sis35 button:disabled{opacity:.45;cursor:not-allowed}#sis35 .bz .hd2{color:#1971c2;font-weight:bold}#sis35 .bz ol{margin:4px 0 0;padding:0;list-style:none}#sis35 .bz li{padding:2px 6px;border-radius:4px;color:#adb5bd}#sis35 .bz li.now{background:#e7f5ff;color:#1971c2;font-weight:bold}#sis35 .bz li.done{color:#2b8a3e}#sis35 button.dn{background:#dee2e6;color:#868e96;border:1px solid #ced4da;font-weight:normal}' +
     '#sis35 h4{margin:12px 0 2px;font-size:13px}#sis35 pre{white-space:pre-wrap;background:#f6f6f6;padding:6px;max-height:160px;overflow:auto;margin:8px 0 0;font-size:11px}#sis35 a{color:#1971c2}</style>' +
     '<div class="hd"><span>SIS 会員ランク特典（月初）（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
     '<div class="bd"><div>対象月：<input class="ym" value="' + ymNow + '" style="width:80px"> の月初分</div>' +
     '<button class="ck" style="display:none"></button><button class="run go" disabled>この内容で反映</button><button class="undo" style="display:none">反映を取り消す</button>' +
-    '<div class="bz" style="display:none;margin-top:8px;color:#1971c2;font-weight:bold"></div><div class="pv"></div><div class="ml"></div><pre class="log" style="display:none"></pre></div>';
+    '<div class="bz" style="display:none;margin-top:8px"></div><div class="pv"></div><div class="ml"></div><pre class="log" style="display:none"></pre></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
   $('.x').onclick = function (e) { e.preventDefault(); box.remove(); };
@@ -316,22 +316,64 @@
     var h = '<h4>お知らせメール（3）</h4><table><tr><th>メール</th><th>宛先</th><th>状態</th></tr>';
     names.forEach(function (n, i) { var c = S.gex[n[0]], sent = (S.mlog || []).filter(function (x) { return x.tmpl.indexOf(TMPL[i]) >= 0; });
       var stt = S.mlog === null ? '<td class="wa">確認できない（一括メール発行履歴を見る）</td>' : sent.length ? '<td class="ok">送付済（' + sent.map(function (x) { return esc(x.start.slice(5).replace(/:\d+$/, '')) + '・' + esc(x.sent) + '通'; }).join('／') + '）</td>'
-        : '<td>未送付' + (c != null ? '　<a target="_blank" href="' + esc(BO + '/customer/search.aspx?cgname=' + encodeURIComponent(n[0]) + '&disp.divcgname=open&max=30000') + '">宛先を開く</a>' : '') + '</td>';
+        : '<td>未送付' + (c != null ? '<br><button class="mp" data-i="' + i + '" style="margin:4px 0 0;padding:4px 10px">テスト送信の手前まで進める</button> <span class="mps' + i + '"></span>' : '') + '</td>';
       h += '<tr><td>' + esc(n[1]) + '</td><td>' + S.res.counts[n[0]] + '人</td>' + stt + '</tr>'; });
-    $('.ml').innerHTML = h + '</table>';
+    $('.ml').innerHTML = h + '</table>' + (S.gex[names[0][0]] != null ? '<div class="mu">押すと新しいタブで、宛先・テンプレートを選んだ「テスト送信」の画面まで自動で進みます。テスト送信と一括送信は、そのタブで人が押してください。</div>' : '');
+    [].slice.call(box.querySelectorAll('.mp')).forEach(function (b) { b.onclick = function () { mailPrep(+b.getAttribute('data-i'), names[+b.getAttribute('data-i')][0], b); }; });
+  }
+  // お知らせメール：新しいタブで 会員検索（宛先グループ・最大30000件）→ メール送信 → テンプレート選択 → 送信先を確定 → テスト送信の画面 まで進める。送信ボタンは押さない
+  async function mailPrep(i, grp, btn) {
+    var out = $('.mps' + i), want = S.res.counts[grp];
+    var w = window.open(BO + '/customer/search.aspx?cgname=' + encodeURIComponent(grp) + '&disp.divcgname=open&max=30000', '_blank');
+    if (!w) { out.innerHTML = '<span class="ng">新しいタブを開けない（ポップアップを許可してもう一度）</span>'; return; }
+    btn.disabled = true;
+    var t0 = Date.now(), show = function (m) { out.textContent = m + '（' + fmt((Date.now() - t0) / 1000) + '）'; };
+    var wait = async function (ok, what) { for (var k = 0; k < 120; k++) { await sleep(500); try { if (w.closed) throw new Error('タブが閉じられた'); var d = w.document; if (d.readyState === 'complete' && ok(d, w.location.pathname)) return d; } catch (e) { if (/閉じ/.test(e.message)) throw e; } show(what); } throw new Error(what + 'で止まった（ログイン切れの可能性）'); };
+    var num = function (d) { return +(((d.body.innerText.match(/([\d,]+)\s*件/) || [])[1] || '0').replace(/,/g, '')); };
+    try {
+      var d = await wait(function (d, p) { return /customer\/search/.test(p) && typeof w.doCmdMail === 'function'; }, '宛先を開いています');
+      if (num(d) !== want) throw new Error('宛先が ' + num(d) + '件（' + want + '人のはず）');
+      w.setTimeout(function () { w.doCmdMail(); }, 50);
+      d = await wait(function (d, p) { return /cust_maillist/.test(p) && d.querySelector('select[name=mailtmpl]'); }, 'メール作成画面へ');
+      var sel = d.querySelector('select[name=mailtmpl]'), o = [].slice.call(sel.options).filter(function (o) { return o.textContent.trim() === TMPL[i]; })[0];
+      if (!o) throw new Error('テンプレート「' + TMPL[i] + '」が無い');
+      sel.value = o.value; sel.dispatchEvent(new Event('change', { bubbles: true }));
+      w.setTimeout(function () { d.querySelector('[name=submitButton]').click(); }, 50);
+      d = await wait(function (d) { var b = d.querySelector('[name=button]'); return b && /送信先を確定/.test(b.value); }, '送信先の確認へ');
+      if (num(d) !== want) throw new Error('送信先が ' + num(d) + '件（' + want + '人のはず）');
+      w.setTimeout(function () { d.querySelector('[name=button]').click(); }, 50);
+      d = await wait(function (d) { var b = d.querySelector('[name=button]'); return b && /テスト送信/.test(b.value); }, 'テスト送信の画面へ');
+      var subj = (d.querySelector('[name=subject_text]') || {}).value || '';
+      if (!subj) throw new Error('件名が空');
+      out.innerHTML = '<span class="ok">テスト送信の手前まで準備済（' + want + '件・件名「' + esc(subj) + '」）。開いたタブでテスト送信→一括送信</span>';
+      try { w.focus(); } catch (e) {}
+    } catch (e) { out.innerHTML = '<span class="ng">止めました：' + esc(e.message) + '（開いたタブで続きを手で操作できます）</span>'; btn.disabled = false; }
   }
   // 処理中の表示：「読み込み中…（平均◯ほどで完了・経過◯）」。平均は実際にかかった時間の直近5回（ブラウザに保存）
   var DEF = { ck: 30, run: 180, undo: 40 }, LBL = { ck: '読み込み中', run: '反映中', undo: '取り消し中' }, bzT = null, bz0 = 0, bzK = '';
   function fmt(sec) { sec = Math.round(sec); return sec < 60 ? sec + '秒' : Math.floor(sec / 60) + '分' + (sec % 60 ? sec % 60 + '秒' : ''); }
   function hist(k) { try { return JSON.parse(localStorage.getItem('sis35_t_' + (STG ? 'stg_' : '') + k) || '[]'); } catch (e) { return []; } }
+  // いまどの工程か：01 02 … と並べ、作業中の工程だけ色づけ（作業中 ◯秒経過）、終わった工程は ✓、これからの工程は灰色
+  var STEPS = {
+    ck: ['今月の会員を読み込む', '先月のVIPigを読み込む', 'すでに作ったグループ・クーポンを確認する', '先月のクーポン設定を読み込む', 'メールの送信履歴を確認する'],
+    run: ['会員グループ12個を作る', 'グループに会員を入れる', 'グループの人数を照合する', 'クーポン9種を作る', '発行枚数・対象外商品を照合する'],
+    undo: ['クーポンを消す', 'グループを消す', '読み込み直す']
+  }, stI = -1, st0 = 0, stSub = '';
+  function step(i, sub) { if (i !== stI) st0 = Date.now(); stI = i; stSub = sub || ''; if (bzT) bzTick(); }
+  var bzTick = function () {};
   function busyOn(k) {
     var h = hist(k), avg = h.length ? h.reduce(function (a, b) { return a + b; }, 0) / h.length : DEF[k];
-    bzK = k; bz0 = Date.now(); clearInterval(bzT);
-    var tick = function () { $('.bz').textContent = LBL[k] + '…（' + (h.length ? '平均' : '目安') + fmt(avg) + 'ほどで完了・経過' + fmt((Date.now() - bz0) / 1000) + '）'; };
-    $('.bz').style.display = ''; tick(); bzT = setInterval(tick, 1000);
+    bzK = k; bz0 = Date.now(); stI = -1; clearInterval(bzT);
+    bzTick = function () {
+      var x = '<div class="hd2">' + LBL[k] + '…（' + (h.length ? '平均' : '目安') + fmt(avg) + 'ほどで完了・経過' + fmt((Date.now() - bz0) / 1000) + '）</div><ol>';
+      STEPS[k].forEach(function (t, i) { var n = ('0' + (i + 1)).slice(-2);
+        x += i < stI ? '<li class="done">' + n + ' ' + esc(t) + ' ✓</li>' : i === stI ? '<li class="now">' + n + ' ' + esc(t) + (stSub ? '（' + esc(stSub) + '）' : '') + '　作業中 ' + fmt((Date.now() - st0) / 1000) + '経過</li>' : '<li>' + n + ' ' + esc(t) + '</li>'; });
+      $('.bz').innerHTML = x + '</ol>';
+    };
+    $('.bz').style.display = ''; step(0); bzTick(); bzT = setInterval(bzTick, 1000);
   }
   function busyOff(ok) {
-    clearInterval(bzT); $('.bz').style.display = 'none';
+    clearInterval(bzT); bzT = null; $('.bz').style.display = 'none';
     if (!ok || !bzK) return;
     try { var h = hist(bzK); h.push(Math.round((Date.now() - bz0) / 1000)); localStorage.setItem('sis35_t_' + (STG ? 'stg_' : '') + bzK, JSON.stringify(h.slice(-5))); } catch (e) {}
   }
@@ -342,17 +384,21 @@
       var nd = new Date(), first = new Date(+ym.slice(0, 4), +ym.slice(5, 7) - 1, 1, 7, 30);
       if (!STG && nd < first) throw new Error(ym + ' 分は ' + (first.getMonth() + 1) + '/1 7:30 以降に（1日7時のランク更新より前だと、先月のランクで作ってしまう）');
       S = { ym: ym, keepAll: false, xgDel: {}, xgAdd: [] };
-      S.mem = await members(); log('今月の会員 ' + S.mem.length + '人');
+      if (!fromUndo) step(0); S.mem = await members(); log('今月の会員 ' + S.mem.length + '人');
+      if (!fromUndo) step(1);
       var pg = prevYm(ym) + '会員ランクVIPIG', pex = (await groupList(pg)).filter(function (g) { return g.name === pg; })[0];
       var pv = pex && pex.count ? await members({ cgname: pg }) : [];
       S.prev = new Set(pv.map(function (x) { return x.no; })); S.prevVip = S.prev.size;
       if (pex && pex.count && pv.length !== pex.count) throw new Error('先月のVIPigグループ（' + pex.count + '人）を読み切れない（' + pv.length + '人）');
       log('先月のVIPig ' + S.prevVip + '人' + (pex ? '' : '（グループなし）'));
       S.res = build(ym, S.mem, S.prev, false); S.cps = coupons(ym);
+      if (!fromUndo) step(2);
       var gl = await groupList(ym); S.gex = {}; S.glink = {}; gl.forEach(function (g) { S.gex[g.name] = g.count; S.glink[g.name] = g.href; });
       var cl = await couponList(ym); S.cex = {}; cl.forEach(function (c) { S.cex[c.id] = c; });
+      if (!fromUndo) step(3);
       S.extra = {}; S.extraN = 0;
       for (var c of S.cps) { var e = await prevCouponExtras(prevYm(ym) + c.tail); if (e) { S.extra[c.tail] = e; S.extraN++; } }
+      if (!fromUndo) step(4);
       S.mlog = await mailLog(ym);
       if (!fromUndo) busyOff(true);
       render();
@@ -364,20 +410,22 @@
     $('.run').disabled = true; $('.ck').disabled = true; busyOn('run');
     try {
       var r = S.res;
-      var missing = r.groups.filter(function (g) { return S.gex[g[0]] == null; });
+      step(0); var missing = r.groups.filter(function (g) { return S.gex[g[0]] == null; });
       if (missing.length) await importCSV('tmpcustomergrp', ['会員グループ名', '備考'], missing);
       else log('グループは12個とも既にある（作らない）');
       var gl = await groupList(S.ym); S.gex = {}; S.glink = {}; gl.forEach(function (g) { S.gex[g.name] = g.count; S.glink[g.name] = g.href; });
       var empty = r.groups.filter(function (g) { return !S.gex[g[0]] && r.counts[g[0]] > 0; }).map(function (g) { return g[0]; });
       var wrong = r.groups.filter(function (g) { return S.gex[g[0]] && S.gex[g[0]] !== r.counts[g[0]]; }).map(function (g) { return g[0]; });
       if (wrong.length) throw new Error('人数がもう入っていて計算と違うグループがある（二重取込を防ぐため止めた）：' + wrong.join('、'));
-      if (empty.length) await importCSV('tmpcustomergrpmember', ['会員グループ名', '会員番号'], r.assign.filter(function (a) { return empty.indexOf(a[0]) >= 0; }));
+      step(1); if (empty.length) await importCSV('tmpcustomergrpmember', ['会員グループ名', '会員番号'], r.assign.filter(function (a) { return empty.indexOf(a[0]) >= 0; }));
       gl = await groupList(S.ym); S.gex = {}; S.glink = {}; gl.forEach(function (g) { S.gex[g.name] = g.count; S.glink[g.name] = g.href; });
-      var bad = r.groups.filter(function (g) { return (S.gex[g[0]] || 0) !== r.counts[g[0]]; });
+      step(2); var bad = r.groups.filter(function (g) { return (S.gex[g[0]] || 0) !== r.counts[g[0]]; });
       if (bad.length) throw new Error('取込後の人数が計算と違う：' + bad.map(function (g) { return g[0] + ' ' + (S.gex[g[0]] || 0) + '/' + r.counts[g[0]]; }).join('、'));
       log('12グループとも人数が計算どおり');
       var cl = await couponList(S.ym); S.cex = {}; cl.forEach(function (c) { S.cex[c.id] = c; });
-      for (var c of S.cps) { if (S.cex[c.id]) continue; await createCoupon(c, S.extra[c.tail], xgFor(c)); log('クーポン作成 ' + c.id); }
+      step(3); var ci = 0;
+      for (var c of S.cps) { ci++; if (S.cex[c.id]) continue; step(3, ci + '/9 ' + c.name.replace(/^\d+年\d+月/, '')); await createCoupon(c, S.extra[c.tail], xgFor(c)); log('クーポン作成 ' + c.id); }
+      step(4);
       cl = await couponList(S.ym); S.cex = {}; cl.forEach(function (c) { S.cex[c.id] = c; });
       var cbad = S.cps.filter(function (c) { var x = S.cex[c.id]; return !x || +x.count !== r.counts[c.group]; });
       if (cbad.length) throw new Error('クーポンの発行枚数がグループの人数と違う：' + cbad.map(function (c) { return c.id; }).join('、'));
@@ -393,14 +441,14 @@
     if (!undoArmed) { undoArmed = true; $('.undo').textContent = 'メールを送る前だけ。もう一度押すと ' + S.ym + ' 分を消す'; $('.undo').style.background = '#c92a2a'; $('.undo').style.color = '#fff'; return; }
     $('.undo').disabled = true; $('.ck').disabled = true; $('.run').disabled = true; busyOn('undo');
     try {
-      var n1 = 0, n2 = 0;
+      var n1 = 0, n2 = 0; step(0);
       for (var c of S.cps) {
         var u = 'coupon/event_detail.aspx?mode=update&coupon_type=1&coupon_event=' + encodeURIComponent(c.id);
         var d = await doc(u), f = d.forms[0]; if (new FormData(f).get('coupon_event') !== c.id) continue;
         var fd = fdOf(f); fd.set('cmdDelete', f.querySelector('[name=cmdDelete]').value);
         await (await fetch(BO + '/' + u, { method: 'POST', body: fd, credentials: 'include' })).text(); n1++; log('クーポン削除 ' + c.id);
       }
-      var names = S.res.groups.map(function (g) { return g[0]; });
+      step(1); var names = S.res.groups.map(function (g) { return g[0]; });
       var gl = await groupList(S.ym);
       for (var g of gl) {
         if (names.indexOf(g.name) < 0) continue;
@@ -410,7 +458,7 @@
         await (await fetch(BO + '/' + u2, { method: 'POST', body: fd2, credentials: 'include' })).text(); n2++; log('グループ削除 ' + g.name);
       }
       undoArmed = false; $('.undo').textContent = '反映を取り消す'; $('.undo').style.background = ''; $('.undo').style.color = '';
-      await check(); busyOff(true);
+      step(2); await check(); busyOff(true);
       $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok">取り消しました（クーポン' + n1 + '種・グループ' + n2 + '個を削除）。直してからもう一度「この内容で反映」</div>');
     } catch (e) { busyOff(false); $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">取り消しの途中で止まりました：' + esc(e.message) + '</div>'); }
     $('.undo').disabled = false;
