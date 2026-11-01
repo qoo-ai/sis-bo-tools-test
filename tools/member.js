@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.8 (2026-11-01)';
+  var VER = 'T35 v2.9 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -25,7 +25,7 @@
     '#sis35 h4{margin:12px 0 2px;font-size:13px}#sis35 pre{white-space:pre-wrap;background:#f6f6f6;padding:6px;max-height:160px;overflow:auto;margin:8px 0 0;font-size:11px}#sis35 a{color:#1971c2}</style>' +
     '<div class="hd"><span>SIS 会員ランク特典（月初）（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
     '<div class="bd"><div>対象月：<input class="ym" value="' + ymNow + '" style="width:80px"> の月初分</div>' +
-    '<button class="ck" style="display:none"></button><button class="run go" disabled>この内容で反映</button><button class="undo" style="display:none">反映を取り消す</button>' +
+    '<button class="ck" style="display:none"></button><button class="run go" disabled>この内容で反映</button><button class="mail go" disabled>テスト送信まで進める</button><button class="undo" style="display:none">クーポンを取り消す</button>' +
     '<div class="bz" style="display:none;margin-top:8px"></div><div class="pv"></div><div class="ml"></div><pre class="log" style="display:none"></pre></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
@@ -247,9 +247,9 @@
     var gAll = r.groups.every(function (g) { return S.gex[g[0]] === r.counts[g[0]]; }), cAll = S.cps.every(function (c) { return S.cex[c.id]; });
     var mSent = (S.mlog || []).length ? TMPL.filter(function (t) { return S.mlog.some(function (x) { return x.tmpl.indexOf(t) >= 0; }); }).length : 0;
     var phase = !(gAll && cAll) ? 0 : mSent < 3 ? 1 : 2;
-    var flow = ['反映（グループ12個・クーポン9種）', 'お知らせメール3通を送る（送付済 ' + mSent + '/3）'];
-    h = '<div style="margin:6px 0 4px">' + flow.map(function (t, i) { var n = ('0' + (i + 1)).slice(-2); return '<span style="display:inline-block;margin-right:6px;padding:2px 8px;border-radius:4px;' + (i < phase ? 'color:#2b8a3e">' + n + ' ' + esc(t) + ' ✓' : i === phase ? 'background:#e7f5ff;color:#1971c2;font-weight:bold">' + n + ' ' + esc(t) + '　← いまここ' : 'color:#adb5bd">' + n + ' ' + esc(t)) + '</span>'; }).join('') + (phase === 2 ? '<span class="ok">' + esc(S.ym) + ' 分はすべて完了</span>' : '') + '</div>' + h;
-    if (!ng.length && phase === 1) h = h.replace(/<div class="ok">下の内容で問題なければ[^<]*<\/div>/, '<div class="ok">' + esc(S.ym) + ' 分は反映済。続けて下の「お知らせメール」を送ってください</div>');
+    var flow = ['反映', 'メール送信（' + mSent + '/3）'];
+    h = '<div style="margin:6px 0 4px">' + flow.map(function (t, i) { var n = ('0' + (i + 1)).slice(-2); return '<span style="display:inline-block;margin-right:6px;padding:2px 8px;border-radius:4px;' + (i < phase ? 'color:#2b8a3e">' + n + ' ' + esc(t) + ' ✓' : i === phase ? 'background:#e7f5ff;color:#1971c2;font-weight:bold">' + n + ' ' + esc(t) + ' ← いまここ' : 'color:#adb5bd">' + n + ' ' + esc(t)) + '</span>'; }).join('') + (phase === 2 ? '<span class="ok">すべて完了</span>' : '') + '</div>' + h;
+    if (!ng.length && phase === 1) h = h.replace(/<div class="ok">下の内容で問題なければ[^<]*<\/div>/, '<div class="ok">反映済。「テスト送信まで進める」を押すと、3通分のタブが開きます。各タブでテスト送信→一括送信を押してください。</div>');
     if (!ng.length && phase === 2) h = h.replace(/<div class="ok">下の内容で問題なければ[^<]*<\/div>/, '');
     if (!S.prevVip && !S.keepAll) h += '<div class="ng"><label><input type="checkbox" class="ka"> 先月のVIPigグループが無いので、今月のVIPig全員をお礼の宛先にする</label></div>';
     h += '<h4>会員グループ（12）</h4><table><tr><th>グループ</th><th>人数</th><th>状態</th></tr>';
@@ -316,47 +316,84 @@
     } catch (e) { log('メール発行履歴が読めない ' + e.message); return null; }
   }
   function recompute() { S.res = build(S.ym, S.mem, S.prev, S.keepAll); render(); }
+  var MAILS = function () { return [[S.ym + '得々クーポン配布メール', '得々クーポン'], [S.ym + '誕生日クーポン配布メール', 'お誕生日クーポン'], ['【' + S.ym + 'ランクキープ】VIPIG', 'VIPig継続のお礼']]; };
+  var EMAIL = /^[^@\s,]+@[^@\s,]+\.[^@\s,]+$/;
+  function sentOf(i) { return (S.mlog || []).filter(function (x) { return x.tmpl.indexOf(TMPL[i]) >= 0; }); }
   function renderMail() {
-    var names = [[S.ym + '得々クーポン配布メール', 'とこトンとん得々クーポンのお知らせ'], [S.ym + '誕生日クーポン配布メール', 'お誕生日クーポンのお知らせ'], ['【' + S.ym + 'ランクキープ】VIPIG', 'VIPig継続のお礼']];
+    var names = MAILS(), made = S.gex[names[0][0]] != null;
     var h = '<h4>お知らせメール（3）</h4><table><tr><th>メール</th><th>宛先</th><th>状態</th></tr>';
-    names.forEach(function (n, i) { var c = S.gex[n[0]], sent = (S.mlog || []).filter(function (x) { return x.tmpl.indexOf(TMPL[i]) >= 0; });
-      var stt = S.mlog === null ? '<td class="wa">確認できない（一括メール発行履歴を見る）</td>' : sent.length ? '<td class="ok">送付済（' + sent.map(function (x) { return esc(x.start.slice(5).replace(/:\d+$/, '')) + '・' + esc(x.sent) + '通'; }).join('／') + '）</td>'
-        : '<td>未送付' + (c != null ? '<br><button class="mp" data-i="' + i + '" style="margin:4px 0 0;padding:4px 10px">テスト送信の手前まで進める</button> <span class="mps' + i + '"></span>' : '') + '</td>';
+    names.forEach(function (n, i) { var sent = sentOf(i), ps = (S.mprep || {})[i];
+      var stt = S.mlog === null ? '<td class="wa">確認できない</td>' : sent.length ? '<td class="ok">送付済（' + sent.map(function (x) { return esc(x.start.slice(5).replace(/:\d+$/, '')) + '・' + esc(x.sent) + '通'; }).join('／') + '）</td>'
+        : ps ? '<td class="' + (ps.c || '') + '">' + esc(ps.t) + '</td>' : '<td>未送付</td>';
       h += '<tr><td>' + esc(n[1]) + '</td><td>' + S.res.counts[n[0]] + '人</td>' + stt + '</tr>'; });
-    $('.ml').innerHTML = h + '</table>' + (S.gex[names[0][0]] != null ? '<div class="mu">押すと新しいタブで、宛先・テンプレートを選んだ「テスト送信」の画面まで自動で進みます。テスト送信と一括送信は、そのタブで人が押してください。</div>' : '');
-    [].slice.call(box.querySelectorAll('.mp')).forEach(function (b) { b.onclick = function () { mailPrep(+b.getAttribute('data-i'), names[+b.getAttribute('data-i')][0], b); }; });
+    h += '</table><div style="margin-top:6px">テスト送信先（カンマ区切り）<br><input class="tm" style="width:100%;box-sizing:border-box" value="' + esc((S.tmail || []).join(', ')) + '"><div class="mu">翌月は、今月の送信先を引き継ぎます。</div></div>';
+    $('.ml').innerHTML = h;
+    var todo = names.some(function (n, i) { return !sentOf(i).length; });
+    $('.mail').disabled = !made || S.mlog === null || !todo || S.mbusy;
   }
-  // お知らせメール：新しいタブで 会員検索（宛先グループ・最大30000件）→ メール送信 → テンプレート選択 → 送信先を確定 → テスト送信の画面 まで進める。送信ボタンは押さない
-  async function mailPrep(i, grp, btn) {
-    var out = $('.mps' + i), want = S.res.counts[grp];
-    var w = window.open('about:blank', '_blank'); // クリックした瞬間に開く（後で開くとポップアップ扱いで止められる）
-    if (!w) { out.innerHTML = '<span class="ng">新しいタブを開けない（ポップアップを許可してもう一度）</span>'; return; }
-    btn.disabled = true; out.textContent = '送信履歴を確認しています…';
-    var ml = await mailLog(S.ym); // 二重送信を防ぐ：もう送っていたら進めない
-    if (ml === null || ml.some(function (x) { return x.tmpl.indexOf(TMPL[i]) >= 0; })) { w.close(); S.mlog = ml; renderMail(); if (ml === null) $('.ml').insertAdjacentHTML('afterbegin', '<div class="ng">送信履歴が読めないので止めました（二重送信を防ぐため）</div>'); return; }
-    w.location.href = (BO + '/customer/search.aspx?cgname=' + encodeURIComponent(grp) + '&disp.divcgname=open&max=30000');
-    var t0 = Date.now(), show = function (m) { out.textContent = m + '（' + fmt((Date.now() - t0) / 1000) + '）'; };
-    var wait = async function (ok, what) { for (var k = 0; k < 120; k++) { await sleep(500); try { if (w.closed) throw new Error('タブが閉じられた'); var d = w.document; if (d.readyState === 'complete' && ok(d, w.location.pathname)) return d; } catch (e) { if (/閉じ/.test(e.message)) throw e; } show(what); } throw new Error(what + 'で止まった（ログイン切れの可能性）'); };
+  // テスト送信先：今月の「得々クーポン配布メール」グループの備考に保存（無ければ先月のグループ→既定）。BOに置くので誰のPCでも同じ
+  var TM_DEF = ['qoo.masuda@gmail.com', 'seki_yu@drugstores.co.jp', 'info@drugstores-shop.com'];
+  function tmParse(t) { var m = String(t || '').match(/テスト送信先[:：]\s*([^｜\n]*)/); return m ? m[1].split(/[,、\s]+/).filter(function (x) { return EMAIL.test(x); }) : null; }
+  async function grpDetail(name) { var g = (await groupList(name)).filter(function (x) { return x.name === name; })[0]; if (!g) return null; var u = 'customergroup/' + g.href.replace(/^.*customergroup\//, ''), d = await doc(u); return { u: u, d: d, remarks: (d.querySelector('[name=remarks]') || {}).value || '' }; }
+  async function tmLoad() {
+    var cur = await grpDetail(S.ym + '得々クーポン配布メール'), v = cur && tmParse(cur.remarks);
+    if (!v) { var pv = await grpDetail(prevYm(S.ym) + '得々クーポン配布メール'); v = pv && tmParse(pv.remarks); }
+    return v && v.length ? v : TM_DEF.slice();
+  }
+  async function tmSave(list) {
+    var g = await grpDetail(S.ym + '得々クーポン配布メール'); if (!g) throw new Error('得々クーポン配布メールのグループが無い');
+    var base = g.remarks.replace(/｜?テスト送信先[:：][^｜\n]*/, ''), want = base + '｜テスト送信先：' + list.join(', ');
+    if (g.remarks === want) return;
+    var f = g.d.forms[0], fd = fdOf(f); fd.set('remarks', want); fd.set('cmdUpdate', f.querySelector('[name=cmdUpdate]').value);
+    await (await fetch(BO + '/' + g.u, { method: 'POST', body: fd, credentials: 'include' })).text();
+    var chk = await grpDetail(S.ym + '得々クーポン配布メール'); if (!chk || chk.remarks !== want) throw new Error('テスト送信先を保存できない');
+  }
+  // 1つのボタンで3通分のタブを開き、それぞれ 会員検索（宛先グループ）→ メール送信 → テンプレート → 送信先を確定 → テスト送信の画面（テスト送信先を入れた状態）まで進める。送信ボタンは押さない
+  async function mailAll() {
+    var names = MAILS(), list = $('.tm').value.split(/[,、\s]+/).filter(function (x) { return x; });
+    var bad = list.filter(function (x) { return !EMAIL.test(x); });
+    if (!list.length || bad.length) { $('.ml').insertAdjacentHTML('afterbegin', '<div class="ng">テスト送信先を確認：' + esc(bad.join(', ') || '空') + '</div>'); return; }
+    var todo = names.map(function (n, i) { return i; }).filter(function (i) { return !sentOf(i).length; });
+    var ws = {}; todo.forEach(function (i) { ws[i] = window.open('about:blank', '_blank'); }); // クリックした瞬間に開く（後だとポップアップとして止められる）
+    S.mbusy = true; S.mprep = {}; $('.mail').disabled = true;
+    try {
+      if (todo.some(function (i) { return !ws[i]; })) throw new Error('タブを開けない。アドレスバー右のポップアップ表示から「常に許可」にしてもう一度');
+      todo.forEach(function (i) { S.mprep[i] = { t: '準備中' }; }); renderMail(); $('.tm').value = list.join(', ');
+      await tmSave(list); S.tmail = list;
+      var ml = await mailLog(S.ym); S.mlog = ml; // 二重送信を防ぐ：送付済のメールは進めない
+      if (ml === null) throw new Error('送信履歴が読めない（二重送信を防ぐため止めた）');
+      await Promise.all(todo.map(function (i) {
+        if (sentOf(i).length) { ws[i].close(); return Promise.resolve(); }
+        return mailPrep(i, names[i][0], ws[i], list);
+      }));
+    } catch (e) { Object.keys(ws).forEach(function (k) { try { if (ws[k] && ws[k].location.href === 'about:blank') ws[k].close(); } catch (x) {} }); $('.ml').insertAdjacentHTML('afterbegin', '<div class="ng">止めました：' + esc(e.message) + '</div>'); }
+    S.mbusy = false; renderMail();
+  }
+  async function mailPrep(i, grp, w, list) {
+    var want = S.res.counts[grp], t0 = Date.now();
+    var show = function (m, c) { S.mprep[i] = { t: m, c: c }; var td = $('.ml').querySelectorAll('tr')[i + 1]; if (td) { td.cells[2].textContent = m; td.cells[2].className = c || ''; } };
+    var wait = async function (ok) { for (var k = 0; k < 120; k++) { await sleep(500); try { if (w.closed) throw new Error('タブが閉じられた'); var d = w.document; if (d.readyState === 'complete' && ok(d, w.location.pathname)) return d; } catch (e) { if (/閉じ/.test(e.message)) throw e; } show('準備中（' + fmt((Date.now() - t0) / 1000) + '）'); } throw new Error('タブが進まない（ログイン切れの可能性）'); };
     var num = function (d) { return +(((d.body.innerText.match(/([\d,]+)\s*件/) || [])[1] || '0').replace(/,/g, '')); };
     try {
-      var d = await wait(function (d, p) { return /customer\/search/.test(p) && typeof w.doCmdMail === 'function'; }, '宛先を開いています');
-      if (num(d) !== want) throw new Error('宛先が ' + num(d) + '件（' + want + '人のはず）');
+      w.location.href = BO + '/customer/search.aspx?cgname=' + encodeURIComponent(grp) + '&disp.divcgname=open&max=30000';
+      var d = await wait(function (d, p) { return /customer\/search/.test(p) && typeof w.doCmdMail === 'function'; });
+      if (num(d) !== want) throw new Error('宛先が' + num(d) + '件（' + want + '件のはず）');
       w.setTimeout(function () { w.doCmdMail(); }, 50);
-      d = await wait(function (d, p) { return /cust_maillist/.test(p) && d.querySelector('select[name=mailtmpl]'); }, 'メール作成画面へ');
+      d = await wait(function (d, p) { return /cust_maillist/.test(p) && d.querySelector('select[name=mailtmpl]'); });
       var sel = d.querySelector('select[name=mailtmpl]'), o = [].slice.call(sel.options).filter(function (o) { return o.textContent.trim() === TMPL[i]; })[0];
       if (!o && STG) o = [].slice.call(sel.options).filter(function (o) { return o.value; })[0]; // stgには本番のテンプレートが無いので、試験用に先頭のものを使う
-      if (!o) throw new Error('テンプレート「' + TMPL[i] + '」が無い');
+      if (!o) throw new Error('テンプレートが無い');
       sel.value = o.value; sel.dispatchEvent(new Event('change', { bubbles: true }));
       w.setTimeout(function () { d.querySelector('[name=submitButton]').click(); }, 50);
-      d = await wait(function (d) { var b = d.querySelector('[name=button]'); return b && /送信先を確定/.test(b.value); }, '送信先の確認へ');
-      if (num(d) !== want) throw new Error('送信先が ' + num(d) + '件（' + want + '人のはず）');
+      d = await wait(function (d) { var b = d.querySelector('[name=button]'); return b && /送信先を確定/.test(b.value); });
+      if (num(d) !== want) throw new Error('送信先が' + num(d) + '件（' + want + '件のはず）');
       w.setTimeout(function () { d.querySelector('[name=button]').click(); }, 50);
-      d = await wait(function (d) { var b = d.querySelector('[name=button]'); return b && /テスト送信/.test(b.value); }, 'テスト送信の画面へ');
-      var subj = (d.querySelector('[name=subject_text]') || {}).value || '';
-      if (!subj) throw new Error('件名が空');
-      out.innerHTML = '<span class="ok">テスト送信の手前まで準備済（' + want + '件・件名「' + esc(subj) + '」）。開いたタブでテスト送信→一括送信</span>';
-      try { w.focus(); } catch (e) {}
-    } catch (e) { out.innerHTML = '<span class="ng">止めました：' + esc(e.message) + '（開いたタブで続きを手で操作できます）</span>'; btn.disabled = false; }
+      d = await wait(function (d) { var b = d.querySelector('[name=button]'); return b && /テスト送信/.test(b.value); });
+      var am = d.querySelector('[name=adminmail]'); if (!am) throw new Error('テスト送信先の欄が無い');
+      am.value = list.join(','); am.dispatchEvent(new Event('change', { bubbles: true }));
+      if (!(d.querySelector('[name=subject_text]') || {}).value) throw new Error('件名が空');
+      show('準備OK（' + want + '件）→ タブでテスト送信', 'ok');
+    } catch (e) { show('止まった：' + e.message, 'ng'); }
   }
   // 処理中の表示：「読み込み中…（平均◯ほどで完了・経過◯）」。平均は実際にかかった時間の直近5回（ブラウザに保存）
   var DEF = { ck: 30, run: 180, undo: 40 }, LBL = { ck: '読み込み中', run: '反映中', undo: '取り消し中' }, bzT = null, bz0 = 0, bzK = '';
@@ -374,9 +411,9 @@
     var h = hist(k), avg = h.length ? h.reduce(function (a, b) { return a + b; }, 0) / h.length : DEF[k];
     bzK = k; bz0 = Date.now(); stI = -1; clearInterval(bzT);
     bzTick = function () {
-      var x = '<div class="hd2">' + LBL[k] + '…（' + (h.length ? '平均' : '目安') + fmt(avg) + 'ほどで完了・経過' + fmt((Date.now() - bz0) / 1000) + '）</div><ol>';
+      var x = '<div class="hd2">' + LBL[k] + '（' + (h.length ? '平均' : '目安') + fmt(avg) + '・経過' + fmt((Date.now() - bz0) / 1000) + '）</div><ol>';
       STEPS[k].forEach(function (t, i) { var n = ('0' + (i + 1)).slice(-2);
-        x += i < stI ? '<li class="done">' + n + ' ' + esc(t) + ' ✓</li>' : i === stI ? '<li class="now">' + n + ' ' + esc(t) + (stSub ? '（' + esc(stSub) + '）' : '') + '　作業中 ' + fmt((Date.now() - st0) / 1000) + '経過</li>' : '<li>' + n + ' ' + esc(t) + '</li>'; });
+        x += i < stI ? '<li class="done">' + n + ' ' + esc(t) + ' ✓</li>' : i === stI ? '<li class="now">' + n + ' ' + esc(t) + (stSub ? '（' + esc(stSub) + '）' : '') + '　作業中 ' + fmt((Date.now() - st0) / 1000) + '</li>' : '<li>' + n + ' ' + esc(t) + '</li>'; });
       $('.bz').innerHTML = x + '</ol>';
     };
     $('.bz').style.display = ''; step(0); bzTick(); bzT = setInterval(bzTick, 1000);
@@ -389,7 +426,7 @@
   var ckId = 0;
   async function check() {
     var my = ++ckId;
-    $('.ck').disabled = true; $('.run').disabled = true; $('.pv').innerHTML = ''; $('.ml').innerHTML = ''; var fromUndo = bzK === 'undo' && $('.bz').style.display === ''; if (!fromUndo) busyOn('ck');
+    $('.ck').disabled = true; $('.run').disabled = true; $('.mail').disabled = true; $('.pv').innerHTML = ''; $('.ml').innerHTML = ''; var fromUndo = bzK === 'undo' && $('.bz').style.display === ''; if (!fromUndo) busyOn('ck');
     try {
       var ym = $('.ym').value.trim(); if (!/^\d{4}-\d{2}$/.test(ym)) throw new Error('対象月は 2026-11 の形で');
       var nd = new Date(), first = new Date(+ym.slice(0, 4), +ym.slice(5, 7) - 1, 1, 7, 30);
@@ -410,7 +447,7 @@
       S.extra = {}; S.extraN = 0;
       for (var c of S.cps) { var e = await prevCouponExtras(prevYm(ym) + c.tail); if (e) { S.extra[c.tail] = e; S.extraN++; } }
       if (!fromUndo) step(4);
-      S.mlog = await mailLog(ym);
+      S.mlog = await mailLog(ym); S.tmail = await tmLoad().catch(function () { return TM_DEF.slice(); });
       if (my !== ckId) return; // 途中で対象月を変えた：古い読み込みは捨てる
       if (!fromUndo) busyOff(true);
       render();
@@ -419,7 +456,7 @@
   }
   async function run() {
     if (!S || !S.res.ok) return;
-    $('.run').disabled = true; $('.ck').disabled = true; busyOn('run');
+    $('.run').disabled = true; $('.ck').disabled = true; $('.mail').disabled = true; busyOn('run');
     try {
       var r = S.res;
       step(0); var missing = r.groups.filter(function (g) { return S.gex[g[0]] == null; });
@@ -449,8 +486,8 @@
   // 反映の取り消し：この月にツールが作るクーポン9種とグループ12個だけを消す（メールを送る前に使う。送ったメールは戻せない）
   var undoArmed = false;
   async function undo() {
-    if (!undoArmed) { undoArmed = true; $('.undo').textContent = 'メールを送る前だけ。もう一度押すと ' + S.ym + ' 分を消す'; $('.undo').style.background = '#c92a2a'; $('.undo').style.color = '#fff'; return; }
-    $('.undo').disabled = true; $('.ck').disabled = true; $('.run').disabled = true; busyOn('undo');
+    if (!undoArmed) { undoArmed = true; $('.undo').textContent = 'もう一度押すと取り消す（メール送信前だけ）'; $('.undo').style.background = '#c92a2a'; $('.undo').style.color = '#fff'; return; }
+    $('.undo').disabled = true; $('.ck').disabled = true; $('.run').disabled = true; $('.mail').disabled = true; busyOn('undo');
     try {
       var n1 = 0, n2 = 0; step(0);
       for (var c of S.cps) {
@@ -468,13 +505,13 @@
         fd2.set('cmdDelete', f2.querySelector('[name=cmdDelete]').value);
         await (await fetch(BO + '/' + u2, { method: 'POST', body: fd2, credentials: 'include' })).text(); n2++; log('グループ削除 ' + g.name);
       }
-      undoArmed = false; $('.undo').textContent = '反映を取り消す'; $('.undo').style.background = ''; $('.undo').style.color = '';
+      undoArmed = false; $('.undo').textContent = 'クーポンを取り消す'; $('.undo').style.background = ''; $('.undo').style.color = '';
       step(2); await check(); busyOff(true);
-      $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok">取り消しました（クーポン' + n1 + '種・グループ' + n2 + '個を削除）。直してからもう一度「この内容で反映」</div>');
+      $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok">取り消しました（クーポン' + n1 + '種・グループ' + n2 + '個）</div>');
     } catch (e) { busyOff(false); $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">取り消しの途中で止まりました：' + esc(e.message) + '</div>'); }
     $('.undo').disabled = false;
   }
-  $('.ck').onclick = check; $('.run').onclick = run; $('.undo').onclick = undo;
+  $('.ck').onclick = check; $('.run').onclick = run; $('.undo').onclick = undo; $('.mail').onclick = mailAll;
   $('.ym').onchange = check; // 対象月を変えたら読み直す
   check(); // 開いたらそのまま読み込む（書き込みはしない）
 })();
