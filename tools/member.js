@@ -1,15 +1,15 @@
 /* SIS 会員ランク特典（月初）— T-35（#SP-1M）
- * 毎月1日7時のランク更新のあと（1日〜3営業日以内）に、BOでブックマーク →「会員ランク特典（月初）」→ ①確認 → ②反映。
+ * 毎月1日7時のランク更新のあと（1日〜3営業日以内）に、BOでブックマーク →「会員ランク特典（月初）」→ 開くと自動で読み込み → 「この内容で反映」。
  * やること：今月のランク・生年月日を会員検索から読む → 12グループに振り分け → 会員グループ取込（グループ→メンバー）→ 人数照合
- *          → クーポン9種（お誕生日5・とこトンとん得々4）を作成。お知らせメール3通は ③ から宛先グループを開いて送る。
+ *          → クーポン9種（お誕生日5・とこトンとん得々4）を作成。お知らせメール3通は「宛先を開く」から送る。
  * 月末23:50のバックアップは不要：先月のVIPigは「先月1日に作った YYYY-MM会員ランクVIPIG グループ」から読む（ランクは1日7時にしか変わらない）。
- * ③のリンクは会員一覧を最大件数30000で開く（そこから［メール送信］→テンプレート）。
- * 何度押しても二重にならない：今月のグループ・クーポンが既にあれば作らずに飛ばす。途中で止まっても、もう一度②で続きから。
+ * 「宛先を開く」は会員一覧を最大件数30000で開く（そこから［メール送信］→テンプレート）。
+ * 何度押しても二重にならない：今月のグループ・クーポンが既にあれば作らずに飛ばす。途中で止まっても、もう一度「この内容で反映」で続きから。
  * ルールは member_tools.py（9/1・10/1の実取込と照合済み）と同じ。前提：会員検索の「表示項目の選択」に 会員ランク・生年月日。
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.5 (2026-11-01)';
+  var VER = 'T35 v2.6 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -25,7 +25,7 @@
     '#sis35 h4{margin:12px 0 2px;font-size:13px}#sis35 pre{white-space:pre-wrap;background:#f6f6f6;padding:6px;max-height:160px;overflow:auto;margin:8px 0 0;font-size:11px}#sis35 a{color:#1971c2}</style>' +
     '<div class="hd"><span>SIS 会員ランク特典（月初）（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
     '<div class="bd"><div>対象月：<input class="ym" value="' + ymNow + '" style="width:80px"> の月初分</div>' +
-    '<button class="ck go">① プレビュー</button><button class="run go" disabled>② この内容で反映</button><button class="undo" style="display:none">②を取り消す</button>' +
+    '<button class="ck" style="display:none"></button><button class="run go" disabled>この内容で反映</button><button class="undo" style="display:none">反映を取り消す</button>' +
     '<div class="bz" style="display:none;margin-top:8px;color:#1971c2;font-weight:bold"></div><div class="pv"></div><div class="ml"></div><pre class="log" style="display:none"></pre></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
@@ -94,7 +94,7 @@
     if (!rows.length || (rows[0].indexOf('会員番号') < 0 && t.length < 500)) return [];
     var h = rows[0], iNo = h.indexOf('会員番号'), iR = h.indexOf('会員ランク'), iB = h.indexOf('生年月日');
     if (iNo < 0) throw new Error('会員検索のCSVが取れない（ログイン切れの可能性）');
-    if (iR < 0 || iB < 0) throw new Error('会員検索の「表示項目の選択」に「会員ランク」「生年月日」を入れてから、もう一度①');
+    if (iR < 0 || iB < 0) throw new Error('会員検索の「表示項目の選択」に「会員ランク」「生年月日」を入れてから、ツールを開き直してください');
     return rows.slice(1).map(function (r) { return { no: (r[iNo] || '').trim(), rank: (r[iR] || '').trim(), birth: (r[iB] || '').trim() }; });
   }
   async function groupList(word) {
@@ -123,7 +123,7 @@
       if (me && /success/i.test(me.status)) { log('取込完了（success）'); return; }
       if (me && /error|fail|エラー/i.test(me.status)) throw new Error('取込エラー：' + me.status + '（会員グループインポートの処理状況ログを確認）');
     }
-    throw new Error('取込が8分で終わらない（会員グループインポートの処理状況ログを確認し、終わってからもう一度②）');
+    throw new Error('取込が8分で終わらない（会員グループインポートの処理状況ログを確認し、終わってからもう一度「この内容で反映」）');
   }
   async function couponList(prefix) {
     var d = await doc('coupon/event_list.aspx?coupon_event=' + encodeURIComponent(prefix) + '&cmdSearch=1');
@@ -243,9 +243,9 @@
   function render() {
     var r = S.res, ng = r.checks.filter(function (c) { return c[2] !== 'OK'; });
     var h = ng.length ? '<div class="ng">反映できません：' + ng.map(function (c) { return esc(c[0]) + '（' + esc(c[1]) + '）' + (c[3] ? '→' + esc(c[3]) : ''); }).join('／') + '</div>'
-                      : '<div class="ok">下の内容で問題なければ、「② この内容で反映」を押してください。</div>';
+                      : '<div class="ok">下の内容で問題なければ、「この内容で反映」を押してください。</div>';
     var gAll = r.groups.every(function (g) { return S.gex[g[0]] === r.counts[g[0]]; }), cAll = S.cps.every(function (c) { return S.cex[c.id]; });
-    if (!ng.length && gAll && cAll) h = '<div class="ok">' + esc(S.ym) + ' 分は作成済。②は不要</div>';
+    if (!ng.length && gAll && cAll) h = '<div class="ok">' + esc(S.ym) + ' 分は作成済。反映は不要</div>';
     if (!S.prevVip && !S.keepAll) h += '<div class="ng"><label><input type="checkbox" class="ka"> 先月のVIPigグループが無いので、今月のVIPig全員をお礼の宛先にする</label></div>';
     h += '<h4>会員グループ（12）</h4><table><tr><th>グループ</th><th>人数</th><th>状態</th></tr>';
     r.groups.forEach(function (g) { h += '<tr><td>' + esc(g[0]) + '</td><td>' + r.counts[g[0]] + '人</td>' + st(S.gex[g[0]], r.counts[g[0]], '人数') + '</tr>'; });
@@ -274,8 +274,7 @@
       xa.disabled = false;
     };
     $('.run').disabled = !r.ok || (gAll && cAll) || (!STG && S.extraN < S.cps.length);
-    $('.run').textContent = gAll && cAll ? '② 反映済' : '② この内容で反映';
-    $('.ck').classList.remove('go'); $('.ck').classList.add('dn'); // ①を押したら①は灰色、②を目立たせる
+    $('.run').textContent = gAll && cAll ? '反映済' : 'この内容で反映';
     var any = r.groups.some(function (g) { return S.gex[g[0]] != null; }) || S.cps.some(function (c) { return S.cex[c.id]; });
     $('.undo').style.display = any ? '' : 'none';
     renderMail();
@@ -292,7 +291,7 @@
     S.xgAdd.forEach(function (g) { if (!S.xgDel[g.code] && !base.some(function (b) { return b.code === g.code; })) base.push({ code: g.code, name: '' }); });
     return base;
   }
-  async function goodsLookup(code) { // BOの商品選択画面で商品コードを探す（無い商品は除外に入れられない＝②が途中で止まるのを防ぐ）
+  async function goodsLookup(code) { // BOの商品選択画面で商品コードを探す（無い商品は除外に入れられない＝反映が途中で止まるのを防ぐ）
     var u = 'master/goods.aspx?formname=frmCoupon&returntype=accessory', d = await doc(u), f = d.forms[0], fd = fdOf(f);
     fd.set('goods', code); fd.set('cmdSearch', f.querySelector('[name=cmdSearch]').value);
     var t = new DOMParser().parseFromString(await (await fetch(BO + '/' + u, { method: 'POST', body: fd, credentials: 'include' })).text(), 'text/html');
@@ -384,11 +383,11 @@
       if (cbad.length) throw new Error('クーポンの発行枚数がグループの人数と違う：' + cbad.map(function (c) { return c.id; }).join('、'));
       log('クーポン9種とも、発行枚数＝グループの人数');
       busyOff(true); render();
-      $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok" style="font-size:14px">✅ ②まで完了。続けて③でメールを送る</div>');
+      $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok" style="font-size:14px">✅ 反映が完了。続けて下のお知らせメールを送ってください</div>');
     } catch (e) { busyOff(false); render(); $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">止めました：' + esc(e.message) + '</div>'); log('NG ' + e.message); }
     $('.ck').disabled = false;
   }
-  // ②の取り消し：この月にツールが作るクーポン9種とグループ12個だけを消す（メールを送る前に使う。送ったメールは戻せない）
+  // 反映の取り消し：この月にツールが作るクーポン9種とグループ12個だけを消す（メールを送る前に使う。送ったメールは戻せない）
   var undoArmed = false;
   async function undo() {
     if (!undoArmed) { undoArmed = true; $('.undo').textContent = 'メールを送る前だけ。もう一度押すと ' + S.ym + ' 分を消す'; $('.undo').style.background = '#c92a2a'; $('.undo').style.color = '#fff'; return; }
@@ -410,11 +409,13 @@
         fd2.set('cmdDelete', f2.querySelector('[name=cmdDelete]').value);
         await (await fetch(BO + '/' + u2, { method: 'POST', body: fd2, credentials: 'include' })).text(); n2++; log('グループ削除 ' + g.name);
       }
-      undoArmed = false; $('.undo').textContent = '②を取り消す'; $('.undo').style.background = ''; $('.undo').style.color = '';
+      undoArmed = false; $('.undo').textContent = '反映を取り消す'; $('.undo').style.background = ''; $('.undo').style.color = '';
       await check(); busyOff(true);
-      $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok">取り消しました（クーポン' + n1 + '種・グループ' + n2 + '個を削除）。直してからもう一度①→②</div>');
+      $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok">取り消しました（クーポン' + n1 + '種・グループ' + n2 + '個を削除）。直してからもう一度「この内容で反映」</div>');
     } catch (e) { busyOff(false); $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">取り消しの途中で止まりました：' + esc(e.message) + '</div>'); }
     $('.undo').disabled = false;
   }
   $('.ck').onclick = check; $('.run').onclick = run; $('.undo').onclick = undo;
+  $('.ym').onchange = check; // 対象月を変えたら読み直す
+  check(); // 開いたらそのまま読み込む（書き込みはしない）
 })();
