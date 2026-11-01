@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.11 (2026-11-01)';
+  var VER = 'T35 v2.12 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -21,7 +21,7 @@
     '#sis35 .hd{padding:8px 12px;background:' + C2 + ';font-weight:bold;display:flex;justify-content:space-between}#sis35 .bd{padding:10px 12px}' +
     '#sis35 table{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}#sis35 td,#sis35 th{border-bottom:1px solid #eee;padding:3px 4px;text-align:left;vertical-align:top}' +
     '#sis35 .ok{color:#2b8a3e;font-weight:bold}#sis35 .ng{color:#c92a2a;font-weight:bold}#sis35 .wa{color:#e8590c;font-weight:bold}#sis35 .mu{color:#868e96}' +
-    '#sis35 button{padding:8px 12px;margin:8px 6px 0 0;border-radius:6px;border:1px solid #888;background:#f8f8f8;cursor:pointer}#sis35 button.go{background:' + C1 + ';color:#fff;border:none;font-weight:bold}#sis35 button:disabled{opacity:.45;cursor:not-allowed}#sis35 .bz .hd2{color:#1971c2;font-weight:bold}#sis35 .bz ol{margin:4px 0 0;padding:0;list-style:none}#sis35 .bz li{padding:2px 6px;border-radius:4px;color:#adb5bd}#sis35 .bz li.now{background:#e7f5ff;color:#1971c2;font-weight:bold}#sis35 .bz li.done{color:#2b8a3e}#sis35 button.dn{background:#dee2e6;color:#868e96;border:1px solid #ced4da;font-weight:normal}' +
+    '#sis35 button{padding:8px 12px;margin:8px 6px 0 0;border-radius:6px;border:1px solid #888;background:#f8f8f8;cursor:pointer}#sis35 button.go{background:' + C1 + ';color:#fff;border:none;font-weight:bold}#sis35 button:disabled{opacity:.45;cursor:not-allowed}#sis35 .bz .hd2{color:#1971c2;font-weight:bold}#sis35 .bz ol{margin:4px 0 0;padding:0;list-style:none}#sis35 .bz li{padding:2px 6px;border-radius:4px;color:#adb5bd}#sis35 .bz li.now{background:#e7f5ff;color:#1971c2;font-weight:bold}#sis35 .bz li.done{color:#2b8a3e}#sis35 button.nx{outline:3px solid #fd7e14;outline-offset:2px}#sis35 button.dn{background:#dee2e6;color:#868e96;border:1px solid #ced4da;font-weight:normal}' +
     '#sis35 h4{margin:12px 0 2px;font-size:13px}#sis35 pre{white-space:pre-wrap;background:#f6f6f6;padding:6px;max-height:160px;overflow:auto;margin:8px 0 0;font-size:11px}#sis35 a{color:#1971c2}</style>' +
     '<div class="hd"><span>SIS 会員ランク特典（月初）（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
     '<div class="bd"><div>対象月：<input class="ym" value="' + ymNow + '" style="width:80px"> の月初分</div>' +
@@ -331,6 +331,7 @@
     var todo = names.some(function (n, i) { return !sentOf(i).length && !((S.mprep || {})[i] && S.mprep[i].ok); }); // 準備できたものは二度開かない（開き直すならツールを開き直す）
     $('.mail').disabled = !made || S.mlog === null || !todo || S.mbusy;
     $('.mail').textContent = names.every(function (n, i) { return sentOf(i).length; }) ? 'メール送信済み' : '②メール送信を進める';
+    $('.run').classList.toggle('nx', !$('.run').disabled); $('.mail').classList.toggle('nx', $('.run').disabled && !$('.mail').disabled); // 次に押すボタンにオレンジ枠
   }
   // テスト送信先：今月の「得々クーポン配布メール」グループの備考に保存（無ければ先月のグループ→既定）。BOに置くので誰のPCでも同じ
   var TM_DEF = ['qoo.masuda@gmail.com', 'seki_yu@drugstores.co.jp', 'info@drugstores-shop.com'];
@@ -370,6 +371,12 @@
     } catch (e) { Object.keys(ws).forEach(function (k) { try { if (ws[k] && ws[k].location.href === 'about:blank') ws[k].close(); } catch (x) {} }); $('.ml').insertAdjacentHTML('afterbegin', '<div class="ng">止めました：' + esc(e.message) + '</div>'); }
     S.mbusy = false; renderMail();
   }
+  function mark(d, el) { if (!el) return; el.style.outline = '3px solid #fd7e14'; el.style.outlineOffset = '2px'; try { el.scrollIntoView({ block: 'center' }); } catch (e) {} }
+  async function watchBulk(w) { // テスト送信のあと、次の画面の「一括送信」ボタンにもオレンジ枠（最大30分見張る）
+    for (var k = 0; k < 1800; k++) { await sleep(1000); try { if (w.closed) return; var d = w.document; if (d.readyState !== 'complete') continue;
+      var b = [].slice.call(d.querySelectorAll('input[type=submit],input[type=button],button')).filter(function (x) { return /一括/.test(x.value || x.textContent); })[0];
+      if (b) { if (!b.style.outline) mark(d, b); if (/送信開始|送信しました|完了/.test(d.body.innerText) && !b) return; } } catch (e) {} }
+  }
   async function mailPrep(i, grp, w, list) {
     var want = S.res.counts[grp], t0 = Date.now();
     var show = function (m, c) { S.mprep[i] = { t: m, c: c }; var td = $('.ml').querySelectorAll('tr')[i + 1]; if (td) { td.cells[2].textContent = m; td.cells[2].className = c || ''; } };
@@ -394,6 +401,8 @@
       am.value = list.join(','); am.dispatchEvent(new Event('change', { bubbles: true }));
       if (!(d.querySelector('[name=subject_text]') || {}).value) throw new Error('件名が空');
       show('未送信'); S.mprep[i].ok = 1;
+      mark(d, d.querySelector('[name=button]'));
+      watchBulk(w);
     } catch (e) { show('エラー：' + e.message, 'ng'); }
   }
   // 処理中の表示：「読み込み中…（平均◯ほどで完了・経過◯）」。平均は実際にかかった時間の直近5回（ブラウザに保存）
