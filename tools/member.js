@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.12 (2026-11-01)';
+  var VER = 'T35 v2.13 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -245,7 +245,7 @@
     var h = ng.length ? '<div class="ng">作成できません：' + ng.map(function (c) { return esc(c[0]) + '（' + esc(c[1]) + '）' + (c[3] ? '→' + esc(c[3]) : ''); }).join('／') + '</div>'
                       : '<div class="ok">下の内容で問題なければ、「①グループとクーポンを作成」を押してください。</div>';
     var gAll = r.groups.every(function (g) { return S.gex[g[0]] === r.counts[g[0]]; }), cAll = S.cps.every(function (c) { return S.cex[c.id]; });
-    var mSent = (S.mlog || []).length ? TMPL.filter(function (t) { return S.mlog.some(function (x) { return x.tmpl.indexOf(t) >= 0; }); }).length : 0;
+    var mSent = S.mlog ? [0, 1, 2].filter(function (i) { return doneOf(i); }).length : 0;
     var phase = !(gAll && cAll) ? 0 : mSent < 3 ? 1 : 2;
     var flow = ['グループとクーポンを作成', 'メール送信（' + mSent + '/3）'];
     h = '<div style="margin:6px 0 4px">' + flow.map(function (t, i) { var n = ('0' + (i + 1)).slice(-2); return '<span style="display:inline-block;margin-right:6px;padding:2px 8px;border-radius:4px;' + (i < phase ? 'color:#2b8a3e">' + n + ' ' + esc(t) + ' ✓' : i === phase ? 'background:#e7f5ff;color:#1971c2;font-weight:bold">' + n + ' ' + esc(t) + ' ← いまここ' : 'color:#adb5bd">' + n + ' ' + esc(t)) + '</span>'; }).join('') + (phase === 2 ? '<span class="ok">すべて完了</span>' : '') + '</div>' + h;
@@ -319,18 +319,20 @@
   var MAILS = function () { return [[S.ym + '得々クーポン配布メール', '得々クーポン'], [S.ym + '誕生日クーポン配布メール', 'お誕生日クーポン'], ['【' + S.ym + 'ランクキープ】VIPIG', 'VIPig継続のお礼']]; };
   var EMAIL = /^[^@\s,]+@[^@\s,]+\.[^@\s,]+$/;
   function sentOf(i) { return (S.mlog || []).filter(function (x) { return x.tmpl.indexOf(TMPL[i]) >= 0; }); }
+  function zeroOf(i) { return S.res && !S.res.counts[MAILS()[i][0]]; } // 宛先0人のメールは送らない（対象なし）
+  function doneOf(i) { return sentOf(i).length || zeroOf(i); }
   function renderMail() {
     var names = MAILS(), made = S.gex[names[0][0]] != null;
     var h = '<h4>お知らせメール（3）</h4><table><tr><th>メール</th><th>宛先</th><th>状態</th></tr>';
     names.forEach(function (n, i) { var sent = sentOf(i), ps = (S.mprep || {})[i];
       var stt = S.mlog === null ? '<td class="wa">確認できない</td>' : sent.length ? '<td class="ok">送信済み</td>'
-        : ps ? '<td class="' + (ps.c || '') + '">' + esc(ps.t) + '</td>' : '<td>未送信</td>';
+        : zeroOf(i) ? '<td class="mu">対象なし</td>' : ps ? '<td class="' + (ps.c || '') + '">' + esc(ps.t) + '</td>' : '<td>未送信</td>';
       h += '<tr><td>' + esc(n[1]) + '</td><td>' + S.res.counts[n[0]] + '人</td>' + stt + '</tr>'; });
     h += '</table><div style="margin-top:6px">テスト送信先（カンマ区切り）<br><input class="tm" style="width:100%;box-sizing:border-box" value="' + esc((S.tmail || []).join(', ')) + '"><div class="mu">翌月は、今月の送信先を引き継ぎます。</div></div>';
     $('.ml').innerHTML = h;
-    var todo = names.some(function (n, i) { return !sentOf(i).length && !((S.mprep || {})[i] && S.mprep[i].ok); }); // 準備できたものは二度開かない（開き直すならツールを開き直す）
+    var todo = names.some(function (n, i) { return !doneOf(i) && !((S.mprep || {})[i] && S.mprep[i].ok); }); // 準備できたものは二度開かない（開き直すならツールを開き直す）
     $('.mail').disabled = !made || S.mlog === null || !todo || S.mbusy;
-    $('.mail').textContent = names.every(function (n, i) { return sentOf(i).length; }) ? 'メール送信済み' : '②メール送信を進める';
+    $('.mail').textContent = names.every(function (n, i) { return doneOf(i); }) ? 'メール送信済み' : '②メール送信を進める';
     $('.run').classList.toggle('nx', !$('.run').disabled); $('.mail').classList.toggle('nx', $('.run').disabled && !$('.mail').disabled); // 次に押すボタンにオレンジ枠
   }
   // テスト送信先：今月の「得々クーポン配布メール」グループの備考に保存（無ければ先月のグループ→既定）。BOに置くので誰のPCでも同じ
@@ -355,7 +357,7 @@
     var names = MAILS(), list = $('.tm').value.split(/[,、\s]+/).filter(function (x) { return x; });
     var bad = list.filter(function (x) { return !EMAIL.test(x); });
     if (!list.length || bad.length) { $('.ml').insertAdjacentHTML('afterbegin', '<div class="ng">テスト送信先を確認：' + esc(bad.join(', ') || '空') + '</div>'); return; }
-    var todo = names.map(function (n, i) { return i; }).filter(function (i) { return !sentOf(i).length; });
+    var todo = names.map(function (n, i) { return i; }).filter(function (i) { return !doneOf(i); });
     var ws = {}; todo.forEach(function (i) { ws[i] = window.open('about:blank', '_blank'); }); // クリックした瞬間に開く（後だとポップアップとして止められる）
     S.mbusy = true; S.mprep = {}; $('.mail').disabled = true;
     try {
