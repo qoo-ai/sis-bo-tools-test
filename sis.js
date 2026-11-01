@@ -19,7 +19,7 @@ var TOOLS=[
  {id:"news", name:"NEWS反映", desc:"バナー依頼シートの「NEWS」タブ → BOのトピック（予告・開催中・終了もまとめて／曜日を自動で直す）", where:'bo', grp:'test', on:true, path:'tools/news.js'},
  {id:"sale", name:"セール1ボタン", desc:"セール指示書 → メルカート取込ファイル一式（T-19）", where:'bo', grp:'test', on:true, path:'tools/sale.js'},
  {id:"yoyaku", name:"予約取込", desc:"商品インポート画面で、決めた時刻に［取込］を押す", where:'bo', grp:'test', on:true, path:'tools/yoyaku.js'},
- {id:"keeper", name:"セッション維持", desc:"作業中だけ、約5分の自動ログアウトを防ぐ（延長の確認が出たら自動で「続けて使用する」）。OFFにするかタブを閉じるまで有効", where:'bo', grp:'release', on:true, path:'tools/keeper.js'},
+ {id:"keeper", name:"セッション維持", desc:"BackOfficeを自動ログアウトから防ぐツール", where:'bo', grp:'release', on:true, path:'tools/keeper.js'},
  {id:"member", name:"会員ランク特典（月初）", desc:"毎月月初に「一般クーポン4種」「誕生日クーポン5種」「メール3種」を送付する", where:'bo', grp:'test', on:true, path:'tools/member.js'},
  {id:"novelty", name:"ノベルティの開始・終了", desc:"品番・条件・期間 → ノベルティ商品の取込／キャンペーン入力／コメント付与・撤去（#SP-1V）", where:'bo', grp:'test', on:true, path:'tools/novelty.js'},
  {id:"sanrio", name:"サンリオ掲載終了日延長（1回限り）", desc:"サンリオ14件の掲載終了日を2027/12/01に（在庫・状態はそのまま）。［取込］の手前まで", where:'bo', grp:'test', on:true, path:'tools/sanrio_end.js'}
@@ -37,7 +37,7 @@ function load(t){
  var s=D.createElement('script');s.src=CDN+t.path;s.charset='utf-8';
  s.onerror=function(){bar('「'+t.name+'」を読み込めませんでした。時間をおいてもう一度押してください。','#b42318');};
  D.body.appendChild(s);}
-var list=TOOLS.filter(function(t){return t.where===site;}).map(function(t){if(t.id==='keeper'&&KEEPER_ON){return {id:t.id,name:'セッション維持：ON中（押すとOFF）',desc:'押すと枠を外して普通の画面に戻します',where:t.where,grp:t.grp,on:t.on,path:t.path};}return t;});
+var list=TOOLS.filter(function(t){return t.where===site;}).map(function(t){if(t.id==='keeper'&&KEEPER_ON){return {id:t.id,name:'セッション維持：ON中（押すとOFF）',desc:'BackOfficeを自動ログアウトから防ぐツール',where:t.where,grp:t.grp,on:t.on,path:t.path};}return t;});
 var live=list.filter(function(t){return t.on;});
 if(!live.length){bar('この画面で使えるツールは提供を終了しました。','#667085');return;}
 if(live.length===1){load(live[0]);return;}
