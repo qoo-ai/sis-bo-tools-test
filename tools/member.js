@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.1 (2026-11-01)';
+  var VER = 'T35 v2.2 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -26,7 +26,7 @@
     '<div class="hd"><span>SIS 会員ランク特典（月初）（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
     '<div class="bd"><div>対象月：<input class="ym" value="' + ymNow + '" style="width:80px"> の月初分</div>' +
     '<button class="ck go">① プレビュー</button><button class="run go" disabled>② この内容で反映</button><button class="undo" style="display:none">②を取り消す</button>' +
-    '<div class="pv"></div><div class="ml"></div><pre class="log" style="display:none"></pre></div>';
+    '<div class="bz" style="display:none;margin-top:8px;color:#1971c2;font-weight:bold"></div><div class="pv"></div><div class="ml"></div><pre class="log" style="display:none"></pre></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
   $('.x').onclick = function (e) { e.preventDefault(); box.remove(); };
@@ -321,8 +321,23 @@
       h += '<tr><td>' + esc(n[1]) + '</td><td>' + S.res.counts[n[0]] + '人</td>' + stt + '</tr>'; });
     $('.ml').innerHTML = h + '</table>';
   }
+  // 処理中の表示：「読み込み中…（平均◯ほどで完了・経過◯）」。平均は実際にかかった時間の直近5回（ブラウザに保存）
+  var DEF = { ck: 30, run: 180, undo: 40 }, LBL = { ck: '読み込み中', run: '反映中', undo: '取り消し中' }, bzT = null, bz0 = 0, bzK = '';
+  function fmt(sec) { sec = Math.round(sec); return sec < 60 ? sec + '秒' : Math.floor(sec / 60) + '分' + (sec % 60 ? sec % 60 + '秒' : ''); }
+  function hist(k) { try { return JSON.parse(localStorage.getItem('sis35_t_' + (STG ? 'stg_' : '') + k) || '[]'); } catch (e) { return []; } }
+  function busyOn(k) {
+    var h = hist(k), avg = h.length ? h.reduce(function (a, b) { return a + b; }, 0) / h.length : DEF[k];
+    bzK = k; bz0 = Date.now(); clearInterval(bzT);
+    var tick = function () { $('.bz').textContent = LBL[k] + '…（' + (h.length ? '平均' : '目安') + fmt(avg) + 'ほどで完了・経過' + fmt((Date.now() - bz0) / 1000) + '）'; };
+    $('.bz').style.display = ''; tick(); bzT = setInterval(tick, 1000);
+  }
+  function busyOff(ok) {
+    clearInterval(bzT); $('.bz').style.display = 'none';
+    if (!ok || !bzK) return;
+    try { var h = hist(bzK); h.push(Math.round((Date.now() - bz0) / 1000)); localStorage.setItem('sis35_t_' + (STG ? 'stg_' : '') + bzK, JSON.stringify(h.slice(-5))); } catch (e) {}
+  }
   async function check() {
-    $('.ck').disabled = true; $('.run').disabled = true; $('.pv').innerHTML = '読み込み中…'; $('.ml').innerHTML = '';
+    $('.ck').disabled = true; $('.run').disabled = true; $('.pv').innerHTML = ''; $('.ml').innerHTML = ''; var fromUndo = bzK === 'undo' && $('.bz').style.display === ''; if (!fromUndo) busyOn('ck');
     try {
       var ym = $('.ym').value.trim(); if (!/^\d{4}-\d{2}$/.test(ym)) throw new Error('対象月は 2026-11 の形で');
       var nd = new Date(), first = new Date(+ym.slice(0, 4), +ym.slice(5, 7) - 1, 1, 7, 30);
@@ -340,13 +355,14 @@
       S.extra = {}; S.extraN = 0;
       for (var c of S.cps) { var e = await prevCouponExtras(prevYm(ym) + c.tail); if (e) { S.extra[c.tail] = e; S.extraN++; } }
       S.mlog = await mailLog(ym);
+      if (!fromUndo) busyOff(true);
       render();
-    } catch (e) { $('.pv').innerHTML = '<div class="ng">止めました：' + esc(e.message) + '</div>'; log('NG ' + e.message); }
+    } catch (e) { if (!fromUndo) busyOff(false); $('.pv').innerHTML = '<div class="ng">止めました：' + esc(e.message) + '</div>'; log('NG ' + e.message); }
     $('.ck').disabled = false;
   }
   async function run() {
     if (!S || !S.res.ok) return;
-    $('.run').disabled = true; $('.ck').disabled = true;
+    $('.run').disabled = true; $('.ck').disabled = true; busyOn('run');
     try {
       var r = S.res;
       var missing = r.groups.filter(function (g) { return S.gex[g[0]] == null; });
@@ -367,16 +383,16 @@
       var cbad = S.cps.filter(function (c) { var x = S.cex[c.id]; return !x || +x.count !== r.counts[c.group]; });
       if (cbad.length) throw new Error('クーポンの発行枚数がグループの人数と違う：' + cbad.map(function (c) { return c.id; }).join('、'));
       log('クーポン9種とも、発行枚数＝グループの人数');
-      render();
+      busyOff(true); render();
       $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok" style="font-size:14px">✅ ②まで完了。続けて③でメールを送る</div>');
-    } catch (e) { render(); $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">止めました：' + esc(e.message) + '</div>'); log('NG ' + e.message); }
+    } catch (e) { busyOff(false); render(); $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">止めました：' + esc(e.message) + '</div>'); log('NG ' + e.message); }
     $('.ck').disabled = false;
   }
   // ②の取り消し：この月にツールが作るクーポン9種とグループ12個だけを消す（メールを送る前に使う。送ったメールは戻せない）
   var undoArmed = false;
   async function undo() {
     if (!undoArmed) { undoArmed = true; $('.undo').textContent = 'メールを送る前だけ。もう一度押すと ' + S.ym + ' 分を消す'; $('.undo').style.background = '#c92a2a'; $('.undo').style.color = '#fff'; return; }
-    $('.undo').disabled = true; $('.ck').disabled = true; $('.run').disabled = true;
+    $('.undo').disabled = true; $('.ck').disabled = true; $('.run').disabled = true; busyOn('undo');
     try {
       var n1 = 0, n2 = 0;
       for (var c of S.cps) {
@@ -395,9 +411,9 @@
         await (await fetch(BO + '/' + u2, { method: 'POST', body: fd2, credentials: 'include' })).text(); n2++; log('グループ削除 ' + g.name);
       }
       undoArmed = false; $('.undo').textContent = '②を取り消す'; $('.undo').style.background = ''; $('.undo').style.color = '';
-      await check();
+      await check(); busyOff(true);
       $('.pv').insertAdjacentHTML('afterbegin', '<div class="ok">取り消しました（クーポン' + n1 + '種・グループ' + n2 + '個を削除）。直してからもう一度①→②</div>');
-    } catch (e) { $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">取り消しの途中で止まりました：' + esc(e.message) + '</div>'); }
+    } catch (e) { busyOff(false); $('.pv').insertAdjacentHTML('afterbegin', '<div class="ng">取り消しの途中で止まりました：' + esc(e.message) + '</div>'); }
     $('.undo').disabled = false;
   }
   $('.ck').onclick = check; $('.run').onclick = run; $('.undo').onclick = undo;
