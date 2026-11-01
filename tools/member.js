@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.9 (2026-11-01)';
+  var VER = 'T35 v2.10 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -328,7 +328,7 @@
       h += '<tr><td>' + esc(n[1]) + '</td><td>' + S.res.counts[n[0]] + '人</td>' + stt + '</tr>'; });
     h += '</table><div style="margin-top:6px">テスト送信先（カンマ区切り）<br><input class="tm" style="width:100%;box-sizing:border-box" value="' + esc((S.tmail || []).join(', ')) + '"><div class="mu">翌月は、今月の送信先を引き継ぎます。</div></div>';
     $('.ml').innerHTML = h;
-    var todo = names.some(function (n, i) { return !sentOf(i).length; });
+    var todo = names.some(function (n, i) { return !sentOf(i).length && !((S.mprep || {})[i] && S.mprep[i].c === 'ok'); }); // 準備OKのものは二度開かない（開き直すならツールを開き直す）
     $('.mail').disabled = !made || S.mlog === null || !todo || S.mbusy;
   }
   // テスト送信先：今月の「得々クーポン配布メール」グループの備考に保存（無ければ先月のグループ→既定）。BOに置くので誰のPCでも同じ
