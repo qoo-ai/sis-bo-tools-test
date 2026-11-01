@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v1.9 (2026-11-01)';
+  var VER = 'T35 v2.0 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -24,9 +24,8 @@
     '#sis35 button{padding:8px 12px;margin:8px 6px 0 0;border-radius:6px;border:1px solid #888;background:#f8f8f8;cursor:pointer}#sis35 button.go{background:' + C1 + ';color:#fff;border:none;font-weight:bold}#sis35 button:disabled{opacity:.45;cursor:not-allowed}' +
     '#sis35 h4{margin:12px 0 2px;font-size:13px}#sis35 pre{white-space:pre-wrap;background:#f6f6f6;padding:6px;max-height:160px;overflow:auto;margin:8px 0 0;font-size:11px}#sis35 a{color:#1971c2}</style>' +
     '<div class="hd"><span>SIS 会員ランク特典（月初）（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
-    '<div class="bd"><div>対象月 <input class="ym" value="' + ymNow + '" style="width:80px"> ' +
-    '</div>' +
-    '<button class="ck go">① 確認（書き込みなし）</button><button class="run go" disabled>② この内容で反映</button><button class="undo" style="display:none">②を取り消す</button>' +
+    '<div class="bd"><div>対象月：<input class="ym" value="' + ymNow + '" style="width:80px"> の月初分</div>' +
+    '<button class="ck go">① プレビュー</button><button class="run go" disabled>② この内容で反映</button><button class="undo" style="display:none">②を取り消す</button>' +
     '<div class="pv"></div><div class="ml"></div><pre class="log" style="display:none"></pre></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
@@ -138,16 +137,19 @@
       var d = await doc('coupon/event_detail.aspx?mode=update&coupon_type=1&coupon_event=' + encodeURIComponent(id));
       var f = d.forms[0], fd = new FormData(f); if (fd.get('coupon_event') !== id) return null;
       var e = []; fd.forEach(function (v, k) { e.push([k, String(v)]); });
-      return { entries: e, xgoods: e.filter(function (x) { return /^x_gname_\d+$/.test(x[0]) && x[1]; }).map(function (x) { return x[1]; }),
+      var xg = []; e.forEach(function (x) { var m = x[0].match(/^x_goods_(\d+)$/); if (m && x[1].trim()) xg.push({ code: x[1].trim(), name: (e.filter(function (y) { return y[0] === 'x_gname_' + m[1]; })[0] || [0, ''])[1] }); });
+      return { entries: e, xg: xg, xgoods: xg.map(function (g) { return g.name || g.code; }),
                xterm: e.some(function (x) { return x[0] === 'condition_x_term' && x[1] && x[1] !== 'false'; }) };
     } catch (e) { return null; }
   }
+  var XG = /^(x_goods_|x_gname_|condition_x_goods$)/;
   var SKIP = /^(__|mode$|coupon_type$|coupon_event$|name$|customer_group_name$|coupon_count$|s_dt$|f_dt$|x_s_dt$|x_f_dt$|condition_x_term$|amount|cmd|bonus_type_dummy$|customer_allotment_dummy$|smartphone_is_pc$|is_coupon_return$)/;
   function condSig(entries) { // 引き継ぐ条件の中身（照合用）
     return entries.filter(function (x) { return !SKIP.test(x[0]) && x[1] !== '' && !/^(bonus_type|coupon_cut_price|coupon_cut_ratio|coupon_point_ratio|customer_allotment|status|condition_term)$/.test(x[0]); })
-      .map(function (x) { return x[0] + '=' + x[1]; }).sort().join('|');
+      .filter(function (x) { return !XG.test(x[0]); }).map(function (x) { return x[0] + '=' + x[1]; }).sort().join('|');
   }
-  async function createCoupon(c, prev) {
+  function xgSig(list) { return list.map(function (g) { return g.code; }).sort().join('|'); }
+  async function createCoupon(c, prev, xg) { // xg＝除外商品（ツールで決めた最終の一覧）
     var path = 'coupon/event_detail.aspx?mode=regist&coupon_type=1';
     var d = await doc(path), f = d.forms[0], fd = fdOf(f);
     if (prev) {
@@ -156,6 +158,9 @@
       if (has('smartphone_is_pc')) fd.set('smartphone_is_pc', '1'); else fd.delete('smartphone_is_pc');
       if (has('is_coupon_return')) fd.set('is_coupon_return', '1'); else fd.delete('is_coupon_return');
     } else fd.set('smartphone_is_pc', '1');
+    [].slice.call(fd.keys()).filter(function (k) { return /^(x_goods_|x_gname_)\d+$/.test(k); }).forEach(function (k) { fd.set(k, ''); });
+    xg.forEach(function (g, i) { fd.set('x_goods_' + (i + 1), g.code); fd.set('x_gname_' + (i + 1), g.name || ''); });
+    if (xg.length) fd.set('condition_x_goods', 'true'); else fd.delete('condition_x_goods');
     fd.set('coupon_event', c.id); fd.set('name', c.name);
     fd.set('bonus_type', c.kind === 'yen' ? '0' : '1'); fd.set(c.kind === 'yen' ? 'coupon_cut_price' : 'coupon_cut_ratio', String(c.v));
     fd.set('customer_allotment', '0'); fd.set('customer_group_name', c.group);
@@ -164,10 +169,10 @@
     var t = new DOMParser().parseFromString(await (await fetch(BO + '/' + path, { method: 'POST', body: fd, credentials: 'include' })).text(), 'text/html').body.textContent.replace(/\s+/g, ' ');
     var err = (t.match(/[^ ]{0,30}(入力して|できません|存在しません|エラー|不正|重複)[^ ]{0,30}/) || [''])[0];
     if (err) throw new Error('クーポン ' + c.id + ' を作れない：' + err);
-    if (prev) { // 作ったクーポンを読み戻して、先月と同じ条件（除外商品など）が入ったか確かめる
-      var mine = await prevCouponExtras(c.id);
-      if (!mine || condSig(mine.entries) !== condSig(prev.entries)) throw new Error('クーポン ' + c.id + ' の条件が先月と違う（除外商品など）。クーポンイベント管理で確認');
-    }
+    var mine = await prevCouponExtras(c.id); // 作ったクーポンを読み戻して確かめる
+    if (!mine) throw new Error('クーポン ' + c.id + ' を読み戻せない。クーポンイベント管理で確認');
+    if (prev && condSig(mine.entries) !== condSig(prev.entries)) throw new Error('クーポン ' + c.id + ' の条件が先月と違う。クーポンイベント管理で確認');
+    if (xgSig(mine.xg) !== xgSig(xg)) throw new Error('クーポン ' + c.id + ' の除外商品が入っていない（' + mine.xg.length + '/' + xg.length + '件）。クーポンイベント管理で確認');
   }
   // ---------- ルール（member_tools.py と同じ） ----------
   var EXCLUDE = '不正クレジット使用不可会員', KOBUTA = ['こぶた', 'こぶた(CP)'], RANK4 = ['おしゃれぶた', 'セレブぶた', 'ぶたのおひめさま', 'VIPIG'];
@@ -179,14 +184,14 @@
   function build(ym, mem, prev, keepAll) {
     var m = +ym.split('-')[1], isb = function (b) { return b === m; };
     var G = [
-      [ym + '会員ランクぶたのおひめさま', '非誕生日グループ', function (x) { return x.rank === 'ぶたのおひめさま'; }],
-      [ym + '会員ランクセレブ', '非誕生日グループ', function (x) { return x.rank === 'セレブぶた'; }],
       [ym + '会員ランクおしゃれぶた', '非誕生日グループ', function (x) { return x.rank === 'おしゃれぶた'; }],
+      [ym + '会員ランクセレブ', '非誕生日グループ', function (x) { return x.rank === 'セレブぶた'; }],
+      [ym + '会員ランクぶたのおひめさま', '非誕生日グループ', function (x) { return x.rank === 'ぶたのおひめさま'; }],
       [ym + '会員ランクVIPIG', '非誕生日グループ', function (x) { return up(x.rank) === 'VIPIG'; }],
-      ['【☆' + ym + '誕生日】ぶたのおひめさま', '誕生日グループ', function (x) { return isb(x.b) && x.rank === 'ぶたのおひめさま'; }],
-      ['【☆' + ym + '誕生日】セレブ', '誕生日グループ', function (x) { return isb(x.b) && x.rank === 'セレブぶた'; }],
       ['【☆' + ym + '誕生日】こぶた', '誕生日グループ', function (x) { return isb(x.b) && KOBUTA.indexOf(x.rank) >= 0; }],
       ['【☆' + ym + '誕生日】おしゃれぶた', '誕生日グループ', function (x) { return isb(x.b) && x.rank === 'おしゃれぶた'; }],
+      ['【☆' + ym + '誕生日】セレブ', '誕生日グループ', function (x) { return isb(x.b) && x.rank === 'セレブぶた'; }],
+      ['【☆' + ym + '誕生日】ぶたのおひめさま', '誕生日グループ', function (x) { return isb(x.b) && x.rank === 'ぶたのおひめさま'; }],
       ['【☆' + ym + '誕生日】VIPIG', '誕生日グループ', function (x) { return isb(x.b) && up(x.rank) === 'VIPIG'; }],
       [ym + '得々クーポン配布メール', '非誕生日グループ全員', function (x) { return RANK4.indexOf(up(x.rank)) >= 0; }],
       [ym + '誕生日クーポン配布メール', '誕生日グループ全員', function (x) { return isb(x.b) && BDAY5(x.rank); }],
@@ -230,45 +235,79 @@
 
   // ---------- 画面 ----------
   var S = null;
-  function st(ex, want, unit) { // 状態の表示：これから作る／作成済み／人数が違う
-    if (ex == null) return '<td>これから作る</td>';
-    if (want == null || +ex === want) return '<td class="ok">作成済み</td>';
-    return '<td class="ng">作成済みだが' + unit + 'が違う（' + esc(ex) + '）</td>';
+  function st(ex, want, unit) { // 状態：未作成／作成済（誰かが先に作っていないかを見る）
+    if (ex == null) return '<td>未作成</td>';
+    if (want == null || +ex === want) return '<td class="ok">作成済</td>';
+    return '<td class="ng">作成済・' + unit + 'が違う（' + esc(ex) + '）</td>';
   }
   function render() {
     var r = S.res, ng = r.checks.filter(function (c) { return c[2] !== 'OK'; });
     var h = ng.length ? '<div class="ng">反映できません：' + ng.map(function (c) { return esc(c[0]) + '（' + esc(c[1]) + '）' + (c[3] ? '→' + esc(c[3]) : ''); }).join('／') + '</div>'
                       : '<div class="ok">問題なし。下の内容で反映します。</div>';
+    var gAll = r.groups.every(function (g) { return S.gex[g[0]] === r.counts[g[0]]; }), cAll = S.cps.every(function (c) { return S.cex[c.id]; });
+    if (!ng.length && gAll && cAll) h = '<div class="ok">' + esc(S.ym) + ' 分は作成済。②は不要</div>';
     if (!S.prevVip && !S.keepAll) h += '<div class="ng"><label><input type="checkbox" class="ka"> 先月のVIPigグループが無いので、今月のVIPig全員をお礼の宛先にする</label></div>';
     h += '<h4>会員グループ（12）</h4><table><tr><th>グループ</th><th>人数</th><th>状態</th></tr>';
     r.groups.forEach(function (g) { h += '<tr><td>' + esc(g[0]) + '</td><td>' + r.counts[g[0]] + '人</td>' + st(S.gex[g[0]], r.counts[g[0]], '人数') + '</tr>'; });
     h += '</table><h4>クーポン（9）' + esc(S.cps[0].s.slice(5, 10)) + '〜' + esc(S.cps[0].f.slice(5, 10)) + '</h4><table><tr><th>クーポン</th><th>値引き</th><th>発行枚数</th><th>状態</th></tr>';
     S.cps.forEach(function (c) { var ex = S.cex[c.id]; h += '<tr><td>' + esc(c.name.replace(/^\d+年\d+月/, '')) + '</td><td>' + (c.kind === 'yen' ? c.v + '円引き' : c.v + '%引き') + '</td><td>' + r.counts[c.group] + '枚</td>' + st(ex ? ex.count : null, r.counts[c.group], '枚数') + '</tr>'; });
-    var pe = S.extra[S.cps[0].tail];
-    h += '</table><div>' + (S.extraN === S.cps.length ? '先月と同じ条件で作る' + (pe && pe.xgoods.length ? '（除外商品：' + esc(pe.xgoods.join('、')) + '）' : '') : '<span class="ng">先月のクーポンが' + (S.cps.length - S.extraN) + '種見つからない（条件を引き継げない）</span>') + '</div>';
+    h += '</table>';
+    if (S.extraN < S.cps.length) h += '<div class="ng">先月のクーポンが' + (S.cps.length - S.extraN) + '種見つからない（条件を引き継げない）</div>';
+    h += '<h4>除外商品（9種共通）</h4><div class="mu">先月のクーポンに入っているものを引き継ぐ。外すならチェックを外す／足すなら商品コードを入れて追加。次の月はこの結果を引き継ぐ</div><table><tr><th></th><th>商品コード</th><th>商品名</th></tr>';
+    xgAll().forEach(function (g) { h += '<tr><td><input type="checkbox" class="xgc" data-code="' + esc(g.code) + '"' + (S.xgDel[g.code] ? '' : ' checked') + (cAll ? ' disabled' : '') + '></td><td>' + esc(g.code) + '</td><td>' + esc(g.name || (g.add ? '（追加・名前は保存時にBOが入れる）' : '')) + '</td></tr>'; });
+    if (!xgAll().length) h += '<tr><td></td><td colspan="2">なし</td></tr>';
+    h += '</table>' + (cAll ? '' : '<div><input class="xgn" placeholder="商品コード（例 69-00018-2599-99）" style="width:230px"> <button class="xga" style="margin:4px 0 0;padding:4px 10px">追加</button></div>');
     $('.pv').innerHTML = h;
     var ka = $('.ka'); if (ka) ka.onchange = function () { S.keepAll = ka.checked; recompute(); };
-    var gAll = r.groups.every(function (g) { return S.gex[g[0]] === r.counts[g[0]]; }), cAll = S.cps.every(function (c) { return S.cex[c.id]; });
+    [].slice.call(box.querySelectorAll('.xgc')).forEach(function (cb) { cb.onchange = function () { var k = cb.getAttribute('data-code'); if (cb.checked) delete S.xgDel[k]; else S.xgDel[k] = 1; }; });
+    var xa = $('.xga'); if (xa) xa.onclick = function () { var v = $('.xgn').value.trim(); if (!v) return; if (!xgAll().some(function (g) { return g.code === v; })) S.xgAdd.push({ code: v, name: '', add: 1 }); delete S.xgDel[v]; render(); };
     $('.run').disabled = !r.ok || (gAll && cAll) || (!STG && S.extraN < S.cps.length);
-    $('.run').textContent = gAll && cAll ? '② 反映済み' : '② この内容で反映';
+    $('.run').textContent = gAll && cAll ? '② 反映済' : '② この内容で反映';
+    $('.ck').classList.remove('go'); // ①を押したら①は灰色、②を目立たせる
     var any = r.groups.some(function (g) { return S.gex[g[0]] != null; }) || S.cps.some(function (c) { return S.cex[c.id]; });
     $('.undo').style.display = any ? '' : 'none';
     renderMail();
   }
+  var TMPL = ['今月もありがとう！今月の"とこトンとん得々クーポン"はこちら♪', 'HAPPY BIRTHDAY！今月お誕生日のあなたへ特別クーポン', '今月も「VIPig」ステータスをキープ！ありがとうございます！！'];
+  function xgAll() { // 先月の9種の除外商品（重複なし）＋追加分
+    var m = {}, out = [];
+    S.cps.forEach(function (c) { var e = S.extra[c.tail]; (e ? e.xg : []).forEach(function (g) { if (!m[g.code]) { m[g.code] = 1; out.push(g); } }); });
+    S.xgAdd.forEach(function (g) { if (!m[g.code]) { m[g.code] = 1; out.push(g); } });
+    return out;
+  }
+  function xgFor(c) { // そのクーポンに入れる除外商品＝先月のそのクーポンの分－外した分＋追加分
+    var e = S.extra[c.tail], base = (e ? e.xg : []).filter(function (g) { return !S.xgDel[g.code]; });
+    S.xgAdd.forEach(function (g) { if (!S.xgDel[g.code] && !base.some(function (b) { return b.code === g.code; })) base.push({ code: g.code, name: '' }); });
+    return base;
+  }
+  async function mailLog(ym) { // 一括メール発行履歴（その月の1日以降）
+    try {
+      var d = await doc('maillog/maillistlog.aspx'), f = d.forms[0], fd = fdOf(f);
+      fd.set('from_startdt', ym.replace('-', '/') + '/01'); fd.set('cmdSearch', f.querySelector('[name=cmdSearch]').value);
+      var t = new DOMParser().parseFromString(await (await fetch(BO + '/maillog/maillistlog.aspx', { method: 'POST', body: fd, credentials: 'include' })).text(), 'text/html');
+      return [].slice.call(t.querySelectorAll('table tr')).map(function (tr) { return [].slice.call(tr.cells).map(function (c) { return c.textContent.trim().replace(/\s+/g, ' '); }); })
+        .filter(function (c) { return c.length >= 6 && /^\d+$/.test(c[0]) && /^\d{4}\/\d{2}/.test(c[2] || ''); })
+        .map(function (c) { return { tmpl: c[1], start: c[2], total: c[4], sent: c[5] }; })
+        .filter(function (x) { return x.start.slice(0, 7) === ym.replace('-', '/'); });
+    } catch (e) { log('メール発行履歴が読めない ' + e.message); return null; }
+  }
   function recompute() { S.res = build(S.ym, S.mem, S.prev, S.keepAll); render(); }
   function renderMail() {
     var names = [[S.ym + '得々クーポン配布メール', 'とこトンとん得々クーポンのお知らせ'], [S.ym + '誕生日クーポン配布メール', 'お誕生日クーポンのお知らせ'], ['【' + S.ym + 'ランクキープ】VIPIG', 'VIPig継続のお礼']];
-    var h = '<h4>お知らせメール（3）</h4><table><tr><th>メール</th><th>宛先</th><th>③ 送る</th></tr>';
-    names.forEach(function (n) { var c = S.gex[n[0]]; h += '<tr><td>' + esc(n[1]) + '</td><td>' + S.res.counts[n[0]] + '人</td><td>' + (c != null ? '<a target="_blank" href="' + esc(BO + '/customer/search.aspx?cgname=' + encodeURIComponent(n[0]) + '&disp.divcgname=open&max=30000') + '">宛先を開く</a>' : '②のあと') + '</td></tr>'; });
+    var h = '<h4>お知らせメール（3）</h4><table><tr><th>メール</th><th>宛先</th><th>状態</th></tr>';
+    names.forEach(function (n, i) { var c = S.gex[n[0]], sent = (S.mlog || []).filter(function (x) { return x.tmpl.indexOf(TMPL[i]) >= 0; });
+      var stt = S.mlog === null ? '<td class="wa">確認できない（一括メール発行履歴を見る）</td>' : sent.length ? '<td class="ok">送付済（' + sent.map(function (x) { return esc(x.start.slice(5, 16)) + '・' + esc(x.sent) + '通'; }).join('／') + '）</td>'
+        : '<td>未送付' + (c != null ? '　<a target="_blank" href="' + esc(BO + '/customer/search.aspx?cgname=' + encodeURIComponent(n[0]) + '&disp.divcgname=open&max=30000') + '">宛先を開く</a>' : '') + '</td>';
+      h += '<tr><td>' + esc(n[1]) + '</td><td>' + S.res.counts[n[0]] + '人</td>' + stt + '</tr>'; });
     $('.ml').innerHTML = h + '</table>';
   }
   async function check() {
-    $('.ck').disabled = true; $('.run').disabled = true; $('.pv').innerHTML = '読み込み中…';
+    $('.ck').disabled = true; $('.run').disabled = true; $('.pv').innerHTML = '読み込み中…'; $('.ml').innerHTML = '';
     try {
       var ym = $('.ym').value.trim(); if (!/^\d{4}-\d{2}$/.test(ym)) throw new Error('対象月は 2026-11 の形で');
       var nd = new Date(), first = new Date(+ym.slice(0, 4), +ym.slice(5, 7) - 1, 1, 7, 30);
       if (!STG && nd < first) throw new Error(ym + ' 分は ' + (first.getMonth() + 1) + '/1 7:30 以降に（1日7時のランク更新より前だと、先月のランクで作ってしまう）');
-      S = { ym: ym, keepAll: false };
+      S = { ym: ym, keepAll: false, xgDel: {}, xgAdd: [] };
       S.mem = await members(); log('今月の会員 ' + S.mem.length + '人');
       var pg = prevYm(ym) + '会員ランクVIPIG', pex = (await groupList(pg)).filter(function (g) { return g.name === pg; })[0];
       var pv = pex && pex.count ? await members({ cgname: pg }) : [];
@@ -280,6 +319,7 @@
       var cl = await couponList(ym); S.cex = {}; cl.forEach(function (c) { S.cex[c.id] = c; });
       S.extra = {}; S.extraN = 0;
       for (var c of S.cps) { var e = await prevCouponExtras(prevYm(ym) + c.tail); if (e) { S.extra[c.tail] = e; S.extraN++; } }
+      S.mlog = await mailLog(ym);
       render();
     } catch (e) { $('.pv').innerHTML = '<div class="ng">止めました：' + esc(e.message) + '</div>'; log('NG ' + e.message); }
     $('.ck').disabled = false;
@@ -302,7 +342,7 @@
       if (bad.length) throw new Error('取込後の人数が計算と違う：' + bad.map(function (g) { return g[0] + ' ' + (S.gex[g[0]] || 0) + '/' + r.counts[g[0]]; }).join('、'));
       log('12グループとも人数が計算どおり');
       var cl = await couponList(S.ym); S.cex = {}; cl.forEach(function (c) { S.cex[c.id] = c; });
-      for (var c of S.cps) { if (S.cex[c.id]) continue; await createCoupon(c, S.extra[c.tail]); log('クーポン作成 ' + c.id); }
+      for (var c of S.cps) { if (S.cex[c.id]) continue; await createCoupon(c, S.extra[c.tail], xgFor(c)); log('クーポン作成 ' + c.id); }
       cl = await couponList(S.ym); S.cex = {}; cl.forEach(function (c) { S.cex[c.id] = c; });
       var cbad = S.cps.filter(function (c) { var x = S.cex[c.id]; return !x || +x.count !== r.counts[c.group]; });
       if (cbad.length) throw new Error('クーポンの発行枚数がグループの人数と違う：' + cbad.map(function (c) { return c.id; }).join('、'));
