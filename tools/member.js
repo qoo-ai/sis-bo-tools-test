@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'T35 v2.0 (2026-11-01)';
+  var VER = 'T35 v2.1 (2026-11-01)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -254,13 +254,25 @@
     h += '</table>';
     if (S.extraN < S.cps.length) h += '<div class="ng">先月のクーポンが' + (S.cps.length - S.extraN) + '種見つからない（条件を引き継げない）</div>';
     h += '<h4>除外商品（9種共通）</h4><div class="mu">先月のクーポンに入っているものを引き継ぐ。外すならチェックを外す／足すなら商品コードを入れて追加。次の月はこの結果を引き継ぐ</div><table><tr><th></th><th>商品コード</th><th>商品名</th></tr>';
-    xgAll().forEach(function (g) { h += '<tr><td><input type="checkbox" class="xgc" data-code="' + esc(g.code) + '"' + (S.xgDel[g.code] ? '' : ' checked') + (cAll ? ' disabled' : '') + '></td><td>' + esc(g.code) + '</td><td>' + esc(g.name || (g.add ? '（追加・名前は保存時にBOが入れる）' : '')) + '</td></tr>'; });
+    xgAll().forEach(function (g) { h += '<tr><td><input type="checkbox" class="xgc" data-code="' + esc(g.code) + '"' + (S.xgDel[g.code] ? '' : ' checked') + (cAll ? ' disabled' : '') + '></td><td>' + esc(g.code) + '</td><td>' + esc(g.name || '') + '</td></tr>'; });
     if (!xgAll().length) h += '<tr><td></td><td colspan="2">なし</td></tr>';
-    h += '</table>' + (cAll ? '' : '<div><input class="xgn" placeholder="商品コード（例 69-00018-2599-99）" style="width:230px"> <button class="xga" style="margin:4px 0 0;padding:4px 10px">追加</button></div>');
+    h += '</table>' + (cAll ? '' : '<div><input class="xgn" placeholder="商品コード（例 69-00018-2599-99）" style="width:230px"> <button class="xga" style="margin:4px 0 0;padding:4px 10px">追加</button> <span class="xgm"></span></div>');
     $('.pv').innerHTML = h;
     var ka = $('.ka'); if (ka) ka.onchange = function () { S.keepAll = ka.checked; recompute(); };
     [].slice.call(box.querySelectorAll('.xgc')).forEach(function (cb) { cb.onchange = function () { var k = cb.getAttribute('data-code'); if (cb.checked) delete S.xgDel[k]; else S.xgDel[k] = 1; }; });
-    var xa = $('.xga'); if (xa) xa.onclick = function () { var v = $('.xgn').value.trim(); if (!v) return; if (!xgAll().some(function (g) { return g.code === v; })) S.xgAdd.push({ code: v, name: '', add: 1 }); delete S.xgDel[v]; render(); };
+    var xa = $('.xga'); if (xa) xa.onclick = async function () {
+      var v = $('.xgn').value.trim(), msg = $('.xgm'); if (!v) return;
+      if (xgAll().some(function (g) { return g.code === v; })) { delete S.xgDel[v]; render(); return; }
+      var on = xgAll().filter(function (g) { return !S.xgDel[g.code]; }).length;
+      if (on >= 5) { msg.innerHTML = '<span class="ng">除外商品は5件まで（BOの画面の枠が5つ）</span>'; return; }
+      xa.disabled = true; msg.textContent = '商品を探しています…';
+      try {
+        var hit = await goodsLookup(v);
+        if (hit.exact) { S.xgAdd.push({ code: hit.exact.code, name: hit.exact.name, add: 1 }); render(); return; }
+        msg.innerHTML = '<span class="ng">商品コード「' + esc(v) + '」の商品が見つからない' + (hit.list.length ? '。近いもの：' + hit.list.slice(0, 3).map(function (g) { return esc(g.code + ' ' + g.name); }).join('／') : '') + '</span>';
+      } catch (e) { msg.innerHTML = '<span class="ng">商品を探せない：' + esc(e.message) + '</span>'; }
+      xa.disabled = false;
+    };
     $('.run').disabled = !r.ok || (gAll && cAll) || (!STG && S.extraN < S.cps.length);
     $('.run').textContent = gAll && cAll ? '② 反映済' : '② この内容で反映';
     $('.ck').classList.remove('go'); // ①を押したら①は灰色、②を目立たせる
@@ -279,6 +291,14 @@
     var e = S.extra[c.tail], base = (e ? e.xg : []).filter(function (g) { return !S.xgDel[g.code]; });
     S.xgAdd.forEach(function (g) { if (!S.xgDel[g.code] && !base.some(function (b) { return b.code === g.code; })) base.push({ code: g.code, name: '' }); });
     return base;
+  }
+  async function goodsLookup(code) { // BOの商品選択画面で商品コードを探す（無い商品は除外に入れられない＝②が途中で止まるのを防ぐ）
+    var u = 'master/goods.aspx?formname=frmCoupon&returntype=accessory', d = await doc(u), f = d.forms[0], fd = fdOf(f);
+    fd.set('goods', code); fd.set('cmdSearch', f.querySelector('[name=cmdSearch]').value);
+    var t = new DOMParser().parseFromString(await (await fetch(BO + '/' + u, { method: 'POST', body: fd, credentials: 'include' })).text(), 'text/html');
+    var list = [].slice.call(t.querySelectorAll('tr')).map(function (tr) { return [].slice.call(tr.cells).map(function (c) { return c.textContent.trim().replace(/\s+/g, ' '); }); })
+      .filter(function (c) { return c.length >= 2 && /^[0-9A-Za-z][0-9A-Za-z\-_]{2,}$/.test(c[0]); }).map(function (c) { return { code: c[0], name: c[1].replace(/\(※[^)]*\)$/, '') }; });
+    return { exact: list.filter(function (g) { return g.code === code; })[0] || null, list: list };
   }
   async function mailLog(ym) { // 一括メール発行履歴（その月の1日以降）
     try {
