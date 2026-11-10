@@ -83,21 +83,21 @@
     var A = withYear(a.slice(1).filter(function (r) { return /^\d\d\/\d\d/.test(r[0]); }), start);
     var B = withYear(b.slice(1).filter(function (r) { return /^\d\d\/\d\d/.test(r[0]); }), start), BM = {};
     B.forEach(function (r) { BM[r[0]] = r; });
-    out.daily = [['日付', '来客数', '注文件数', '注文金額', '新規会員', 'メルマガ登録', 'キャンセル件数', 'キャンセル金額', 'スマホ来客数', 'スマホ注文件数', 'スマホ注文金額']]
+    out.daily = [['日付', '来客数', '注文件数', '注文金額', '新規会員', 'メルマガ登録', 'キャンセル件数', 'キャンセル金額', 'スマホ来客数', 'スマホ注文件数', 'スマホ注文金額', 'リピート注文数']]
       .concat(A.map(function (r) {
         var s = BM[r[0]] || [];
         return [r[0], n(r[col(ha, '来客数')]), n(r[col(ha, '注文件数')]), n(r[col(ha, '注文金額')]), n(r[col(ha, '新規会員登録数')]), n(r[col(ha, 'メールニュース登録数')]),
-          n(r[col(ha, 'キャンセル件数')]), n(r[col(ha, 'キャンセル金額')]), n(s[col(hb, '来客数')]), n(s[col(hb, '注文件数')]), n(s[col(hb, '注文金額')])];
+          n(r[col(ha, 'キャンセル件数')]), n(r[col(ha, 'キャンセル金額')]), n(s[col(hb, '来客数')]), n(s[col(hb, '注文件数')]), n(s[col(hb, '注文金額')]), n(r[col(ha, 'リピート注文数')])];
       }));
     log('　' + (out.daily.length - 1) + '日分');
 
     log('月別（2017/01〜）…');
     var m = tsv(await get('report/summary_m.aspx', [['dt1', '2017/01/01'], ['dt2', today], ['source', '0']].concat(S.map(function (s) { return ['sales', s]; }), [['output', 'TAB'], ['search.x', '1']])));
     var hm = m[0];
-    out.monthly = [['月', '来客数', '注文件数', '注文金額', 'リピート注文数', '新規会員', 'メルマガ登録', 'キャンセル件数', 'キャンセル金額']]
+    out.monthly = [['月', '来客数', '注文件数', '注文金額', 'リピート注文数', '新規会員', 'メルマガ登録', 'キャンセル件数', 'キャンセル金額', '月初日']]
       .concat(m.slice(1).filter(function (r) { return /^\d{4}\/\d{2}$/.test(r[0]); }).map(function (r) {
         return [r[0], n(r[col(hm, '来客数')]), n(r[col(hm, '注文件数')]), n(r[col(hm, '注文金額')]), n(r[col(hm, 'リピート注文数')]), n(r[col(hm, '新規会員登録数')]),
-          n(r[col(hm, 'メールニュース登録数')]), n(r[col(hm, 'キャンセル件数')]), n(r[col(hm, 'キャンセル金額')])];
+          n(r[col(hm, 'メールニュース登録数')]), n(r[col(hm, 'キャンセル件数')]), n(r[col(hm, 'キャンセル金額')]), r[0].replace('/', '-') + '-01'];
       }));
 
     log('時間帯（直近90日）…');
@@ -121,6 +121,26 @@
     var k = tables(await get('searchlog/rank.aspx', [['s_dt', d30 + ' 00:00'], ['e_dt', today + ' 23:59']].concat(dev, [['top', '100'], ['where', 'cnt'], ['order', 'desc'], ['search.x', '1']])))
       .filter(function (t) { return t[0] && t[0].join('').indexOf('キーワード') >= 0; })[0] || [];
     out.keywords = [['キーワード', '検索数', 'ヒット商品数']].concat(k.slice(1).map(function (r) { return [r[2], n(r[3]), n(r[4])]; }));
+
+    log('会員ランク（月別の人数）…');
+    var rj = JSON.parse(await get('customer/rank_transition_api.aspx', [['From', '2025/10'], ['To', now.getFullYear() + '/' + pad(now.getMonth() + 1)]]));
+    out.ranks = [['月', 'ランク', '人数', 'ランクアップ', 'ランクダウン']];
+    (rj.transitionData || []).forEach(function (m) {
+      (m.rankUpDownData || []).forEach(function (r) {
+        var t = (r.rankUp || 0) + (r.rankDown || 0) + (r.rankKeep || 0);
+        if (t > 0) out.ranks.push([m.month, r.name, t, r.rankUp || 0, r.rankDown || 0]);
+      });
+    });
+
+    log('会員ランク別の売上…');
+    var d365 = ymd(addDays(now, -364));
+    out.rank_sales = [['期間', 'ランク', '平均単価', '数量', '金額', '件数']];
+    for (var pi = 0, PS = [['直近30日', d30], ['直近365日', d365]]; pi < PS.length; pi++) {
+      var rs = tsv(await get('report/sales.aspx', [['s_dt', PS[pi][1]], ['e_dt', today], ['dt', 'order_dt'], ['group', 'rank'], ['sort', 'amt'], ['sort2', 'desc'], ['exists_cancel_dt', 'n'], ['source', '0'], ['top', '100'], ['output', 'TAB'], ['search.x', '1']]));
+      rs.slice(1).filter(function (r) { return !/^合計/.test(r[0] || ''); }).forEach(function (r) {
+        out.rank_sales.push([PS[pi][0], r[1] || (r[0] ? r[0] : '会員以外'), n(r[2]), n(r[3]), n(r[4]), n(r[5])]);
+      });
+    }
 
     out.info = [['最終取得', ymd(now) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes())], ['GA4最終取得', ''], ['時間帯の期間', d90 + '〜' + today], ['流入元・商品・検索の期間', d30 + '〜' + today]];
     return out;

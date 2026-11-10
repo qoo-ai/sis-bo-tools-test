@@ -3,7 +3,10 @@
    doGet ：?v=<VIEW_KEY> で開くと、raw_ タブを読んでダッシュボードを表示（開くたびに最新）
    スクリプトプロパティ：SHEET_ID / KPI_KEY / VIEW_KEY */
 var P = PropertiesService.getScriptProperties();
-var TABS = {daily:'raw_日次', monthly:'raw_月次', hourly:'raw_時間帯', channels:'raw_流入元', products:'raw_商品', keywords:'raw_検索', info:'raw_情報'};
+var TABS = {daily:'raw_日次', monthly:'raw_月次', hourly:'raw_時間帯', channels:'raw_流入元', products:'raw_商品', keywords:'raw_検索', info:'raw_情報',
+  ranks:'raw_会員ランク', rank_sales:'raw_ランク別売上'};
+var SETTINGS = '設定';  // 原価率・売上目標など、人が入れる値（A列＝項目、B列＝値）
+function tab_(k) { return TABS[k] || ('raw_' + k); }  // 表を足すときはBOツール側だけ直せばよい（ここは直さなくてよい）
 var GA = {ga_daily:'raw_GA4日次', ga_channels:'raw_GA4流入元'};
 var GA4_PROPERTY = '478197534';
 var HTML_ID = '1e9CrsSKUmZ5Ih39xaMWnPYKlNc6Bo1PH';  // 画面はDriveの kpi_dash.html（直すときはこのファイルを書き換えるだけ）
@@ -16,12 +19,13 @@ function doPost(e) {
     var d = JSON.parse(e.postData.contents);
     if (!d || d.key !== P.getProperty('KPI_KEY')) { out.error = 'key'; return json_(out); }
     var ss = ss_(), n = {};
-    Object.keys(TABS).forEach(function (k) {
+    Object.keys(d).forEach(function (k) {
+      if (k === 'key' || k === 'keep' || GA[k] || !/^[a-z0-9_]{1,30}$/.test(k)) return;
       var rows = d[k];
       if (!rows || !rows.length || !Array.isArray(rows[0])) return;
       var w = rows.reduce(function (m, r) { return Math.max(m, r.length); }, 0);
       rows = rows.map(function (r) { r = r.slice(); while (r.length < w) r.push(''); return r; });
-      var sh = ss.getSheetByName(TABS[k]) || ss.insertSheet(TABS[k]);
+      var sh = ss.getSheetByName(tab_(k)) || ss.insertSheet(tab_(k));
       sh.clearContents();
       sh.getRange(1, 1, rows.length, w).setValues(rows);
       n[k] = rows.length - 1;
@@ -46,8 +50,15 @@ function doGet(e) {
     return HtmlService.createHtmlOutput('<p style="font:14px sans-serif;padding:24px">このページは、共有されたリンクから開いてください。</p>');
   }
   var data = {};
-  Object.keys(TABS).forEach(function (k) { data[k] = read_(TABS[k]); });
-  Object.keys(GA).forEach(function (k) { data[k] = read_(GA[k]); });
+  var names = {};
+  Object.keys(TABS).forEach(function (k) { names[TABS[k]] = k; });
+  Object.keys(GA).forEach(function (k) { names[GA[k]] = k; });
+  ss_().getSheets().forEach(function (sh) {
+    var nm = sh.getName();
+    if (names[nm]) data[names[nm]] = read_(nm);
+    else if (/^raw_[a-z0-9_]+$/.test(nm)) data[nm.slice(4)] = read_(nm);
+  });
+  data.settings = read_(SETTINGS);
   var t = HtmlService.createTemplate(DriveApp.getFileById(HTML_ID).getBlob().getDataAsString());
   t.DATA = JSON.stringify(data);
   return t.evaluate().setTitle("drug store's WEBSHOP KPI").addMetaTag('viewport', 'width=device-width, initial-scale=1')
