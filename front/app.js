@@ -345,6 +345,11 @@
     '#sis-s-rank{display:block;padding:0;margin:0;background:none;border:0;box-shadow:none}#sis-s-rank:before,#sis-s-rank:after{display:none}.sis-rkbox-sp{margin:8px 12px;padding:12px 14px}.sis-rk-hd{display:flex;justify-content:space-between;align-items:center;margin:0 0 6px;font-size:13px}.sis-rk-hd b{color:var(--sis-p);font-size:15px}.sis-rk-hd a{font-size:12px;color:var(--sis-p)}',
     '.sis-alert-m{flex-direction:column;align-items:stretch;padding:12px 40px 12px 12px}.sis-alert-m .sis-tb{display:flex;flex-direction:column;gap:8px}.sis-alert-m .sis-ts{font-size:12px;font-weight:700;color:var(--sis-mu)}',
     '.sis-am{display:flex;gap:10px;align-items:center}.sis-am img{width:48px;height:48px}.sis-am .sis-tt{font-size:12px;font-weight:700;margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}.sis-t-n{background:#f1eef3;color:var(--sis-mu)}.sis-alert-m .sis-am .sis-tt{-webkit-line-clamp:1;font-size:12px}.sis-sp .sis-alert-m .sis-am img{width:40px;height:40px}.sis-alert-m .sis-btn{margin-top:2px}',
+    '.sis-wh{position:relative;width:280px;height:280px;margin:0 auto}.sis-wh-svg{width:100%;height:100%;display:block;filter:drop-shadow(0 8px 18px rgba(78,42,105,.3))}',
+    '.sis-wh-ptr{position:absolute;left:50%;top:-6px;margin-left:-14px;width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:26px solid #E8613F;z-index:2;filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}',
+    '.sis-wh-go{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;border:0;background:var(--sis-c);color:#fff;font-size:17px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(232,97,63,.45);z-index:2}.sis-wh-go[disabled]{opacity:.85;cursor:default}',
+    '.sis-wh-hd{padding:20px 24px 14px}.sis-wh-hd h3{font-size:19px}.sis-sp .sis-wh{width:250px;height:250px}.sis-sp .sis-res .sis-tk-r code{font-size:13px;letter-spacing:0}',
+    '.sis-ship-a{margin-left:10px;font-size:12px;font-weight:700;color:var(--sis-p)!important;text-decoration:underline!important;white-space:nowrap}',
     '.sis-ship-k{display:inline-block;margin:0 0 2px;padding:1px 8px;border-radius:999px;background:#e7f8ee;color:#05964a;font-size:11px;font-weight:800}',
     '.sis-hs-code button{white-space:nowrap;flex:none}.sis-tk-r button{white-space:nowrap;flex:none}.sis-tk-r>span{min-width:0}',
     /* v4：左の「現在のランク」の下に特典と次のランクまでの金額 */
@@ -720,7 +725,7 @@
   FX.coupon = function (forced) {
     if (PAGE === 'order') return;
     var list = (C.coupons || []).filter(function (c) {
-      if (/^kuji/.test(c.id)) return false;
+      if (/^(kuji|spin)/.test(c.id)) return false; // くじ・ルーレットの賞は帯に出さない
       if (c.inHeader) return false; // ヘッダーのバナーに出ているクーポンは帯に重ねない
       if (c.expires && now() > new Date(c.expires)) return false;
       if (c.audience === 'new' && !isNew) return false;
@@ -785,8 +790,9 @@
       var rankBar = '';
       if (rest <= 0 && rs && rs.up && rs.amt != null) { // 送料無料を越えたら、次の会員ランクまでのバーに切り替える（この注文も足して計算）
         var after = rs.amt + c.total, need = Math.max(0, rs.up.min - after), rp = Math.min(100, Math.round(after / rs.up.min * 100));
-        rankBar = need > 0 ? '<div class="sis-ship-k">送料無料 達成</div><div class="sis-ship-t">あと <b>' + yen(need) + '</b> で「' + esc(rs.up.name) + '」</div><div class="sis-trk"><i style="width:' + rp + '%;background:var(--sis-p)"></i><u style="left:' + rp + '%;border-color:var(--sis-p)"></u></div><div class="sis-trk-l"><span>' + rs.nextLabel + 'の判定まで</span><span>' + yen(rs.up.min) + '</span></div>'
-          : '<div class="sis-ship-k">送料無料 達成</div><div class="sis-ship-t">この注文で' + rs.nextLabel + 'に「' + esc(rs.up.name) + '」へ</div>';
+        var perkA = '<a class="sis-ship-a" href="' + esc(SHOP.rankPage) + '" data-sis-rank>ランク特典を見る</a>'; // 会員ランクについて（ランクごとの特典）へ
+        rankBar = need > 0 ? '<div class="sis-ship-k">送料無料 達成</div><div class="sis-ship-t">あと <b>' + yen(need) + '</b> で「' + esc(rs.up.name) + '」' + perkA + '</div><div class="sis-trk"><i style="width:' + rp + '%;background:var(--sis-p)"></i><u style="left:' + rp + '%;border-color:var(--sis-p)"></u></div><div class="sis-trk-l"><span>' + rs.nextLabel + 'の判定まで</span><span>' + yen(rs.up.min) + '</span></div>'
+          : '<div class="sis-ship-k">送料無料 達成</div><div class="sis-ship-t">この注文で' + rs.nextLabel + 'に「' + esc(rs.up.name) + '」へ' + perkA + '</div>';
       }
       var html = '<div class="sis-ship-m">' +
         (rest > 0 ? '<div class="sis-ship-t">あと <b>' + yen(rest) + '</b> で送料無料</div><div class="sis-trk"><i style="width:' + pct + '%"></i><u style="left:' + pct + '%"></u></div><div class="sis-trk-l"><span>カート ' + yen(c.total) + '</span><span>' + yen(free) + '</span></div>'
@@ -798,6 +804,7 @@
         var old = D.getElementById('sis-shipfix'); if (old) old.remove();
         var el = h('<div class="sis-root sis-shipfix" id="sis-shipfix"><div class="sis-ship">' + html + '</div><button class="sis-x" aria-label="閉じる">×</button></div>');
         el.querySelector('.sis-x').onclick = function () { el.remove(); ss('shipbarClosed', 1); track('shipbar', 'close'); };
+        var ra = el.querySelector('[data-sis-rank]'); if (ra) ra.onclick = function () { track('shipbar', 'click', { sis_label: 'rank_page' }); };
         D.body.appendChild(el); el.style.bottom = bottomOffset() + 'px'; SIS.active.shipbar = 'on';
         if (parseInt(el.style.bottom)) var iv = setInterval(function () { var cb = D.getElementById('cookieBox'); if (!cb || getComputedStyle(cb).display === 'none') { clearInterval(iv); setTimeout(function () { el.style.bottom = bottomOffset() + 'px'; }, 400); } }, 1500); // Cookie同意バーが消えたら下まで下げる
       }
@@ -880,10 +887,11 @@
   /* 7b. 購入手続き：くじで当たったクーポンをクーポン欄に入れておく（お客様はコピー・貼り付け不要） */
   FX.orderCoupon = function () {
     if (PAGE !== 'order') return;
-    var w = ls('kujiWin'); if (!w || !w.code || (w.exp && now() > new Date(w.exp)) || w.used) return;
+    var ok = function (x) { return x && x.code && !(x.exp && now() > new Date(x.exp)) && !x.used; };
+    var w = ok(ls('spinWin')) ? ls('spinWin') : ls('kujiWin'); if (!ok(w)) return; // はじめての方ルーレットの当たりを優先し、なければご来店くじ
     var inp = D.querySelector('input[name="coupon"]'); if (!inp || inp.value) return;
     inp.value = w.code; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
-    var note = h('<div class="sis-root sis-ordnote">ご来店くじの <b>' + esc(w.value || 'クーポン') + '</b>（' + esc(w.code) + '）を入れてあります。使わない場合は消してください。</div>');
+    var note = h('<div class="sis-root sis-ordnote">' + (w.from === 'spin' ? 'はじめての方ルーレット' : 'ご来店くじ') + 'の <b>' + esc(w.value || 'クーポン') + '</b>（' + esc(w.code) + '）を入れてあります。使わない場合は消してください。</div>');
     (inp.closest('td, dd, div') || inp.parentNode).appendChild(note);
     SIS.active.orderCoupon = 'on'; track('orderCoupon', 'autofill', { sis_label: w.code });
   };
@@ -891,11 +899,74 @@
   FX.orderDone = function () {
     if (PAGE !== 'order' || !/ご注文ありがとうございま|ご注文が完了|ご注文を受け付け/.test(D.body.textContent)) return;
     if (ss('orderDone')) return; ss('orderDone', 1);
-    ls('bought', Date.now()); var w = ls('kujiWin'); if (w) { w.used = true; ls('kujiWin', w); }
+    ls('bought', Date.now()); ['kujiWin', 'spinWin'].forEach(function (k) { var w = ls(k); if (w) { w.used = true; ls(k, w); } });
     var touched = ss('touched') || [];
     track('session', 'purchase', { sis_label: touched.join(',') || 'none' });
     SIS.active.orderDone = 'on';
   };
+
+  /* 7d. はじめての方ルーレット（新規会員限定）：ログイン後、購入履歴が0件の会員に1回だけ。当たったクーポンはご注文手続きで自動入力
+     ・対象：ログイン中の会員で、マイページ「購入履歴」が0件（キャンセルを除く）。この端末で注文したことがある人・一度回した人には出さない
+     ・クーポン：config の coupons で id が spin- で始まるもの（BOで「1会員1回」「初回購入のみ」を付けて発行）
+     ・spin.guaranteed=true のときは必ず特賞に止まる（画面に「はじめての方は必ず特賞」と書く。全員同じ賞なのにくじに見せないため） */
+  FX.welcomeSpin = function (forced) {
+    var cfg = C.spin || {}, prizes = (C.coupons || []).filter(function (c) { return /^spin/.test(c.id); }); // 盤面に並べる賞（コードのない賞は飾りで、当たらない）
+    var winnable = prizes.filter(function (c) { return c.code && (!cfg.guaranteed || c.top); });
+    if (!winnable.length || PAGE === 'order' || PAGE === 'cart') return;
+    if (!forced && ls('spinDone')) return;
+    function open() {
+      var segs = prizes.concat(prizes).slice(0, Math.max(6, prizes.length)), n = segs.length, step = 360 / n;
+      var cols = ['#633783', '#FF8363', '#F5F0F9', '#FFF2EC'];
+      var wedges = segs.map(function (p, i) {
+        var a0 = (i * step - 90 - step / 2) * Math.PI / 180, a1 = ((i + 1) * step - 90 - step / 2) * Math.PI / 180, r = 140;
+        var x0 = 150 + r * Math.cos(a0), y0 = 150 + r * Math.sin(a0), x1 = 150 + r * Math.cos(a1), y1 = 150 + r * Math.sin(a1);
+        var mid = (i * step - 90) * Math.PI / 180, tx = 150 + 92 * Math.cos(mid), ty = 150 + 92 * Math.sin(mid);
+        var fill = p.top ? '#F0A800' : cols[i % 4], fc = /^#F[0-9A-F]F/i.test(fill) ? '#4E2A69' : '#fff'; // 薄い面は濃い文字
+        return '<path d="M150 150 L' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' A' + r + ' ' + r + ' 0 0 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1) + 'Z" fill="' + fill + '" stroke="#fff" stroke-width="2"/>' +
+          '<g transform="rotate(' + (i * step) + ' ' + tx.toFixed(1) + ' ' + ty.toFixed(1) + ')"><text x="' + tx.toFixed(1) + '" y="' + (ty - 6).toFixed(1) + '" text-anchor="middle" font-size="11" font-weight="800" fill="' + fc + '">' + esc(p.rankLabel || '') + '</text>' +
+          '<text x="' + tx.toFixed(1) + '" y="' + (ty + 10).toFixed(1) + '" text-anchor="middle" font-size="' + (String(p.value).length > 6 ? 12 : 15) + '" font-weight="900" fill="' + fc + '">' + esc(p.value) + '</text></g>';
+      }).join('');
+      var wheel = '<div class="sis-wh"><div class="sis-wh-ptr"></div><svg class="sis-wh-svg" viewBox="0 0 300 300" aria-hidden="true"><circle cx="150" cy="150" r="148" fill="#4E2A69"/>' + wedges +
+        '<circle cx="150" cy="150" r="34" fill="#fff" stroke="#F0A800" stroke-width="4"/></svg><button type="button" class="sis-wh-go">回す</button></div>';
+      var m = modal('welcomeSpin', '<div class="sis-mhd sis-tone-y sis-wh-hd"><span class="sis-tag">はじめての方限定・1回だけ</span><h3>会員登録ありがとうございます<br><em>' + esc(cfg.title || 'ウェルカムルーレット') + '</em></h3></div>' +
+        '<div class="sis-mbd">' + wheel + '<p class="sis-note" style="margin:6px 0 0">' + esc(cfg.note || (cfg.guaranteed ? 'はじめての方は必ず特賞が当たります' : 'ハズレなし')) + '</p><div id="sis-spin-r"></div></div>', { force: true });
+      if (!m) return;
+      var svg = m.querySelector('.sis-wh-svg'), go = m.querySelector('.sis-wh-go'), box = m.querySelector('.sis-modal');
+      go.onclick = function () {
+        if (m.dataset.done) return; m.dataset.done = 1; go.disabled = true; ls('spinDone', Date.now());
+        var win = winnable[0];
+        if (!cfg.guaranteed) { var sum = winnable.reduce(function (s, p) { return s + (p.weight || 1); }, 0), r = Math.random() * sum; for (var i = 0; i < winnable.length; i++) { r -= winnable[i].weight || 1; if (r <= 0) { win = winnable[i]; break; } } }
+        var idx = segs.indexOf(win), turns = Q.get('sis_noanim') === '1' ? 0 : 5;
+        svg.style.transition = turns ? 'transform 4.2s cubic-bezier(.12,.75,.18,1)' : 'none';
+        svg.style.transform = 'rotate(' + (turns * 360 - idx * step) + 'deg)';
+        setTimeout(function () {
+          confettiIn(box);
+          ls('spinWin', { code: win.code, value: win.value, exp: win.expires || null, t: Date.now(), from: 'spin' }); // ご注文手続きの画面でクーポン欄に自動で入れる
+          m.querySelector('#sis-spin-r').innerHTML = '<div class="sis-res"><h4>' + esc(win.rankLabel || '') + ' ' + esc(win.value) + ' が当たりました！</h4><p style="margin:0 0 10px">' + ticket(win) + '</p>' +
+            '<p class="sis-note" style="margin:0 0 14px"><b>ご注文手続きの画面で、クーポン欄に自動で入ります</b>' + (win.expiresLabel ? '・有効期限 ' + esc(win.expiresLabel) : '') + (win.cond ? '・' + esc(win.cond) : '') + '</p>' +
+            '<a class="sis-btn sis-block" href="' + esc(cfg.url || SHOP.salePage) + '" data-sis="go">このクーポンでお買い物' + ic('arrow') + '</a><button class="sis-link" data-sis-close="later">閉じる</button></div>';
+          var cl = m.querySelector('#sis-spin-r [data-sis-close]'); if (cl) cl.onclick = function () { m.sisClose('later'); };
+          var g2 = m.querySelector('#sis-spin-r [data-sis="go"]'); if (g2) g2.onclick = function () { track('welcomeSpin', 'click', { sis_label: win.id }); };
+          bindCopy(m, 'welcomeSpin'); track('welcomeSpin', 'draw', { sis_label: win.id });
+        }, turns ? 4400 : 50);
+      };
+    }
+    if (forced) return open();
+    if (ls('bought')) return; // この端末で注文したことがある
+    readRank().then(function (r) {
+      if (!r || r.preview) return false; // ログインしていない
+      return orderHistory().then(function (hist) { return !!hist && hist.length === 0; }); // 購入履歴0件の会員だけ
+    }).then(function (first) {
+      if (!first) return;
+      SIS.popupPending = true; ls('popupAt', Date.now()); // ほかのポップアップより先に出し、続けて出さない
+      setTimeout(function () { SIS.popupPending = false; open(); }, (cfg.delaySec || 1) * 1000);
+    });
+  };
+  function confettiIn(box) {
+    var cols = ['#FF8363', '#633783', '#F0A800', '#06C755', '#FFD36B', '#E6DBEF'], c = h('<div class="sis-conf"></div>');
+    for (var i = 0; i < 48; i++) { var e = D.createElement('i'); e.style.left = Math.random() * 100 + '%'; e.style.background = cols[i % cols.length]; e.style.animationDelay = (Math.random() * .5) + 's'; e.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)'; c.appendChild(e); }
+    box.appendChild(c); setTimeout(function () { c.remove(); }, 2600);
+  }
 
   /* 8. 会員ランク別UI */
   function rankName() { // ログイン中の会員ランク（文字、なければランク画像のalt）
@@ -1573,7 +1644,7 @@
   }
 
   /* ---------- 関係者チップ ---------- */
-  var NAMES = { headerSplit: 'ヘッダーの分割（残り時間・コード）', orderCoupon: '購入手続きでくじのクーポンを自動入力', orderDone: '注文完了の記録', listStock: '一覧の在庫（残りわずか・在庫なし）', bestBadge: '商品ページの週間順位', offers: 'クーポン・まとめ割の表示', proof: '人気の実数（旅行サイト型）', proofList: '一覧の週間順位', interestTop: '気になる商品（トップ）', popup: 'ポップアップ枠', interestAlert: '気になる商品のお知らせ', eventOrder: 'イベント枠の並べ替え', exit: '離脱時ポップアップ', source: '流入元別の出し分け', coupon: '入店時クーポン', shipbar: '送料無料バー', countdown: '期限カウントダウン', kuji: 'くじ', rank: '会員ランク別UI', newRepeat: '新規／リピーター', catBanner: '閲覧カテゴリ別バナー', sizeMemo: 'サイズ記憶', modelSize: 'サイズの目安', lowStock: '在庫僅少バッジ', ranking: '売れ筋ランキング', extraOff: 'さらに◯%OFF', coord: 'コーデまとめ買い', cartReminder: 'カゴ落ち表示', crossSell: 'カート内クロスセル' };
+  var NAMES = { welcomeSpin: 'はじめての方ルーレット（新規会員限定）', headerSplit: 'ヘッダーの分割（残り時間・コード）', orderCoupon: '購入手続きでくじのクーポンを自動入力', orderDone: '注文完了の記録', listStock: '一覧の在庫（残りわずか・在庫なし）', bestBadge: '商品ページの週間順位', offers: 'クーポン・まとめ割の表示', proof: '人気の実数（旅行サイト型）', proofList: '一覧の週間順位', interestTop: '気になる商品（トップ）', popup: 'ポップアップ枠', interestAlert: '気になる商品のお知らせ', eventOrder: 'イベント枠の並べ替え', exit: '離脱時ポップアップ', source: '流入元別の出し分け', coupon: '入店時クーポン', shipbar: '送料無料バー', countdown: '期限カウントダウン', kuji: 'くじ', rank: '会員ランク別UI', newRepeat: '新規／リピーター', catBanner: '閲覧カテゴリ別バナー', sizeMemo: 'サイズ記憶', modelSize: 'サイズの目安', lowStock: '在庫僅少バッジ', ranking: '売れ筋ランキング', extraOff: 'さらに◯%OFF', coord: 'コーデまとめ買い', cartReminder: 'カゴ落ち表示', crossSell: 'カート内クロスセル' };
   function chip() {
     if (Q.get('sis_chip') === '0') return;
     var c = h('<button class="sis-root sis-chip">SIS施策 ON</button>'); var panel;
@@ -1596,7 +1667,7 @@
     style();
     recordViewed();
     trackInterest();
-    var order = ['orderCoupon', 'orderDone', 'headerSplit', 'countdown', 'source', 'coupon', 'rank', 'shipbar', 'eventOrder', 'interestTop', 'newRepeat', 'catBanner', 'ranking', 'proofList', 'listStock', 'bestBadge', 'sizeMemo', 'modelSize', 'lowStock', 'proof', 'offers', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'interestAlert', 'popup', 'kuji', 'exit'];
+    var order = ['orderCoupon', 'orderDone', 'headerSplit', 'countdown', 'source', 'coupon', 'rank', 'shipbar', 'eventOrder', 'interestTop', 'newRepeat', 'catBanner', 'ranking', 'proofList', 'listStock', 'bestBadge', 'sizeMemo', 'modelSize', 'lowStock', 'proof', 'offers', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'interestAlert', 'welcomeSpin', 'popup', 'kuji', 'exit'];
     var slot = C.topSlot || {};
     if (PAGE === 'top' && slot.mode === 'one' && !Q.get('sis_only')) { // トップの「あなた向け枠」は優先順に1つだけ出す
       var so = (slot.order || ['interestTop', 'newRepeat', 'catBanner', 'ranking']).filter(function (k) { return F[k] !== false && FX[k]; });
