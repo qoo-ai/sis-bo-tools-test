@@ -104,7 +104,7 @@
     var h = tsv(await get('report/summary_t.aspx', [['dt1', d90], ['dt2', today], ['source', '0'], ['sales', 'visitor'], ['sales', 'order'], ['output', 'TAB'], ['search.x', '1']]));
     var hh = h[0];
     out.hourly = [['時間帯', '来客数', '注文件数', '注文金額']].concat(h.slice(1).filter(function (r) { return /^\d+:/.test(r[0]); }).map(function (r) {
-      return [r[0], n(r[col(hh, '来客数')]), n(r[col(hh, '注文件数')]), n(r[col(hh, '注文金額')])];
+      return [('0' + parseInt(r[0], 10)).slice(-2) + '時', n(r[col(hh, '来客数')]), n(r[col(hh, '注文件数')]), n(r[col(hh, '注文金額')])];
     }));
 
     log('流入元（直近30日）…');
