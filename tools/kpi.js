@@ -69,6 +69,65 @@
     });
   }
 
+  function csv(t) {  // 改行・カンマを含む項目にも対応
+    var R = [], r = [], f = '', q = false;
+    for (var i = 0; i < t.length; i++) {
+      var ch = t[i];
+      if (q) { if (ch === '"') { if (t[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === ',') { r.push(f); f = ''; }
+      else if (ch === '\n') { r.push(f.replace(/\r$/, '')); R.push(r); r = []; f = ''; }
+      else f += ch;
+    }
+    if (f || r.length) { r.push(f); R.push(r); }
+    return R;
+  }
+  async function post(path, pairs) {
+    var fd = new URLSearchParams(); pairs.forEach(function (p) { fd.append(p[0], p[1]); });
+    var r = await fetch(BO + '/' + path, { method: 'POST', body: fd, credentials: 'include', cache: 'no-store' });
+    var ct = r.headers.get('content-type') || '', b = await r.arrayBuffer();
+    var t = new TextDecoder(/html/.test(ct) ? 'utf-8' : 'shift_jis').decode(b);
+    if (/html/.test(ct) && /ログイン/.test(t) && /name="?login/i.test(t)) throw new Error('ログインが切れています');
+    return t;
+  }
+  // 日別の割引と通常価格の売上（粗利の計算用）。個人情報は集計だけに使い、送らない
+  async function profitDaily(now) {
+    log('商品の通常価格…');
+    var G = csv(await post('goods/search.aspx', [['view.goods', '1'], ['view.price', '1'], ['mode', 'CSV'], ['max', '200000']]));
+    var gh = G[0] || [], gi = gh.indexOf('商品コード'), pi = gh.lastIndexOf('販売価格(税込)'), PR = {};
+    G.slice(1).forEach(function (c) { if (c[gi]) PR[c[gi]] = +c[pi] || 0; });
+    var day = {}, hd = ['日付', '注文数', '通常価格の商品売上', '商品売上（セール後）', 'クーポン値引', 'キャンペーン値引', 'ポイント値引', '金額調整', '送料', '手数料', '注文金額合計', '通常価格不明の明細'];
+    function D(k) { return day[k] = day[k] || [k, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; }
+    function dk(s) { var m = String(s).match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/); return m ? m[1] + '/' + pad(+m[2]) + '/' + pad(+m[3]) : ''; }
+    for (var i = 24; i >= 0; i--) {
+      var a = new Date(now.getFullYear(), now.getMonth() - i, 1), b = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      if (b > now) b = now;
+      log('　割引と通常価格 ' + a.getFullYear() + '/' + pad(a.getMonth() + 1) + '…');
+      var O = csv(await post('sales/search.aspx', [['mode', 'VIEW_CSV'], ['order_dt1', ymd(a)], ['order_dt2', ymd(b)], ['max', '100000'],
+        ['view.cancel_dt', '1'], ['view.subtotal', '1'], ['view.charge', '1'], ['view.postage', '1'], ['view.discount', '1'], ['view.total', '1'],
+        ['view.point_out', '1'], ['view.coupon_discount', '1'], ['view.promotion_discount', '1'], ['view.order_dt', '1']]));
+      var oh = O[0] || [], X = function (k) { return oh.indexOf(k); }, can = {};
+      O.slice(1).forEach(function (c) {
+        var no = c[X('注文番号')]; if (!no) return;
+        if (c[X('キャンセル日')]) { can[no] = 1; return; }
+        var r = D(dk(c[X('注文日')])); if (!r[0]) return;
+        var g = function (k) { return +(c[X(k)] || 0) || 0; };
+        r[1]++; r[4] += g('クーポン値引き額'); r[5] += g('キャンペーン値引き額'); r[6] += g('ポイント使用(値引き)'); r[7] += g('金額調整');
+        r[8] += g('送料'); r[9] += g('手数料'); r[10] += g('注文金額合計');
+      });
+      var Dt = csv(await post('sales/search.aspx', [['mode', 'DETAIL_CSV'], ['order_dt1', ymd(a)], ['order_dt2', ymd(b)], ['max', '200000'],
+        ['csvview.goods', '1'], ['csvview.qty', '1'], ['csvview.amt', '1']]));
+      var dh = Dt[0] || [], Y = function (k) { return dh.indexOf(k); };
+      Dt.slice(1).forEach(function (c) {
+        var no = c[Y('注文番号')]; if (!no || can[no]) return;
+        var r = D(dk(c[Y('注文日')])); if (!r[0]) return;
+        var q = +c[Y('数量')] || 0, amt = +c[Y('合計')] || 0, p = PR[c[Y('商品コード')]];
+        r[3] += amt; if (p && p * q >= amt) r[2] += p * q; else { r[2] += amt; r[11]++; }
+      });
+    }
+    return [hd].concat(Object.keys(day).filter(function (k) { return k; }).sort().map(function (k) { return day[k]; }));
+  }
+
   async function collect() {
     var now = new Date(), today = ymd(now), d30 = ymd(addDays(now, -29)), d90 = ymd(addDays(now, -89));
     var start = new Date(2024, 0, 1), S = ['visitor', 'order', 'repeater', 'customer', 'cancel'];
@@ -141,6 +200,8 @@
         out.rank_sales.push([PS[pi][0], r[1] || (r[0] ? r[0] : '会員以外'), n(r[2]), n(r[3]), n(r[4]), n(r[5])]);
       });
     }
+
+    out.daily_profit = await profitDaily(now);
 
     out.info = [['最終取得', ymd(now) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes())], ['GA4最終取得', ''], ['時間帯の期間', d90 + '〜' + today], ['流入元・商品・検索の期間', d30 + '〜' + today]];
     return out;
