@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KPI取得（中継）</title>
+<style>
+body{margin:0;font:13px/1.6 "Noto Sans JP",sans-serif;color:#344054;background:#fff;padding:16px}
+b{display:block;font-size:14px;color:#101828;margin-bottom:6px}
+input{width:100%;height:36px;border:1px solid #d0d5dd;border-radius:8px;padding:0 8px;font:inherit;box-sizing:border-box}
+button{margin-top:8px;height:36px;padding:0 16px;border:0;border-radius:8px;background:#ee7832;color:#fff;font:inherit;font-weight:bold;cursor:pointer}
+.ok{color:#15803d}.ng{color:#c62828}
+</style></head><body>
+<b>KPI取得（中継）</b>
+<div id="m">BOからのデータを待っています…</div>
+<div id="k" hidden><p>はじめてのときだけ、受信キーを入れてください。</p><input id="key" placeholder="受信キー" autocomplete="off"><button id="save">保存</button></div>
+<script>
+/* BOの画面（CSPでGoogleへ送れない）から postMessage でデータを受け取り、KPIシートの受信口（Apps Script）へ送る中継。
+   受信キーはこのブラウザだけに保存（コードには書かない）。 */
+(function(){
+var EXEC='https://script.google.com/macros/s/AKfycbwZaGZbzVn39J5oOot8JGv99RcmqKvOschk6iRsBuRRaUsdgkFcwp9oK0FPVaCJtnmd/exec';
+var to=decodeURIComponent((location.hash||'').slice(1));
+var OK=/^https:\/\/office\.[a-z0-9.-]+\.mercart-(stg|bo)\.net$/;
+var M=document.getElementById('m'),K=document.getElementById('k');
+function key(){try{return localStorage.getItem('sisKpiKey')||'';}catch(e){return '';}}
+function reply(o){try{window.opener.postMessage({sisKpi:o},to);}catch(e){}}
+if(!window.opener||!OK.test(to)){M.textContent='BOの「KPI取得」から開いてください。';return;}
+if(!key()){K.hidden=false;M.textContent='';}
+document.getElementById('save').onclick=function(){var v=document.getElementById('key').value.trim();if(!v)return;try{localStorage.setItem('sisKpiKey',v);}catch(e){}K.hidden=true;M.textContent='保存しました。BOのデータを待っています…';reply({ready:1});};
+window.addEventListener('message',function(e){
+  if(e.origin!==to||!e.data||!e.data.sisKpi)return;var m=e.data.sisKpi;
+  if(m.ping){if(key())reply({ready:1});return;}
+  if(!m.data)return;
+  if(!key()){reply({result:{ok:false,error:'受信キーが未設定です（小窓で入れてください）'}});return;}
+  M.textContent='KPIシートへ送っています…';
+  var body=m.data;body.key=key();
+  fetch(EXEC,{method:'POST',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){
+    if(j.ok){M.innerHTML='<span class="ok">送信しました</span>（'+new Date().toLocaleString('ja-JP')+'）';}
+    else{M.innerHTML='<span class="ng">止まりました：'+(j.error==='key'?'受信キーが違います':j.error)+'</span>';if(j.error==='key'){try{localStorage.removeItem('sisKpiKey');}catch(e){}K.hidden=false;}}
+    reply({result:j});if(j.ok&&!m.keep)setTimeout(function(){window.close();},4000);
+  }).catch(function(err){M.innerHTML='<span class="ng">送信できませんでした</span>';reply({result:{ok:false,error:String(err)}});});
+});
+if(key())reply({ready:1});
+})();
+</script></body></html>
