@@ -63,12 +63,8 @@ function setup() {
 }
 
 /* ===== GA4：毎朝自動で取る（トリガー ga4Update・毎日7時台） ===== */
-function ga4_(body) {
-  var r = UrlFetchApp.fetch('https://analyticsdata.googleapis.com/v1beta/properties/' + GA4_PROPERTY + ':runReport', {
-    method: 'post', contentType: 'application/json', payload: JSON.stringify(body), muteHttpExceptions: true,
-    headers: {Authorization: 'Bearer ' + ScriptApp.getOAuthToken()}});
-  var j = JSON.parse(r.getContentText());
-  if (j.error) throw new Error('GA4: ' + j.error.message);
+function ga4_(body) {  // 高度なサービス AnalyticsData（Google Analytics Data API）
+  var j = AnalyticsData.Properties.runReport(body, 'properties/' + GA4_PROPERTY);
   return (j.rows || []).map(function (x) {
     return x.dimensionValues.map(function (d) { return d.value; }).concat(x.metricValues.map(function (m) { return Number(m.value); }));
   });
