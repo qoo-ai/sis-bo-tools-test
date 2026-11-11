@@ -5,6 +5,7 @@
 var P = PropertiesService.getScriptProperties();
 var TABS = {daily:'raw_日次', monthly:'raw_月次', hourly:'raw_時間帯', channels:'raw_流入元', products:'raw_商品', keywords:'raw_検索', info:'raw_情報',
   ranks:'raw_会員ランク', rank_sales:'raw_ランク別売上'};
+var COST = '原価';  // 商品ごとの原価（人が入れる）。売れた商品はKPI取得のたびに自動で行が足される
 var SETTINGS = '設定';  // 原価率・売上目標など、人が入れる値（A列＝項目、B列＝値）
 function tab_(k) { return TABS[k] || ('raw_' + k); }  // 表を足すときはBOツール側だけ直せばよい（ここは直さなくてよい）
 var GA = {ga_daily:'raw_GA4日次', ga_channels:'raw_GA4流入元'};
@@ -18,9 +19,10 @@ function doPost(e) {
   try {
     var d = JSON.parse(e.postData.contents);
     if (!d || d.key !== P.getProperty('KPI_KEY')) { out.error = 'key'; return json_(out); }
+    if (d.want === 'cost') { out.ok = true; out.cost = costMap_(); return json_(out); }  // KPI取得が粗利の計算前に原価を読みに来る
     var ss = ss_(), n = {};
     Object.keys(d).forEach(function (k) {
-      if (k === 'key' || k === 'keep' || GA[k] || !/^[a-z0-9_]{1,30}$/.test(k)) return;
+      if (k === 'key' || k === 'keep' || k === 'skus' || GA[k] || !/^[a-z0-9_]{1,30}$/.test(k)) return;
       var rows = d[k];
       if (!rows || !rows.length || !Array.isArray(rows[0])) return;
       var w = rows.reduce(function (m, r) { return Math.max(m, r.length); }, 0);
@@ -30,11 +32,44 @@ function doPost(e) {
       sh.getRange(1, 1, rows.length, w).setValues(rows);
       n[k] = rows.length - 1;
     });
+    if (d.skus && d.skus.length > 1) n.cost_rows = syncCost_(ss, d.skus);
     var info = ss.getSheetByName(TABS.info) || ss.insertSheet(TABS.info);
     info.getRange('A1:B1').setValues([['最終取得', Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm')]]);
     out.ok = true; out.rows = n;
   } catch (err) { out.error = String(err); }
   return json_(out);
+}
+
+/* 原価タブ：A商品コード（品番だけでも可＝その下の全SKUに効く）／B商品名／C原価（税抜・1個）／D直近1年の売上 */
+function costSheet_(ss) {
+  var sh = ss.getSheetByName(COST);
+  if (sh) return sh;
+  sh = ss.insertSheet(COST);
+  sh.getRange('A:A').setNumberFormat('@');
+  sh.getRange('C:D').setNumberFormat('#,##0');
+  sh.getRange(1, 1, 1, 4).setValues([['商品コード', '商品名', '原価（税抜・1個）', '直近1年の売上']]).setFontWeight('bold').setBackground('#FDEBDD');
+  [150, 380, 130, 120].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
+  return sh;
+}
+function costMap_() {
+  var sh = ss_().getSheetByName(COST), m = {};
+  if (!sh || sh.getLastRow() < 2) return m;
+  sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues().forEach(function (r) {
+    var k = String(r[0]).trim(), v = Number(String(r[2]).replace(/[,円¥\s]/g, ''));
+    if (k && r[2] !== '' && isFinite(v) && v >= 0) m[k] = v;
+  });
+  return m;
+}
+function syncCost_(ss, skus) {  // 売れた商品を足し、売上の大きい順に並べ直す（入力済みの原価はそのまま）
+  var sh = costSheet_(ss), last = sh.getLastRow(), cur = last > 1 ? sh.getRange(2, 1, last - 1, 4).getValues() : [], S = {}, seen = {};
+  skus.slice(1).forEach(function (r) { if (r[0]) S[String(r[0])] = r; });
+  cur.forEach(function (r) { var k = String(r[0]).trim(); seen[k] = 1; if (S[k]) { if (!r[1]) r[1] = S[k][1]; r[3] = S[k][3]; } else r[3] = ''; });
+  Object.keys(S).forEach(function (k) { if (!seen[k]) cur.push([k, S[k][1], '', S[k][3]]); });
+  cur = cur.filter(function (r) { return String(r[0]).trim(); });
+  cur.sort(function (a, b) { return (Number(b[3]) || 0) - (Number(a[3]) || 0); });
+  if (last > 1) sh.getRange(2, 1, last - 1, 4).clearContent();
+  if (cur.length) sh.getRange(2, 1, cur.length, 4).setValues(cur);
+  return cur.length;
 }
 
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }

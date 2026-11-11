@@ -91,13 +91,25 @@
     return t;
   }
   // 日別の割引と通常価格の売上（粗利の計算用）。個人情報は集計だけに使い、送らない
-  async function profitDaily(now) {
-    log('商品の通常価格…');
-    var G = csv(await post('goods/search.aspx', [['view.goods', '1'], ['view.price', '1'], ['mode', 'CSV'], ['max', '200000']]));
-    var gh = G[0] || [], gi = gh.indexOf('商品コード'), pi = gh.lastIndexOf('販売価格(税込)'), PR = {};
-    G.slice(1).forEach(function (c) { if (c[gi]) PR[c[gi]] = +c[pi] || 0; });
-    var day = {}, hd = ['日付', '注文数', '通常価格の商品売上', '商品売上（セール後）', 'クーポン値引', 'キャンペーン値引', 'ポイント値引', '金額調整', '送料', '手数料', '注文金額合計', '通常価格不明の明細'];
-    function D(k) { return day[k] = day[k] || [k, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; }
+  // 原価（税抜・1個あたり）：BOの商品マスタに入っていればそれ、なければKPIシートの「原価」タブ（商品コードか、その上位の品番）
+  async function sheetCost() {
+    try { var r = await send({ want: 'cost' }, true); var c = r.cost || {}; log('　原価表 ' + Object.keys(c).length + '件'); return c; }
+    catch (e) { log('　原価表は読めませんでした（仮の原価率で計算）'); return {}; }
+  }
+  async function profitDaily(now, SC) {
+    log('商品の通常価格と原価…');
+    var G = csv(await post('goods/search.aspx', [['view.goods', '1'], ['view.price', '1'], ['view.cost', '1'], ['mode', 'CSV'], ['max', '200000']]));
+    var gh = G[0] || [], gi = gh.indexOf('商品コード'), pi = gh.lastIndexOf('販売価格(税込)'), ci = gh.indexOf('原価'), ni = gh.indexOf('商品名'), PR = {}, BC = {}, NM = {}, CC = {};
+    G.slice(1).forEach(function (c) { if (!c[gi]) return; PR[c[gi]] = +c[pi] || 0; NM[c[gi]] = ni < 0 ? '' : c[ni]; if (ci >= 0 && +c[ci] > 0) BC[c[gi]] = +c[ci]; });
+    function cost(code) {
+      if (code in CC) return CC[code];
+      var v = BC[code] != null ? BC[code] : null, k = code;
+      while (v == null && k) { if (SC[k] != null) v = SC[k]; var j = k.lastIndexOf('-'); k = j > 0 ? k.slice(0, j) : ''; }
+      return CC[code] = v;
+    }
+    var y1 = ymd(addDays(now, -364)), SK = {};
+    var day = {}, hd = ['日付', '注文数', '通常価格の商品売上', '商品売上（セール後）', 'クーポン値引', 'キャンペーン値引', 'ポイント値引', '金額調整', '送料', '手数料', '注文金額合計', '通常価格不明の明細', '原価（登録分）', '原価未登録の通常価格売上'];
+    function D(k) { return day[k] = day[k] || [k, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; }
     function dk(s) { var m = String(s).match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/); return m ? m[1] + '/' + pad(+m[2]) + '/' + pad(+m[3]) : ''; }
     for (var i = 24; i >= 0; i--) {
       var a = new Date(now.getFullYear(), now.getMonth() - i, 1), b = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
@@ -121,11 +133,16 @@
       Dt.slice(1).forEach(function (c) {
         var no = c[Y('注文番号')]; if (!no || can[no]) return;
         var r = D(dk(c[Y('注文日')])); if (!r[0]) return;
-        var q = +c[Y('数量')] || 0, amt = +c[Y('合計')] || 0, p = PR[c[Y('商品コード')]];
-        r[3] += amt; if (p && p * q >= amt) r[2] += p * q; else { r[2] += amt; r[11]++; }
+        var code = c[Y('商品コード')], q = +c[Y('数量')] || 0, amt = +c[Y('合計')] || 0, p = PR[code], reg = amt;
+        r[3] += amt; if (p && p * q >= amt) reg = p * q; else r[11]++;
+        r[2] += reg;
+        var cv = cost(code); if (cv != null) r[12] += cv * q; else r[13] += reg;
+        if (r[0] >= y1) { var o = SK[code] = SK[code] || [code, NM[code] || c[Y('商品名')] || '', 0, 0]; o[2] += q; o[3] += amt; }
       });
     }
-    return [hd].concat(Object.keys(day).filter(function (k) { return k; }).sort().map(function (k) { return day[k]; }));
+    var daily = [hd].concat(Object.keys(day).filter(function (k) { return k; }).sort().map(function (k) { return day[k]; }));
+    var skus = [['商品コード', '商品名', '直近1年の販売数', '直近1年の売上']].concat(Object.keys(SK).map(function (k) { return SK[k]; }).sort(function (a, b) { return b[3] - a[3]; }));
+    return { daily: daily, skus: skus };
   }
 
   async function collect() {
@@ -201,7 +218,8 @@
       });
     }
 
-    out.daily_profit = await profitDaily(now);
+    var SC = await sheetCost(), pf = await profitDaily(now, SC);
+    out.daily_profit = pf.daily; out.skus = pf.skus;
 
     out.info = [['最終取得', ymd(now) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes())], ['GA4最終取得', ''], ['時間帯の期間', d90 + '〜' + today], ['流入元・商品・検索の期間', d30 + '〜' + today]];
     return out;
