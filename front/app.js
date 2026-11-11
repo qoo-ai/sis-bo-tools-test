@@ -965,13 +965,15 @@
     if (forced) { guest = Q.get('sis_guest') === '1'; return open(); } // 画面確認用：sis_show=welcomeSpin（未ログイン版は &sis_guest=1）
     if (ls('bought')) return; // この端末で注文したことがある
     function show() { SIS.popupPending = true; ls('popupAt', Date.now()); setTimeout(function () { SIS.popupPending = false; open(); }, (cfg.delaySec || 1) * 1000); } // ほかのポップアップより先に出し、続けて出さない
+    var asGuest = Q.get('sis_as_guest') === '1'; // 画面確認用：ログイン中でも未ログインとして動かす（sis_spin_after=10 で10秒後に出す）
     readRank().then(function (r) {
+      if (asGuest) r = null;
       if (r && !r.preview) { // A：ログイン中
         ls('member', Date.now()); // この端末は会員として使われたことがある
         return orderHistory().then(function (hist) { if (hist && hist.length === 0) show(); }); // 購入履歴0件の会員だけ
       }
       // B：未ログイン。この端末で一度もログインしていない人が、ログインしないまま一定時間いたら出す
-      if (cfg.guest === false || ls('member') || ss('spinSeen') || /^\/shop\/customer\//.test(location.pathname)) return; // 閉じた人には同じ訪問中は出さない
+      if (cfg.guest === false || (ls('member') && !asGuest) || ss('spinSeen') || /^\/shop\/customer\//.test(location.pathname)) return; // 閉じた人には同じ訪問中は出さない
       var need = (+Q.get('sis_spin_after') || cfg.guestAfterSec || 45) * 1000, last = Date.now();
       var iv = setInterval(function () {
         var t = Date.now(), seen = (ss('spinDwell') || 0) + (D.hidden ? 0 : t - last); last = t; ss('spinDwell', seen); // ページをまたいで合計する（タブを閉じるとリセット）
