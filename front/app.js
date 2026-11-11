@@ -892,6 +892,7 @@
     var kc = C.kuji || {};
     if (kc.auto !== false && PAGE !== 'cart' && ls('kujiAutoDay') !== today) setTimeout(function wait(n) { // 入店時に自動で開く（1日1回）。はじめての方ルーレットが出るときは待つ
       n = n || 0; if (ls('kujiDay') === today) return;
+      if (SIS.spinShown) return; // ルーレットを出したページでは続けて出さない（次のページで出す）
       if (modalOpen || SIS.spinPending) { if (n < 16) setTimeout(function () { wait(n + 1); }, 500); return; }
       ls('kujiAutoDay', today); track('kuji', 'auto'); open();
     }, (kc.delaySec || 1.5) * 1000);
@@ -980,7 +981,7 @@
     }
     if (forced) { guest = Q.get('sis_guest') === '1'; return open(); } // 画面確認用：sis_show=welcomeSpin（未ログイン版は &sis_guest=1）
     if (ls('bought')) return; // この端末で注文したことがある
-    function show() { SIS.popupPending = SIS.spinPending = true; ls('popupAt', Date.now()); setTimeout(function () { SIS.popupPending = SIS.spinPending = false; open(); }, (cfg.delaySec || 1) * 1000); } // ほかのポップアップより先に出し、続けて出さない
+    function show() { SIS.popupPending = SIS.spinPending = SIS.spinShown = true; ls('popupAt', Date.now()); setTimeout(function () { SIS.popupPending = SIS.spinPending = false; open(); }, (cfg.delaySec || 1) * 1000); } // ほかのポップアップより先に出し、続けて出さない
     SIS.spinPending = true; // 出すかどうか決まるまで、ご来店くじの自動表示を待たせる
     var asGuest = Q.get('sis_as_guest') === '1'; // 画面確認用：ログイン中でも未ログインとして動かす（sis_spin_after=10 で10秒後に出す）
     readRank().then(function (r) {
