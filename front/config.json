@@ -444,5 +444,10 @@
     "delaySec": 1,
     "guest": true,
     "guestAfterSec": 45
+  },
+  "kuji": {
+    "_readme": "入店時に自動で開く（1日1回）。auto=false で右下のボタンだけにする",
+    "auto": true,
+    "delaySec": 1.5
   }
 }
