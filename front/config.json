@@ -13,7 +13,9 @@
     "salePage": "/shop/e/especial/",
     "saleName": "15周年special SALE",
     "newPage": "/shop/e/enew/",
-    "_rankPage": "会員ランクについて（本番にだけあるページ。stgの /shop/pages/rank.aspx は404のため、サイトのヘッダーと同じ本番URLにする）"
+    "_rankPage": "会員ランクについて（本番にだけあるページ。stgの /shop/pages/rank.aspx は404のため、サイトのヘッダーと同じ本番URLにする）",
+    "entryPage": "/shop/customer/entry.aspx",
+    "loginPage": "/shop/customer/menu.aspx"
   },
   "novelty": {
     "on": false,
@@ -436,9 +438,11 @@
     "_readme": "どの施策でも「出す（A）／出さない（B）」に分けて購入まで比べる。施策名に weights:[出す%,出さない%] を書く。all は全施策共通。空なら全員に出す（今はテストしていない）"
   },
   "spin": {
-    "_readme": "はじめての方ルーレット（welcomeSpin）。ログイン中・購入履歴0件の会員に1回だけ。guaranteed=true は必ず特賞に止まり、画面に『はじめての方は必ず特賞』と書く。false にすると各クーポンの weight の割合で抽選",
+    "_readme": "はじめての方ルーレット（welcomeSpin）。A：ログイン中・購入履歴0件の会員。B：未ログインのまま guestAfterSec 秒いた人（この端末で一度もログインしていない人だけ。会員登録へ案内）。どちらも1回だけ。guaranteed=true は必ず特賞に止まり、画面に『はじめての方は必ず特賞』と書く。false にすると各クーポンの weight の割合で抽選。guest=false で未ログインには出さない",
     "title": "ウェルカムルーレット",
     "guaranteed": true,
-    "delaySec": 1
+    "delaySec": 1,
+    "guest": true,
+    "guestAfterSec": 45
   }
 }

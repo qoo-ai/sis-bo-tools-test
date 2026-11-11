@@ -905,11 +905,15 @@
     SIS.active.orderDone = 'on';
   };
 
-  /* 7d. はじめての方ルーレット（新規会員限定）：ログイン後、購入履歴が0件の会員に1回だけ。当たったクーポンはご注文手続きで自動入力
-     ・対象：ログイン中の会員で、マイページ「購入履歴」が0件（キャンセルを除く）。この端末で注文したことがある人・一度回した人には出さない
+  /* 7d. はじめての方ルーレット：1回だけ。当たったクーポンはご注文手続きで自動入力
+     ・対象A（会員）：ログイン中で、マイページ「購入履歴」が0件（キャンセルを除く）
+     ・対象B（未ログイン）：ログインしないままサイト内に spin.guestAfterSec 秒（見ている時間の合計）いた人。「会員登録・ログインで使える」と案内して会員登録へ
+       すぐ出さないのは、会員なのにたまたまログアウトしていた人に「自分は使えない」と思わせないため。この端末で一度でもログインした人には出さない
+     ・共通：この端末で注文したことがある人・一度回した人には出さない
      ・クーポン：config の coupons で id が spin- で始まるもの（BOで「1会員1回」「初回購入のみ」を付けて発行）
      ・spin.guaranteed=true のときは必ず特賞に止まる（画面に「はじめての方は必ず特賞」と書く。全員同じ賞なのにくじに見せないため） */
   FX.welcomeSpin = function (forced) {
+    var guest = false; // 未ログインで出すとき true（文言と案内先が変わる）
     var cfg = C.spin || {}, prizes = (C.coupons || []).filter(function (c) { return /^spin/.test(c.id); }); // 盤面に並べる賞（コードのない賞は飾りで、当たらない）
     var winnable = prizes.filter(function (c) { return c.code && (!cfg.guaranteed || c.top); });
     if (!winnable.length || PAGE === 'order' || PAGE === 'cart') return;
@@ -928,7 +932,7 @@
       }).join('');
       var wheel = '<div class="sis-wh"><div class="sis-wh-ptr"></div><svg class="sis-wh-svg" viewBox="0 0 300 300" aria-hidden="true"><circle cx="150" cy="150" r="148" fill="#4E2A69"/>' + wedges +
         '<circle cx="150" cy="150" r="34" fill="#fff" stroke="#F0A800" stroke-width="4"/></svg><button type="button" class="sis-wh-go">回す</button></div>';
-      var m = modal('welcomeSpin', '<div class="sis-mhd sis-tone-y sis-wh-hd"><span class="sis-tag">はじめての方限定・1回だけ</span><h3>会員登録ありがとうございます<br><em>' + esc(cfg.title || 'ウェルカムルーレット') + '</em></h3></div>' +
+      var m = modal('welcomeSpin', '<div class="sis-mhd sis-tone-y sis-wh-hd"><span class="sis-tag">はじめての方限定・1回だけ</span><h3>' + (guest ? 'ご来店ありがとうございます' : '会員登録ありがとうございます') + '<br><em>' + esc(cfg.title || 'ウェルカムルーレット') + '</em></h3></div>' +
         '<div class="sis-mbd">' + wheel + '<p class="sis-note" style="margin:6px 0 0">' + esc(cfg.note || (cfg.guaranteed ? 'はじめての方は必ず特賞が当たります' : 'ハズレなし')) + '</p><div id="sis-spin-r"></div></div>', { force: true });
       if (!m) return;
       var svg = m.querySelector('.sis-wh-svg'), go = m.querySelector('.sis-wh-go'), box = m.querySelector('.sis-modal');
@@ -942,24 +946,37 @@
         setTimeout(function () {
           confettiIn(box);
           ls('spinWin', { code: win.code, value: win.value, exp: win.expires || null, t: Date.now(), from: 'spin' }); // ご注文手続きの画面でクーポン欄に自動で入れる
+          var cond = (win.expiresLabel ? '・有効期限 ' + esc(win.expiresLabel) : '') + (win.cond ? '・' + esc(win.cond) : '');
           m.querySelector('#sis-spin-r').innerHTML = '<div class="sis-res"><h4>' + esc(win.rankLabel || '') + ' ' + esc(win.value) + ' が当たりました！</h4><p style="margin:0 0 10px">' + ticket(win) + '</p>' +
-            '<p class="sis-note" style="margin:0 0 14px"><b>ご注文手続きの画面で、クーポン欄に自動で入ります</b>' + (win.expiresLabel ? '・有効期限 ' + esc(win.expiresLabel) : '') + (win.cond ? '・' + esc(win.cond) : '') + '</p>' +
-            '<a class="sis-btn sis-block" href="' + esc(cfg.url || SHOP.salePage) + '" data-sis="go">このクーポンでお買い物' + ic('arrow') + '</a><button class="sis-link" data-sis-close="later">閉じる</button></div>';
+            (guest
+              ? '<p class="sis-note" style="margin:0 0 14px"><b>会員登録（無料）・ログインで使えます。</b>ご注文手続きの画面で、クーポン欄に自動で入ります' + cond + '</p>' +
+                '<a class="sis-btn sis-block" href="' + esc(SHOP.entryPage || '/shop/customer/entry.aspx') + '" data-sis="go">会員登録してクーポンを使う' + ic('arrow') + '</a>' +
+                '<a class="sis-link" href="' + esc(SHOP.loginPage || '/shop/customer/menu.aspx') + '" data-sis="login" style="display:block;margin-top:8px">会員の方はログインして使う</a>'
+              : '<p class="sis-note" style="margin:0 0 14px"><b>ご注文手続きの画面で、クーポン欄に自動で入ります</b>' + cond + '</p>' +
+                '<a class="sis-btn sis-block" href="' + esc(cfg.url || SHOP.salePage) + '" data-sis="go">このクーポンでお買い物' + ic('arrow') + '</a>') +
+            '<button class="sis-link" data-sis-close="later">閉じる</button></div>';
           var cl = m.querySelector('#sis-spin-r [data-sis-close]'); if (cl) cl.onclick = function () { m.sisClose('later'); };
-          var g2 = m.querySelector('#sis-spin-r [data-sis="go"]'); if (g2) g2.onclick = function () { track('welcomeSpin', 'click', { sis_label: win.id }); };
+          var g2 = m.querySelector('#sis-spin-r [data-sis="go"]'); if (g2) g2.onclick = function () { track('welcomeSpin', 'click', { sis_label: guest ? 'entry' : win.id }); };
+          var g3 = m.querySelector('#sis-spin-r [data-sis="login"]'); if (g3) g3.onclick = function () { track('welcomeSpin', 'click', { sis_label: 'login' }); };
           bindCopy(m, 'welcomeSpin'); track('welcomeSpin', 'draw', { sis_label: win.id });
         }, turns ? 4400 : 50);
       };
     }
-    if (forced) return open();
+    if (forced) { guest = Q.get('sis_guest') === '1'; return open(); } // 画面確認用：sis_show=welcomeSpin（未ログイン版は &sis_guest=1）
     if (ls('bought')) return; // この端末で注文したことがある
+    function show() { SIS.popupPending = true; ls('popupAt', Date.now()); setTimeout(function () { SIS.popupPending = false; open(); }, (cfg.delaySec || 1) * 1000); } // ほかのポップアップより先に出し、続けて出さない
     readRank().then(function (r) {
-      if (!r || r.preview) return false; // ログインしていない
-      return orderHistory().then(function (hist) { return !!hist && hist.length === 0; }); // 購入履歴0件の会員だけ
-    }).then(function (first) {
-      if (!first) return;
-      SIS.popupPending = true; ls('popupAt', Date.now()); // ほかのポップアップより先に出し、続けて出さない
-      setTimeout(function () { SIS.popupPending = false; open(); }, (cfg.delaySec || 1) * 1000);
+      if (r && !r.preview) { // A：ログイン中
+        ls('member', Date.now()); // この端末は会員として使われたことがある
+        return orderHistory().then(function (hist) { if (hist && hist.length === 0) show(); }); // 購入履歴0件の会員だけ
+      }
+      // B：未ログイン。この端末で一度もログインしていない人が、ログインしないまま一定時間いたら出す
+      if (cfg.guest === false || ls('member') || ss('spinSeen') || /^\/shop\/customer\//.test(location.pathname)) return; // 閉じた人には同じ訪問中は出さない
+      var need = (+Q.get('sis_spin_after') || cfg.guestAfterSec || 45) * 1000, last = Date.now();
+      var iv = setInterval(function () {
+        var t = Date.now(), seen = (ss('spinDwell') || 0) + (D.hidden ? 0 : t - last); last = t; ss('spinDwell', seen); // ページをまたいで合計する（タブを閉じるとリセット）
+        if (seen >= need && !modalOpen) { clearInterval(iv); guest = true; ss('spinSeen', 1); show(); }
+      }, 1000);
     });
   };
   function confettiIn(box) {
