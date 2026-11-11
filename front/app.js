@@ -987,7 +987,8 @@
       if (asGuest) r = null;
       if (r && !r.preview) { // A：ログイン中
         ls('member', Date.now()); // この端末は会員として使われたことがある
-        return orderHistory().then(function (hist) { if (hist && hist.length === 0) show(); else SIS.spinPending = false; }); // 購入履歴0件の会員だけ
+        if (ss('spinSeen')) { SIS.spinPending = false; return; } // 閉じた人には同じ訪問中は出さない
+        return orderHistory().then(function (hist) { if (hist && hist.length === 0) { ss('spinSeen', 1); show(); } else SIS.spinPending = false; }); // 購入履歴0件の会員だけ
       }
       SIS.spinPending = false;
       // B：未ログイン。この端末で一度もログインしていない人が、ログインしないまま一定時間いたら出す
