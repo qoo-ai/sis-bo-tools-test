@@ -554,9 +554,9 @@
     }).catch(function () { return null; });
     return goodsCache[code];
   }
-  function goodsFast(code) { // ランキング用：30分以内に見た商品は取り直さない。6時間以内なら前回の結果を先に出して裏で取り直す
+  function goodsFast(code) { // ランキング用：30分以内に見た商品は取り直さない（ページがない商品も含む）。6時間以内なら前回の結果を先に出して裏で取り直す
     var m = ls('gi') || {}, x = m[code], age = x ? Date.now() - x.t : 1e12;
-    function fetchIt() { return goodsInfo(code).then(function (g) { if (g) { var mm = ls('gi') || {}; mm[code] = { g: g, t: Date.now() }; var ks = Object.keys(mm); if (ks.length > 200) ks.sort(function (p, q) { return mm[p].t - mm[q].t; }).slice(0, ks.length - 200).forEach(function (k) { delete mm[k]; }); ls('gi', mm); } return g; }); }
+    function fetchIt() { return goodsInfo(code).then(function (g) { { var mm = ls('gi') || {}; mm[code] = { g: g, t: Date.now() }; var ks = Object.keys(mm); if (ks.length > 200) ks.sort(function (p, q) { return mm[p].t - mm[q].t; }).slice(0, ks.length - 200).forEach(function (k) { delete mm[k]; }); ls('gi', mm); } return g; }); }
     if (age < 1800e3) return Promise.resolve(x.g);
     if (age < 6 * 3600e3) { fetchIt(); return Promise.resolve(x.g); }
     return fetchIt();
