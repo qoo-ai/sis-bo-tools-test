@@ -1474,7 +1474,7 @@
 
   /* 13. 売れ筋ランキング（貴社サイト側の sis_data.js があるときだけ） */
   FX.ranking = function () {
-    if (PAGE !== 'top' && PAGE !== 'list') return Promise.resolve(false);
+    if (PAGE !== 'top') return Promise.resolve(false); // トップだけ（一覧ページには入れる場所がないため出さない）
     return weekly().then(function (w) {
       if (!w) return legacyRanking();
       var genres = (w.genres || []).filter(function (g) { return (g.items || []).length >= 3; }); if (!genres.length) return false;
@@ -1715,7 +1715,7 @@
     var order = ['orderCoupon', 'orderDone', 'headerSplit', 'countdown', 'source', 'coupon', 'rank', 'shipbar', 'eventOrder', 'interestTop', 'newRepeat', 'catBanner', 'ranking', 'proofList', 'listStock', 'bestBadge', 'sizeMemo', 'modelSize', 'lowStock', 'proof', 'offers', 'extraOff', 'coord', 'crossSell', 'cartReminder', 'interestAlert', 'welcomeSpin', 'popup', 'kuji', 'exit'];
     var slot = C.topSlot || {};
     if (PAGE === 'top' && slot.mode === 'one' && !Q.get('sis_only')) { // トップの「あなた向け枠」は優先順に1つだけ出す
-      var so = (slot.order || ['interestTop', 'newRepeat', 'catBanner', 'ranking']).filter(function (k) { return F[k] !== false && FX[k]; });
+      var so = (slot.order || ['interestTop', 'newRepeat', 'catBanner']).filter(function (k) { return F[k] !== false && FX[k]; });
       var soOn = so.filter(function (k) { return featureOn(k); });
       order = order.filter(function (k) { return so.indexOf(k) < 0; });
       soOn.reduce(function (pr, k) { return pr.then(function (done) { if (done) return true; try { return Promise.resolve(FX[k](false)).then(function (r) { return !!r; }); } catch (e) { return false; } }); }, Promise.resolve(false));
