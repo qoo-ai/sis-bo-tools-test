@@ -135,6 +135,16 @@
       "_bo": "stg BO 共通クーポン（イベントID siskujiship）2026-10-24作成・期間10/24〜11/30。本番は別途発行"
     },
     {
+      "id": "kuji-d",
+      "code": "SISKUJIPT2",
+      "value": "ポイント2倍",
+      "weight": 5,
+      "expires": "2027-12-31T23:59:59+09:00",
+      "expiresLabel": "2027/12/31まで",
+      "cond": "会員のお買い物で、ポイントが2倍",
+      "_bo": "stg BO 共通クーポン（イベントID siskujipt2・ポイント2倍・会員限定）2026-11-12作成・期間〜2027/12/31。本番は別途発行"
+    },
+    {
       "id": "signup",
       "audience": "guest",
       "kicker": "会員登録で",
