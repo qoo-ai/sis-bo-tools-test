@@ -949,7 +949,7 @@
       }).join('');
       var wheel = '<div class="sis-wh"><div class="sis-wh-ptr"></div><svg class="sis-wh-svg" viewBox="0 0 300 300" aria-hidden="true"><circle cx="150" cy="150" r="148" fill="#4E2A69"/>' + wedges +
         '<circle cx="150" cy="150" r="34" fill="#fff" stroke="#F0A800" stroke-width="4"/></svg><button type="button" class="sis-wh-go">回す</button></div>';
-      var m = modal('welcomeSpin', '<div class="sis-mhd sis-tone-y sis-wh-hd"><span class="sis-tag">' + (guest ? '新規のお客様限定' : 'はじめての方限定') + '・1回だけ</span><h3>' + (guest ? '新規のお客様限定' : '会員登録ありがとうございます') + '<br><em>' + esc(cfg.title || 'ウェルカムルーレット') + '</em></h3></div>' +
+      var m = modal('welcomeSpin', '<div class="sis-mhd sis-tone-y sis-wh-hd"><span class="sis-tag">' + (guest ? '' : 'はじめての方限定・') + '1回だけ</span><h3>' + (guest ? '新規のお客様限定' : '会員登録ありがとうございます') + '<br><em>' + esc(cfg.title || 'ウェルカムルーレット') + '</em></h3></div>' +
         '<div class="sis-mbd">' + wheel + (cfg.note ? '<p class="sis-note" style="margin:6px 0 0">' + esc(cfg.note) + '</p>' : '') + '<div id="sis-spin-r"></div></div>', { force: true });
       if (!m) return;
       var svg = m.querySelector('.sis-wh-svg'), go = m.querySelector('.sis-wh-go'), box = m.querySelector('.sis-modal');
