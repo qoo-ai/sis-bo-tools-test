@@ -706,8 +706,8 @@
     if (!c) return null; if (c.code) return c; return DEMO ? c : null;
   }
   function ticket(c) { // クーポン券（左に割引額、右にコード）
-    var v = String(c.value || ''), m = v.match(/^(\d[\d,]*)(.*)$/);
-    var left = m ? '<b>' + esc(m[1]) + '</b><small>' + esc(m[2] || '') + '</small>' : '<b class="sis-tk-txt">' + esc(v || 'クーポン') + '</b>';
+    var v = String(c.value || ''), m = v.match(/^(\d[\d,]*)(.*)$/), pt = v.match(/^ポイント(\d+)倍$/);
+    var left = pt ? '<b>' + pt[1] + '倍</b><small>ポイント</small>' : m ? '<b>' + esc(m[1]) + '</b><small>' + esc(m[2] || '') + '</small>' : '<b class="sis-tk-txt">' + esc(v || 'クーポン') + '</b>';
     return '<span class="sis-tk"><span class="sis-tk-l">' + left + '</span><span class="sis-tk-r"><span><small>クーポンコード</small>' +
       (c.code ? '<code>' + esc(c.code) + '</code></span><button type="button" data-sis-copy="' + esc(c.code) + '">コピー</button>' : '<code class="sis-pending">BOで発行後に表示</code></span>') + '</span></span>';
   }
