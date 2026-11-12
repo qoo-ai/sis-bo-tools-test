@@ -856,7 +856,7 @@
     if (!prizes.length) return;
     var today = now().toISOString().slice(0, 10);
     if (!forced && (PAGE === 'order' || ls('kujiDay') === today)) return;
-    function face(p) { var m = String(p.value || '').match(/^(\d[\d,]*)(.*)$/); return m ? '<b>' + esc(m[1]) + '<span style="font-size:13px">' + esc(m[2]) + '</span></b>' : '<b style="font-size:18px">' + esc(p.value) + '</b>'; }
+    function face(p) { var pt = String(p.value || '').match(/^ポイント(\d+)倍$/); if (pt) return '<b>' + pt[1] + '<span style="font-size:13px">倍</span></b><span style="font-size:11px;font-weight:700">ポイント</span>'; var m = String(p.value || '').match(/^(\d[\d,]*)(.*)$/); return m ? '<b>' + esc(m[1]) + '<span style="font-size:13px">' + esc(m[2]) + '</span></b>' : '<b style="font-size:18px">' + esc(p.value) + '</b>'; }
     function confetti(box) {
       var cols = ['#FF8363', '#633783', '#F0A800', '#06C755', '#FFD36B', '#E6DBEF'], c = h('<div class="sis-conf"></div>');
       for (var i = 0; i < 36; i++) { var e = D.createElement('i'); e.style.left = Math.random() * 100 + '%'; e.style.background = cols[i % cols.length]; e.style.animationDelay = (Math.random() * .5) + 's'; e.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)'; c.appendChild(e); }
