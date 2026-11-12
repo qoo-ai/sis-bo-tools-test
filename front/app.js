@@ -1369,9 +1369,12 @@
   /* 12b. 人気の実数（旅行サイト型：見られた回数・カートに入った回数・売れた点数。GA4の実数だけ）
      数字は貴社サイト側のファイル（BO＞JavaScript管理の sis_data.js）に置き、SISの配信には貴社のデータを置かない */
   var dataP = null;
-  function siteData() {
-    return dataP || (dataP = fetch((C.dataUrl || '/js/usr/sis_data.js'), { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.text(); })
-      .then(function (t) { return JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); }).catch(function () { return null; }));
+  function siteData() { // 貴社サイトの /js/usr/sis_data.js（手で置くデータ）に、sis_auto.js（KPI取得ツールが毎日置くランキング・在庫数）を重ねる
+    function rd(u) { return fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (t) { return JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); }).catch(function () { return null; }); }
+    return dataP || (dataP = Promise.all([rd(C.dataUrl || '/js/usr/sis_data.js'), rd(C.autoDataUrl || '/js/usr/sis_auto.js')]).then(function (x) {
+      if (!x[0] && !x[1]) return null; var d = x[0] || {}, a = x[1] || {};
+      Object.keys(a).forEach(function (k) { if (k !== 'at') d[k] = a[k]; }); return d;
+    }));
   }
   function popular() { return siteData().then(function (d) {
     var p = d && d.popular; if (!p) return null;

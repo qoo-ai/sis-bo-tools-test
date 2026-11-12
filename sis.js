@@ -19,7 +19,7 @@ var TOOLS=[
  {id:"news", name:"NEWS反映", desc:"バナー依頼シートの「NEWS」タブ → BOのトピック（予告・開催中・終了もまとめて／曜日を自動で直す）", where:'bo', grp:'test', on:true, path:'tools/news.js'},
  {id:"sale", name:"セール1ボタン", desc:"セール指示書 → メルカート取込ファイル一式（T-19）", where:'bo', grp:'test', on:true, path:'tools/sale.js'},
  {id:"yoyaku", name:"予約取込", desc:"商品インポート画面で、決めた時刻に［取込］を押す", where:'bo', grp:'test', on:true, path:'tools/yoyaku.js'},
- {id:"kpi", name:"KPI取得", desc:"BOの集計をKPIシートへ送る（ダッシュボード用）。毎日自動もここで", where:'bo', grp:'test', on:true, path:'tools/kpi.js'},
+ {id:"kpi", name:"KPI取得", desc:"BOの集計をKPIシートへ送る（ダッシュボード用）＋店舗画面の週間ランキング・在庫数を更新。毎日自動もここで", where:'bo', grp:'test', on:true, path:'tools/kpi.js'},
  {id:"keeper", name:"セッション維持", desc:"BackOfficeを自動ログアウトから防ぐツール", where:'bo', grp:'release', on:true, path:'tools/keeper.js'},
  {id:"member", name:"会員ランク特典（月初）", desc:"毎月月初に「一般クーポン4種」「誕生日クーポン5種」「メール3種」を送付する", where:'bo', grp:'test', on:true, path:'tools/member.js'},
  {id:"novelty", name:"ノベルティの開始・終了", desc:"品番・条件・期間 → ノベルティ商品の取込／キャンペーン入力／コメント付与・撤去（#SP-1V）", where:'bo', grp:'test', on:true, path:'tools/novelty.js'},

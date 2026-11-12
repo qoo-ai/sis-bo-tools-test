@@ -24,6 +24,7 @@
   box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #eaecf0;background:#fff4e5;font-weight:bold">KPI取得<button data-x style="border:0;background:none;font-size:18px;cursor:pointer;color:#667085">×</button></div>'
     + '<div style="padding:12px 14px">'
     + '<button data-run style="width:100%;height:40px;border:0;border-radius:8px;background:#ee7832;color:#fff;font:inherit;font-weight:bold;cursor:pointer">今すぐ取得</button>'
+    + '<button data-store style="width:100%;height:32px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px;background:#fff;color:#344054;font:inherit;font-size:13px;cursor:pointer">店舗データだけ更新</button>'
     + '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px"><input type="checkbox" data-auto> 毎日 ' + AT + ' に自動で取得</label>'
     + '<div data-st style="margin-top:8px;font-size:12px;color:#475467"></div>'
     + '<div data-log style="margin-top:8px;max-height:180px;overflow:auto;font-size:12px;color:#344054;white-space:pre-wrap"></div></div>';
@@ -225,6 +226,80 @@
     return out;
   }
 
+  /* ---------- 店舗データ（週間ランキング・在庫数）を店舗画面用のファイルに書き出す ----------
+     /js/usr/sis_auto.js を毎日差し替える。店舗画面の独自JSが sis_data.js に重ねて読む
+     ・ランキング：直近7日（昨日まで）の注文明細の数量（キャンセル除く）。同じ商品の色・サイズ違いは合計し、在庫のある色・サイズを代表に
+     ・ジャンル：商品のカテゴリ（11xx トップス／12xx ボトムス／13xx 服飾雑貨。それ以外は数えない）
+     ・在庫数：在庫1〜10点の色・サイズだけ（「在庫残り◯点」用）。個人情報は使わない */
+  async function storeData() {
+    var now = new Date(), e = addDays(now, -1), s = addDays(now, -7);
+    log('店舗データ：商品と在庫…');
+    var G = csv(await post('goods/search.aspx', [['view.goods', '1'], ['view.category', '1'], ['view.variation_group', '1'], ['view.qty', '1'], ['mode', 'CSV'], ['max', '200000']]));
+    var gh = G[0] || [], X = function (k) { return gh.indexOf(k); }, info = {}, stock = {};
+    G.slice(1).forEach(function (c) {
+      var code = c[X('商品コード')]; if (!code) return;
+      var q = +c[X('在庫数')] || 0, cat = String(c[X('カテゴリ')] || '');
+      info[code] = { g: c[X('バリエーショングループ')] || code, cat: cat, q: q };
+      if (q >= 1 && q <= 10) stock[code] = q;
+    });
+    log('　商品 ' + Object.keys(info).length + '件・在庫1〜10点 ' + Object.keys(stock).length + '件');
+    log('店舗データ：直近7日の注文…');
+    var O = csv(await post('sales/search.aspx', [['mode', 'VIEW_CSV'], ['order_dt1', ymd(s)], ['order_dt2', ymd(e)], ['max', '100000'], ['view.cancel_dt', '1'], ['view.order_dt', '1']]));
+    var oh = O[0] || [], can = {};
+    O.slice(1).forEach(function (c) { var no = c[oh.indexOf('注文番号')]; if (no && c[oh.indexOf('キャンセル日')]) can[no] = 1; });
+    var Dt = csv(await post('sales/search.aspx', [['mode', 'DETAIL_CSV'], ['order_dt1', ymd(s)], ['order_dt2', ymd(e)], ['max', '200000'], ['csvview.goods', '1'], ['csvview.qty', '1']]));
+    var dh = Dt[0] || [], grp = {};
+    Dt.slice(1).forEach(function (c) {
+      var no = c[dh.indexOf('注文番号')], code = c[dh.indexOf('商品コード')], q = +c[dh.indexOf('数量')] || 0;
+      if (!no || can[no] || !code || !q) return;
+      var it = info[code], g = it ? it.g : code, cat = it ? it.cat : '';
+      if (!/^1[123]/.test(cat)) return; // 洋服・服飾雑貨だけ（ノベルティ等は数えない）
+      var o = grp[g] = grp[g] || { qty: 0, cat: cat.slice(0, 2), sku: {} };
+      o.qty += q; o.sku[code] = (o.sku[code] || 0) + q;
+    });
+    function pk(c) { var p = String(c).split('-'); return p.length < 4 ? c : p.slice(0, 3).join('-'); }
+    var list = Object.keys(grp).map(function (g) {
+      var o = grp[g], skus = Object.keys(o.sku).sort(function (a, b) { return o.sku[b] - o.sku[a]; });
+      var rep = skus.filter(function (c) { return info[c] && info[c].q > 0; })[0] || skus[0];
+      return { g: g, qty: o.qty, cat: o.cat, rep: rep };
+    }).sort(function (a, b) { return b.qty - a.qty; });
+    var G3 = [['総合', null], ['トップス', '11'], ['ボトムス', '12'], ['服飾雑貨', '13']], alias = {};
+    var genres = G3.map(function (x) { return { name: x[0], items: list.filter(function (r) { return !x[1] || r.cat === x[1]; }).slice(0, 14).map(function (r) { return r.rep; }) }; });
+    var top = {}; genres.forEach(function (gg) { gg.items.forEach(function (c) { top[info[c] ? info[c].g : c] = c; }); });
+    Object.keys(info).forEach(function (c) { var rep = top[info[c].g]; if (rep && pk(c) !== pk(rep)) alias[pk(c)] = pk(rep); }); // 色・サイズ違いにも同じ順位
+    var md = function (d) { return (d.getMonth() + 1) + '/' + d.getDate(); };
+    var auto = { at: ymd(now) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()), stock: stock, stockAt: ymd(now, '-') + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) };
+    if (genres[0].items.length >= 3) auto.rank7 = { period: md(s) + '〜' + md(e), days: 7, source: 'BOの注文明細の数量（キャンセル除く・7日間）。色・サイズ違いは合計', genres: genres.filter(function (gg) { return gg.items.length >= 3; }), alias: alias };
+    log('　ランキング ' + (auto.rank7 ? genres.map(function (gg) { return gg.name + gg.items.length; }).join('・') : '注文が少ないため前のまま'));
+    var T = "/* SIS売上施策の自動データ（KPI取得ツールが毎日作成。手で直さない） */window.SIS_AUTO=" + JSON.stringify(auto) + ';';
+    log('店舗データ：ファイルを差し替え…');
+    await upload('js/usr/', 'sis_auto.js', T);
+    log('　sis_auto.js ' + Math.round(T.length / 1024) + 'KB');
+  }
+  function upload(dir, name, text) { // BOの［ファイル管理］の画面を裏で開いて置く
+    return new Promise(function (ok, ng) {
+      var fr = D.createElement('iframe'); fr.style.cssText = 'position:fixed;left:-10000px;top:0;width:1200px;height:800px';
+      fr.src = BO + '/file_explorer/file_explorer.aspx#/files/' + dir;
+      fr.onload = function () {
+        var w = fr.contentWindow, d = fr.contentDocument, n = 0;
+        var iv = setInterval(function () {
+          var inp = d && d.querySelector('input#userFile');
+          if (!inp) { if (++n > 80) { clearInterval(iv); fr.remove(); ng(new Error('ファイル管理の画面が開けません')); } return; }
+          clearInterval(iv);
+          w.confirm = function () { return true; }; // 上書きの確認
+          var f = new w.File([text], name, { type: 'application/javascript' }), dt = new w.DataTransfer(); dt.items.add(f);
+          inp.files = dt.files; inp.dispatchEvent(new w.Event('change', { bubbles: true }));
+          var bytes = String(new TextEncoder().encode(text).length), m = 0, iv2 = setInterval(function () { // 一覧のサイズが新しいファイルと同じになったら完了
+            var tx = d.body.innerText.replace(/\s+/g, ' '), i = tx.lastIndexOf(name + ' '), row = i < 0 ? '' : tx.slice(i, i + name.length + 40);
+            if (row.indexOf(' ' + bytes) >= 0) { clearInterval(iv2); setTimeout(function () { fr.remove(); }, 500); ok(); }
+            else if (++m > 40) { clearInterval(iv2); fr.remove(); ng(new Error('置けたか確認できません')); }
+          }, 500);
+        }, 250);
+      };
+      D.body.appendChild(fr);
+    });
+  }
+
   /* ---------- 小窓（中継）とのやりとり ---------- */
   function openRelay() {
     if (st.relay && !st.relay.closed) return st.relay;
@@ -256,6 +331,7 @@
       try { W.localStorage.setItem(LAST_KEY, s); } catch (e) {}
       log('完了：' + Object.keys(r.rows || {}).map(function (k) { return k + ' ' + r.rows[k]; }).join(' / '));
     } catch (e) { log('止まりました：' + e.message); }
+    try { await storeData(); } catch (e) { log('店舗データは止まりました：' + e.message); }
     st.busy = false; $('data-run').disabled = false; status();
   }
 
@@ -266,6 +342,7 @@
     if (hm >= AT && last.slice(0, 10) !== ymd(now)) run(true);
   }
   $('data-run').onclick = function () { run(false); };
+  $('data-store').onclick = async function () { if (st.busy) return; st.busy = true; $('data-log').textContent = ''; try { await storeData(); log('完了'); } catch (e) { log('止まりました：' + e.message); } st.busy = false; };
   $('data-auto').onchange = function () {
     try { W.localStorage.setItem(AUTO_KEY, this.checked ? '1' : ''); } catch (e) {}
     if (this.checked) openRelay();
