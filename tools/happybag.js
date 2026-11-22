@@ -3,6 +3,7 @@
  *    ・購入グループ（happy bag）のリードタイム・表示件数を、次に売る福袋の全注文日でその期間が選べる値に自動計算して更新
  *    ・店舗の /js/usr/sis_hb.js を書き出す（注文画面で期間外の日付を消し、案内文を出す）
  *      order.js・order_sb.js に読み込みの1行が入っていること（設置は一度だけ。本番はメルカート確認後）
+ *    ・JSなし（order.jsに入れられない間）：今日の注文で期間だけが出る値にする。販売中は毎日［反映］
  * ② クーポン：販売終了後に［読み込む］→［作成］
  *    ・注文（キャンセル除く）から会員ごとに買った福袋と個数を数え、券種ごとに「n枚目」のユニーククーポンと会員グループを作る
  *    ・同じ人数のn枚目はグループを1つにまとめる（例：2027福袋_3000円1-5）。2個買った人は6枚目以降で自動的に増える
@@ -134,6 +135,11 @@
     var b = bags[0], d1 = Math.max(jstDay(tms(b.start)), jstDay(now)), d2 = jstDay(tms(b.end) - 60000), F = dnum(b.from), T = dnum(b.to);
     if ([d1, d2, F, T].some(isNaN)) return { err: b.name + 'の日付を確認' };
     if (F > T) return { err: b.name + '：届く日の「から」が「まで」より後' };
+    if (CFG.nojs) { // JSなし：今日の注文で「から〜まで」だけが出る値。日付が変わると1日ずつ短くなる（期間の外は出ない）ので毎日反映
+      var t0 = jstDay(now) < d1 ? d1 : jstDay(now), l0 = F - t0 - 1;
+      if (l0 < 0) return { err: b.name + '：届く日の「から」が今日より前' };
+      return { bag: b, next: bags[1] || null, nojs: true, lt2: l0, cnt: T - F + 1, first: [dstr(t0 + l0 + 1), dstr(t0 + l0 + 2)], last: [dstr(t0 + l0 + T - F + 1), dstr(t0 + l0 + T - F + 2)] };
+    }
     var lt2 = F - d2 - 1; // 最終注文日でも「から」の日が最初に出る
     if (lt2 < 0) return { err: b.name + '：販売終了日より前に届く日がある' };
     var cnt = T - d1 - lt2; // 最初の注文日でも「まで」の日まで出る
@@ -198,12 +204,12 @@
       h += '<tr>' + ['name', 'start', 'end', 'from', 'to', 'nopref', 'codes'].map(function (k) { return '<td><input type="text" data-i="' + i + '" data-k="' + k + '" value="' + esc(b[k]) + '"></td>'; }).join('') + '</tr>';
     });
     h += '</table><div class="mu">商品コード：空なら販売期間で判定</div><div class="pl"></div>' +
-      '<button class="dgo go">反映</button><button class="add">行を足す</button><div class="dmsg">' + (msg || '') + '</div>';
+      '<label style="margin-right:10px"><input type="checkbox" class="nojs"' + (CFG.nojs ? ' checked' : '') + '> JSなし（毎日反映）</label><button class="dgo go">反映</button><button class="add">行を足す</button><div class="dmsg">' + (msg || '') + '</div>';
     $('.pd').innerHTML = h;
     [].slice.call($('.pd').querySelectorAll('.bt input')).forEach(function (e) { e.onchange = function () { CFG.bags[+e.dataset.i][e.dataset.k] = e.value.trim(); save(); showPlan(); }; });
     $('.rid').onchange = function () { CFG.rules = $('.rid').value.trim(); save(); renderD(); };
     $('.add').onclick = function () { CFG.bags.push({ name: '', start: '', end: '', from: '', to: '', nopref: '', codes: '' }); save(); renderD(); };
-    $('.dgo').onclick = applyD;
+    $('.dgo').onclick = applyD; $('.nojs').onchange = function () { CFG.nojs = $('.nojs').checked; save(); showPlan(); };
     showPlan();
     try {
       var g = await readGroup(), js = await fileRow('js/usr/', 'sis_hb.js');
@@ -216,6 +222,9 @@
   function showPlan() {
     var p = plan(Date.now()), el = $('.pl'); if (!el) return;
     if (p.err) { el.innerHTML = '<div class="ng">' + esc(p.err) + '</div>'; return; }
+    if (p.nojs) { el.innerHTML = '<h4>反映する値（' + esc(p.bag.name) + '・JSなし）</h4><table><tr><td>リードタイム</td><td><b>' + p.lt2 + '日</b></td><td>表示件数</td><td><b>' + p.cnt + '件</b></td></tr>' +
+      '<tr><td>今日の注文</td><td colspan="3">' + p.first[0] + '〜' + p.last[0] + ' が出る</td></tr><tr><td>明日の注文</td><td colspan="3">' + p.first[1] + '〜' + esc(p.bag.to) + ' が出る（期間外は出ない）</td></tr></table>' +
+      '<div class="wa">販売期間中は毎日［反映］（忘れても期間外の日付は出ない。選べる日が1日ずつ減るだけ）</div>'; return; }
     el.innerHTML = '<h4>反映する値（' + esc(p.bag.name) + '）</h4><table><tr><td>リードタイム</td><td><b>' + p.lt2 + '日</b></td><td>表示件数</td><td><b>' + p.cnt + '件</b></td></tr>' +
       '<tr><td>初日の注文</td><td colspan="3">' + p.first[0] + '〜' + p.last[0] + ' が出る → ' + esc(p.bag.from) + '〜' + esc(p.bag.to) + ' だけ残す</td></tr>' +
       '<tr><td>最終日の注文</td><td colspan="3">' + p.first[1] + '〜' + p.last[1] + ' が出る → ' + esc(p.bag.from) + '〜' + esc(p.bag.to) + ' だけ残す</td></tr></table>' +
@@ -232,9 +241,8 @@
       var t = new DOMParser().parseFromString(await (await fetch(BO + '/rules/detail.aspx?Rules=' + encodeURIComponent(CFG.rules), { method: 'POST', body: fd, credentials: 'include' })).text(), 'text/html').body.textContent.replace(/\s+/g, ' ');
       var err = (t.match(/[^ ]{0,30}(入力して|できません|不正|エラー)[^ ]{0,30}/) || [''])[0]; if (err) throw new Error('購入グループを更新できない：' + err);
       var chk = await readGroup(); if (chk.lt2 !== String(p.lt2) || chk.cnt !== String(p.cnt)) throw new Error('購入グループの値が変わっていない（' + chk.lt2 + '日・' + chk.cnt + '件）');
-      var js = hbScript(); log('sis_hb.js を書き出し（' + js.length + '文字）');
-      await upload('js/usr/', 'sis_hb.js', js);
-      await renderD('<div class="ok">反映しました：リードタイム ' + p.lt2 + '日・表示 ' + p.cnt + '件／sis_hb.js 更新。注文画面で日付を確認</div>');
+      if (!p.nojs) { var js = hbScript(); log('sis_hb.js を書き出し（' + js.length + '文字）'); await upload('js/usr/', 'sis_hb.js', js); }
+      await renderD('<div class="ok">反映しました：リードタイム ' + p.lt2 + '日・表示 ' + p.cnt + '件' + (p.nojs ? '' : '／sis_hb.js 更新') + '。注文画面で日付を確認</div>');
     } catch (e) { log('止めました：' + e.message); $('.dmsg').innerHTML = '<div class="ng">止めました：' + esc(e.message) + '</div>'; btn.disabled = false; }
   }
 
