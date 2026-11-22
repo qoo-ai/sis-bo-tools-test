@@ -73,7 +73,7 @@
       for (var b = 0xA1; b <= 0xDF; b++) ENC.set(dec.decode(new Uint8Array([b])), [b]);
     }
     var out = [];
-    for (var ch of str) { var c = ch.codePointAt(0); if (c < 0x80) { out.push(c); continue; } var x = ENC.get(ch); if (!x) throw new Error('Shift_JISにできない文字: ' + ch); out.push.apply(out, x); }
+    for (var ch of str.replace(/\u301c/g, '\uff5e').replace(/\u2212/g, '\uff0d')) { var c = ch.codePointAt(0); if (c < 0x80) { out.push(c); continue; } var x = ENC.get(ch); if (!x) throw new Error('Shift_JISにできない文字: ' + ch); out.push.apply(out, x); }
     return new Uint8Array(out);
   }
   function csvLine(r) { return r.map(function (v) { v = String(v == null ? '' : v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(','); }
@@ -171,7 +171,7 @@
           var f = new w.File([text], name, { type: 'application/javascript' }), dt = new w.DataTransfer(); dt.items.add(f);
           inp.files = dt.files; inp.dispatchEvent(new w.Event('change', { bubbles: true }));
           var bytes = String(new TextEncoder().encode(text).length), m = 0, iv2 = setInterval(function () {
-            var tx = d.body.innerText.replace(/\s+/g, ' '), i = tx.lastIndexOf(name + ' '), row = i < 0 ? '' : tx.slice(i, i + name.length + 40);
+            var tx = ' ' + d.body.innerText.replace(/\s+/g, ' '), i = tx.lastIndexOf(' ' + name + ' '), row = i < 0 ? '' : tx.slice(i, i + name.length + 40);
             if (row.indexOf(' ' + bytes) >= 0) { clearInterval(iv2); setTimeout(function () { fr.remove(); }, 500); ok(); }
             else if (++m > 40) { clearInterval(iv2); fr.remove(); ng(new Error(name + ' を置けたか確認できない')); }
           }, 500);
@@ -385,7 +385,7 @@
       var bad = r.groups.filter(function (g) { return S.gex[g.name] != null && S.gex[g.name] !== 0 && S.gex[g.name] !== g.members.length; });
       if (bad.length) throw new Error('人数の違うグループが既にある：' + bad.map(function (g) { return g.name; }).join('、') + '（会員グループ管理で確認）');
       var miss = r.groups.filter(function (g) { return S.gex[g.name] == null; });
-      if (miss.length) await importCSV('tmpcustomergrp', ['会員グループ名', '備考'], miss.map(function (g) { return [g.name, 'SISハッピーバッグ ' + CFG.od1 + '〜' + CFG.od2 + 'の購入者']; }));
+      if (miss.length) await importCSV('tmpcustomergrp', ['会員グループ名', '備考'], miss.map(function (g) { return [g.name, 'SISハッピーバッグ ' + CFG.od1 + 'から' + CFG.od2 + 'の購入者']; }));
       await refresh();
       var empty = r.groups.filter(function (g) { return !S.gex[g.name]; });
       if (empty.length) { var rows = []; empty.forEach(function (g) { g.members.forEach(function (m) { rows.push([g.name, m]); }); }); await importCSV('tmpcustomergrpmember', ['会員グループ名', '会員番号'], rows); }
