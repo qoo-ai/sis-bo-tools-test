@@ -138,7 +138,7 @@
     if (CFG.nojs) { // JSなし：今日の注文で「から〜まで」だけが出る値。日付が変わると1日ずつ短くなる（期間の外は出ない）ので毎日反映
       var t0 = jstDay(now) < d1 ? d1 : jstDay(now), l0 = F - t0 - 1;
       if (l0 < 0) return { err: b.name + '：届く日の「から」が今日より前' };
-      return { bag: b, next: bags[1] || null, nojs: true, lt2: l0, cnt: T - F + 1, first: [dstr(t0 + l0 + 1), dstr(t0 + l0 + 2)], last: [dstr(t0 + l0 + T - F + 1), dstr(t0 + l0 + T - F + 2)] };
+      return { bag: b, next: bags[1] || null, nojs: true, t0: dstr(t0), t1: dstr(t0 + 1), lt2: l0, cnt: T - F + 1, first: [dstr(t0 + l0 + 1), dstr(t0 + l0 + 2)], last: [dstr(t0 + l0 + T - F + 1), dstr(t0 + l0 + T - F + 2)] };
     }
     var lt2 = F - d2 - 1; // 最終注文日でも「から」の日が最初に出る
     if (lt2 < 0) return { err: b.name + '：販売終了日より前に届く日がある' };
@@ -223,7 +223,7 @@
     var p = plan(Date.now()), el = $('.pl'); if (!el) return;
     if (p.err) { el.innerHTML = '<div class="ng">' + esc(p.err) + '</div>'; return; }
     if (p.nojs) { el.innerHTML = '<h4>反映する値（' + esc(p.bag.name) + '・JSなし）</h4><table><tr><td>リードタイム</td><td><b>' + p.lt2 + '日</b></td><td>表示件数</td><td><b>' + p.cnt + '件</b></td></tr>' +
-      '<tr><td>今日の注文</td><td colspan="3">' + p.first[0] + '〜' + p.last[0] + ' が出る</td></tr><tr><td>明日の注文</td><td colspan="3">' + p.first[1] + '〜' + esc(p.bag.to) + ' が出る（期間外は出ない）</td></tr></table>' +
+      '<tr><td>' + p.t0 + 'の注文</td><td colspan="3">' + p.first[0] + '〜' + p.last[0] + ' が出る</td></tr><tr><td>' + p.t1 + 'の注文</td><td colspan="3">' + p.first[1] + '〜' + esc(p.bag.to) + ' が出る（期間外は出ない）</td></tr></table>' +
       '<div class="wa">販売期間中は毎日［反映］（忘れても期間外の日付は出ない。選べる日が1日ずつ減るだけ）</div>'; return; }
     el.innerHTML = '<h4>反映する値（' + esc(p.bag.name) + '）</h4><table><tr><td>リードタイム</td><td><b>' + p.lt2 + '日</b></td><td>表示件数</td><td><b>' + p.cnt + '件</b></td></tr>' +
       '<tr><td>初日の注文</td><td colspan="3">' + p.first[0] + '〜' + p.last[0] + ' が出る → ' + esc(p.bag.from) + '〜' + esc(p.bag.to) + ' だけ残す</td></tr>' +
