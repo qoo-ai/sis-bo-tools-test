@@ -16,7 +16,7 @@ var TOOLS=[
  {id:"banner", name:"バナー反映", desc:"バナー依頼シートの「バナー一覧」→ BOのバナー設定", where:'bo', grp:'release', on:true, path:'tools/banner.js'},
  {id:"mailmag", name:"メルマガ", desc:"メルマガの予約画面に流し込む", where:'bo', grp:'release', on:true, path:'tools/mailmag.js'},
  {id:"line", name:"LINE配信", desc:"Linyの配信作成画面に流し込む", where:'liny', grp:'release', on:true, path:'tools/line.js'},
- {id:"news", name:"NEWS反映", desc:"バナー依頼シートの「NEWS」タブ → BOのトピック（予告・開催中・終了もまとめて／曜日を自動で直す）", where:'bo', grp:'test', on:true, path:'tools/news.js'},
+ {id:"news", name:"NEWS反映", desc:"NEWS依頼シート → BOのトピック（予告・開催中・終了もまとめて／曜日を自動で直す）", where:'bo', grp:'test', on:true, path:'tools/news.js'},
  {id:"sale", name:"セール1ボタン", desc:"セール指示書 → メルカート取込ファイル一式（T-19）", where:'bo', grp:'test', on:true, path:'tools/sale.js'},
  {id:"yoyaku", name:"予約取込", desc:"商品インポート画面で、決めた時刻に［取込］を押す", where:'bo', grp:'test', on:true, path:'tools/yoyaku.js'},
  {id:"kpi", name:"KPI取得", desc:"BOの集計をKPIシートへ送る（ダッシュボード用）＋店舗画面の週間ランキング・在庫数を更新。毎日自動もここで", where:'bo', grp:'test', on:true, path:'tools/kpi.js'},

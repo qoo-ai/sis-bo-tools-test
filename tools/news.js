@@ -1,5 +1,5 @@
 /* NEWS反映（#SP-1W）v1.0 2026-10-24
-   バナー依頼シート「NEWS」タブの行をコピー → ブックマーク →「NEWS反映」
+   NEWS依頼シート「NEWS」タブの行をコピー → ブックマーク →「NEWS反映」
    ・1行＝NEWS 1本。種類「イベント3本」は 予告・開催中・【終了】の3本に展開する
    ・見出しが同じトピックがBOにあれば上書き、なければ新規登録（stg→本番で同じコピーを使い回せる・何度押しても重複しない）
    ・「消す」行は掲載終了日時を今にする（削除はしない＝戻せる）
@@ -180,7 +180,7 @@ function start(text){var rows;try{rows=parseSheet(text);}catch(e){say(e.message,
   var nx=L.list.filter(function(t){return !t.ex&&!t.del;}).length,up=L.list.filter(function(t){return t.ex;}).length;
   say('新規 '+nx+' 本／上書き '+up+' 本。内容を確認して［登録する］を押してください',0);preview(L);})
  .catch(function(e){say(e.message,2);});}
-function ask(){body.innerHTML='';var p=el('div','margin-top:8px');p.appendChild(el('div',null,'バナー依頼シート「NEWS」タブで、見出し行から最後の行までを選んでコピー → ここに貼り付け'));
+function ask(){body.innerHTML='';var p=el('div','margin-top:8px');p.appendChild(el('div',null,'NEWS依頼シート「NEWS」タブで、見出し行から最後の行までを選んでコピー → ここに貼り付け'));
  var ta=el('textarea','display:block;width:100%;height:120px;margin:6px 0;font:12px monospace');var b=el('button','padding:6px 16px','読み込む');
  b.onclick=function(){log.innerHTML='';start(ta.value);};p.appendChild(ta);p.appendChild(b);body.appendChild(p);ta.focus();}
 if(W.__SIS_NEWS_TSV){var t0=W.__SIS_NEWS_TSV;W.__SIS_NEWS_TSV=null;start(t0);}
