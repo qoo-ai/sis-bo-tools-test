@@ -333,7 +333,7 @@
     fd.set('condition_term', 'true'); fd.set('s_dt', CFG.s); fd.set('f_dt', CFG.f); fd.set('status', '0');
     fd.set('cmdInsert', f.querySelector('[name=cmdInsert]').value);
     var t = new DOMParser().parseFromString(await (await fetch(BO + '/' + path, { method: 'POST', body: fd, credentials: 'include' })).text(), 'text/html').body.textContent.replace(/\s+/g, ' ');
-    var err = (t.match(/[^ ]{0,30}(入力して|できません|存在しません|エラー|不正|重複|以内)[^ ]{0,30}/) || [''])[0];
+    var err = (t.match(/[^ ]{0,30}(入力して|できません|存在しません|エラー|不正|重複)[^ ]{0,30}/) || [''])[0];
     if (err) throw new Error('クーポン ' + c.id + ' を作れない：' + err);
     if (!(await couponForm(c.id))) throw new Error('クーポン ' + c.id + ' を読み戻せない。クーポンイベント管理で確認');
   }
