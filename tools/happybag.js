@@ -34,7 +34,7 @@
   var old = document.getElementById('sishb'); if (old) old.remove();
   var box = document.createElement('div'); box.id = 'sishb';
   box.innerHTML =
-    '<style>#sishb{position:fixed;right:12px;top:12px;z-index:2147483000;width:720px;max-width:calc(100vw - 24px);max-height:92vh;overflow:auto;background:#fff;border:2px solid ' + C1 + ';border-radius:10px;font:13px/1.5 sans-serif;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.2)}' +
+    '<style>#sishb{position:fixed;right:12px;top:12px;z-index:2147483000;width:900px;max-width:calc(100vw - 24px);max-height:92vh;overflow:auto;background:#fff;border:2px solid ' + C1 + ';border-radius:10px;font:13px/1.5 sans-serif;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.2)}' +
     '#sishb .hd{padding:8px 12px;background:' + C2 + ';font-weight:bold;display:flex;justify-content:space-between}#sishb .bd{padding:10px 12px}' +
     '#sishb table{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}#sishb td,#sishb th{border-bottom:1px solid #eee;padding:3px 4px;text-align:left;vertical-align:top}' +
     '#sishb input[type=text]{font-size:12px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;box-sizing:border-box;width:100%}' +
@@ -197,7 +197,7 @@
     CFG.bags.forEach(function (b, i) {
       h += '<tr>' + ['name', 'start', 'end', 'from', 'to', 'nopref', 'codes'].map(function (k) { return '<td><input type="text" data-i="' + i + '" data-k="' + k + '" value="' + esc(b[k]) + '"></td>'; }).join('') + '</tr>';
     });
-    h += '</table><div class="mu">商品コードは空でも動く（空なら販売期間で判定）。行を足すときは福袋名の空いた行に入れる</div><div class="pl"></div>' +
+    h += '</table><div class="mu">商品コード：空なら販売期間で判定</div><div class="pl"></div>' +
       '<button class="dgo go">反映</button><button class="add">行を足す</button><div class="dmsg">' + (msg || '') + '</div>';
     $('.pd').innerHTML = h;
     [].slice.call($('.pd').querySelectorAll('.bt input')).forEach(function (e) { e.onchange = function () { CFG.bags[+e.dataset.i][e.dataset.k] = e.value.trim(); save(); showPlan(); }; });
