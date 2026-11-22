@@ -105,18 +105,29 @@
   }
   /* どの施策でもABテスト：config の abFeatures に施策名と割合を書くと、その施策を「出す（A）／出さない（B）」に分けて、購入まで比べられる
      例 "abFeatures": { "ranking": { "weights": [50, 50] }, "all": { "weights": [90, 10] } }（all＝全施策で1割の人には出さない） */
+  function abGroup(k) { var g = C.abGroups || {}; for (var key in g) if (key.charAt(0) !== '_' && (g[key] || []).indexOf(k) >= 0) return key; return k; } // 01の在庫バッジ（商品ページ・一覧）のように、同じ施策の部品は同じ側にそろえる
+  function abVariant(g, t) { // 振り分けだけを返す（記録しない）。注文完了の記録でも使う
+    t = t || (C.abFeatures || {})[g] || {}; var v = abOverride['f:' + g], w = t.weights || [50, 50];
+    return v || (hash(vid + ':f:' + g) % 100 < w[0] ? 'A' : 'B');
+  }
   function featureOn(k) {
-    var a = C.abFeatures || {}, t = a[k] || a.all; if (/^(orderCoupon|orderDone|countdown)$/.test(k)) return true;
-    if (!t && !abOverride['f:' + k]) return true; t = t || {};
-    var v = abOverride['f:' + k], w = t.weights || [50, 50];
-    if (!v) v = hash(vid + ':f:' + k) % 100 < w[0] ? 'A' : 'B';
-    SIS.abf = SIS.abf || {}; SIS.abf[k] = v; SIS.active['ab:' + k] = v === 'A' ? '出す' : '出さない';
+    var a = C.abFeatures || {}, g = abGroup(k), t = a[g] || a.all; if (/^(orderCoupon|orderDone|countdown)$/.test(k)) return true;
+    if (!t && !abOverride['f:' + g]) return true; t = t || {};
+    var v = abVariant(g, t);
+    SIS.abf = SIS.abf || {}; SIS.abf[g] = v; SIS.active['ab:' + g] = v === 'A' ? '出す' : '出さない';
+    if (t.gate) return true; // gate:true の施策は「出す条件」の判定まで動かし、当てはまった時点で gate() が記録して、出さない側はそこで止める
     if (v === 'B') track(k, 'holdout', { sis_variant: 'B' });
     return v === 'A';
   }
+  function gate(k) { // 出す条件に当てはまった時点で呼ぶ。両方の側で1訪問1回だけ記録し、出さない側（B）なら true を返して表示をやめる
+    var g = abGroup(k), v = (SIS.abf || {})[g], t = (C.abFeatures || {})[g];
+    if (!v || !t || !t.gate) return false;
+    if (!ss('abSeen_' + g)) { ss('abSeen_' + g, 1); track(g, v === 'A' ? 'eligible' : 'holdout', { sis_variant: v }); }
+    return v === 'B';
+  }
   function track(feature, action, extra) {
     var e = { event: (C.ga4 || {}).eventName || 'sis_event', sis_feature: feature, sis_action: action, sis_page: PAGE, sis_device: SP ? 'sp' : 'pc' };
-    var t = (C.ab || {})[feature]; if (t) e.sis_variant = ab(feature); else if (SIS.abf && SIS.abf[feature]) e.sis_variant = SIS.abf[feature];
+    var t = (C.ab || {})[feature]; if (t) e.sis_variant = ab(feature); else if (SIS.abf && SIS.abf[abGroup(feature)]) e.sis_variant = SIS.abf[abGroup(feature)];
     for (var k in extra || {}) e[k] = extra[k];
     e.time = now().toTimeString().slice(0, 8);
     if (/click|add|copy|draw|go/.test(action) && feature !== 'session') { var tc = ss('touched') || []; if (tc.indexOf(feature) < 0) { tc.push(feature); ss('touched', tc); } } // 注文完了のときに「この訪問で触った施策」として送る
@@ -649,7 +660,9 @@
   FX.exit = function (forced) {
     if (!forced && (PAGE === 'order' || PAGE === 'cart' || ss('exitShown'))) return;
     function fire() {
-      if ((ss('exitShown') || popupRecent()) && !forced) return; ss('exitShown', 1); ls('popupAt', Date.now());
+      if ((ss('exitShown') || popupRecent()) && !forced) return; ss('exitShown', 1);
+      if (!forced && gate('exit')) return; // 出さない側：離れそうな動きをした時点で記録だけして終わる
+      ls('popupAt', Date.now());
       Promise.all([cart(), saleCount()]).then(function (r) {
         return Promise.all(r[0].items.slice(0, 8).map(function (i) { return i.code ? goodsInfo(i.code) : Promise.resolve(null); }).concat([stockMap()])).then(function (gs) {
           r[0].items.slice(0, 8).forEach(function (it, k) { var g = gs[k]; if (g && g.img && !it.img) it.img = g.img; it.stk = g && g.soldout ? '在庫切れ' : stockText(it.code, g && g.low); });
@@ -794,6 +807,7 @@
     Promise.all([cart(), readRank().then(function (r) { return r && !r.preview || Q.get('sis_hist') ? r && rankStatus(r) : null; })]).then(function (rr) {
       var c = rr[0], rs = rr[1];
       if (c.error || (!c.count && !cfg.showWhenEmpty)) return;
+      if (gate('shipbar')) return;
       var free = SHOP.freeShipping || 0, nov = C.novelty || {};
       var rest = free - c.total, pct = Math.min(100, Math.round(c.total / free * 100));
       var bar = function (t, w, col) { return '<div class="sis-ship-t">' + t + '</div><div class="sis-trk"><i style="width:' + w + '%' + (col ? ';background:' + col : '') + '"></i><u style="left:' + w + '%' + (col ? ';border-color:' + col : '') + '"></u></div>'; };
@@ -918,7 +932,9 @@
     if (ss('orderDone')) return; ss('orderDone', 1);
     ls('bought', Date.now()); ['kujiWin', 'spinWin'].forEach(function (k) { var w = ls(k); if (w) { w.used = true; ls(k, w); } });
     var touched = ss('touched') || [];
-    track('session', 'purchase', { sis_label: touched.join(',') || 'none' });
+    var om = D.body.textContent.match(/ご?注文番号[\s:：]*([0-9A-Za-z-]{4,})/);
+    var groups = Object.keys(C.abFeatures || {}).filter(function (g) { return g.charAt(0) !== '_' && g !== 'all'; });
+    track('session', 'purchase', { sis_label: touched.join(',') || 'none', sis_order: om ? om[1] : '', sis_ab: groups.map(function (g) { return g + ':' + abVariant(g); }).join(',') }); // 管理画面の注文と突き合わせるため、注文番号と全テストの振り分けを送る
     SIS.active.orderDone = 'on';
   };
 
@@ -1320,7 +1336,7 @@
     var code = codeOf(P);
     stockMap().then(function () {
       var t = s.textContent.trim(); if (/×|在庫なし|売り切れ/.test(t)) return;
-      var lbl = stockText(code, /△|残りわずか|僅少/.test(t)); if (!lbl) return;
+      var lbl = stockText(code, /△|残りわずか|僅少/.test(t)); if (!lbl) return; if (gate('lowStock')) return;
       var price = D.querySelector('.block-goods-price');
       if (price) price.insertBefore(h('<div class="sis-root"><span class="sis-badge">' + lbl + '</span></div>'), price.firstChild);
       var btn = D.querySelector('.block-add-cart');
@@ -1355,7 +1371,7 @@
     function mark(img) {
       var a = img.closest('a'), code = a && codeOf(a.getAttribute('href')); if (!code) return;
       stockMap().then(function () { return stockCount(code) ? ['○'] : Promise.all([quickStock(code)]); }).then(function (r) { // 在庫数が分かっている色・サイズは読みに行かずにすぐ出す
-        var s = r[0], lbl = s === '×' ? 'この色・サイズは在庫なし' : stockText(code, s === '△'); if (!lbl) return;
+        var s = r[0], lbl = s === '×' ? 'この色・サイズは在庫なし' : stockText(code, s === '△'); if (!lbl) return; if (gate('listStock')) return;
         var wrap = img.parentNode; if (wrap.querySelector('.sis-stk')) return;
         if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
         wrap.appendChild(h('<span class="sis-root sis-stk' + (s === '×' ? ' out' : '') + '">' + lbl + '</span>'));
@@ -1447,7 +1463,7 @@
     weekly().then(function (w) {
       if (!w) return; var v = null; familyCodes().forEach(function (c) { var x = w.index[pkey(c)]; if (x && x.r && x.r <= 10 && (!v || x.r < v.r)) v = x; });
       if (!v) return;
-      var nm = D.querySelector('.block-goods-name, h1.block-goods-name--text, h1'); if (!nm) return;
+      var nm = D.querySelector('.block-goods-name, h1.block-goods-name--text, h1'); if (!nm) return; if (gate('bestBadge')) return;
       nm.parentNode.insertBefore(h('<div class="sis-root"><a class="sis-best-g" href="/?sis_rank_tab=' + encodeURIComponent(v.g) + '#sis-sec-ranking" style="text-decoration:none">' + esc(v.g) + ' 週間売れ筋 ' + v.r + '位</a></div>'), nm);
       SIS.active.bestBadge = v.g + v.r + '位'; track('bestBadge', 'impression', { sis_label: v.g + ':' + v.r });
     });
@@ -1476,8 +1492,9 @@
   FX.ranking = function () {
     if (PAGE !== 'top') return Promise.resolve(false); // トップだけ（一覧ページには入れる場所がないため出さない）
     return weekly().then(function (w) {
-      if (!w) return legacyRanking();
+      if (!w) return gate('ranking') ? false : legacyRanking();
       var genres = (w.genres || []).filter(function (g) { return (g.items || []).length >= 3; }); if (!genres.length) return false;
+      if (gate('ranking')) return false;
       var el = evSection('ranking', '週間売れ筋ランキング', '', '<div class="sis-tabs" role="tablist">' + genres.map(function (g, i) { return '<button type="button" role="tab" aria-selected="' + (i === 0) + '" data-g="' + i + '">' + esc(g.name) + '</button>'; }).join('') + '</div><div class="sis-grid sis-g5" id="sis-rank-grid">' + '<div class="sis-skel"></div>'.repeat(5) + '</div>', esc(w.period || '') + 'の購入数');
       function show(i) {
         [].slice.call(el.querySelectorAll('.sis-tabs button')).forEach(function (b) { b.setAttribute('aria-selected', String(+b.getAttribute('data-g') === i)); });
