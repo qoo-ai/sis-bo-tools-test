@@ -7,7 +7,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'ロゴ切替 v1.1 (2026-11-23)';
+  var VER = 'ロゴ切替 v1.2 (2026-11-24)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var SHOP = STG ? 'https://shop.seesplanning.mercart-stg.net' : 'https://drugstores-shop.com';
@@ -19,14 +19,14 @@
     '<style>#sislogo{position:fixed;right:12px;top:12px;z-index:2147483000;width:640px;max-width:calc(100vw - 24px);max-height:92vh;overflow:auto;background:#fff;border:2px solid ' + C1 + ';border-radius:10px;font:13px/1.5 sans-serif;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.2)}' +
     '#sislogo .hd{padding:8px 12px;background:' + C2 + ';font-weight:bold;display:flex;justify-content:space-between}#sislogo .bd{padding:10px 12px}' +
     '#sislogo table{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}#sislogo td,#sislogo th{border-bottom:1px solid #eee;padding:4px;text-align:left;vertical-align:middle}' +
-    '#sislogo input[type=text]{font-size:12px;padding:3px 4px;border:1px solid #ccc;border-radius:3px;width:140px}' +
+    '#sislogo input[type=text],#sislogo input[type=datetime-local]{font-size:12px;padding:3px 4px;border:1px solid #ccc;border-radius:3px;width:190px}' +
     '#sislogo .ok{color:#2b8a3e;font-weight:bold}#sislogo .ng{color:#c92a2a;font-weight:bold}#sislogo .wa{color:#e8590c;font-weight:bold}#sislogo .mu{color:#868e96}' +
     '#sislogo button{padding:7px 12px;margin:8px 6px 0 0;border-radius:6px;border:1px solid #888;background:#f8f8f8;cursor:pointer}#sislogo button.go{background:' + C1 + ';color:#fff;border:none;font-weight:bold}#sislogo button:disabled{opacity:.45;cursor:not-allowed}' +
     '#sislogo img.th{max-height:36px;max-width:220px;vertical-align:middle;background:repeating-conic-gradient(#eee 0 25%,#fff 0 50%) 0 0/12px 12px}#sislogo h4{margin:10px 0 2px;font-size:13px}#sislogo pre{white-space:pre-wrap;background:#f6f6f6;padding:6px;max-height:120px;overflow:auto;margin:8px 0 0;font-size:11px}#sislogo a{color:#1971c2}</style>' +
     '<div class="hd"><span>SIS ロゴ切替（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
     '<div class="bd"><div class="now mu">読み込み中…</div>' +
     '<h4>追加する</h4><table><tr><td>画像</td><td><input type="file" class="f" accept="image/png,image/jpeg,image/gif"> <span class="pv"></span></td></tr>' +
-    '<tr><td>表示期間</td><td><input type="text" class="s" placeholder="2026/12/01 00:00"> 〜 <input type="text" class="e" placeholder="2026/12/26 00:00"></td></tr></table>' +
+    '<tr><td>表示期間</td><td><input type="datetime-local" class="s"> 〜 <input type="datetime-local" class="e"></td></tr></table>' +
     '<button class="go">反映</button><div class="msg"></div><pre class="log"></pre></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
@@ -174,7 +174,7 @@
       if (S.file || s || e) {
         if (!S.file) throw new Error('画像を選ぶ');
         var fi = iso(s), ti = iso(e);
-        if (!fi || !ti) throw new Error('表示期間を「2026/12/01 00:00」の形で入れる');
+        if (!fi || !ti) throw new Error('表示期間を入れる');
         if (Date.parse(fi) >= Date.parse(ti)) throw new Error('表示終了が表示開始より前');
         if (Date.parse(ti) <= Date.now()) throw new Error('表示終了が過去');
         if (periods.some(function (p) { return Date.parse(fi) < Date.parse(p.to) && Date.parse(p.from) < Date.parse(ti); })) throw new Error('ほかの予定と期間がかぶっている');
