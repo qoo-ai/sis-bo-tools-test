@@ -8,7 +8,7 @@
  */
 (function () {
   'use strict';
-  var VER = '福袋の配送日 v2.1 (2026-11-23)';
+  var VER = '福袋の配送日 v2.2 (2026-11-23)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
@@ -184,7 +184,7 @@
       'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else go();})();\n';
   }
   function render() {
-    var h = '<table><tr><th style="width:15%">福袋</th><th style="width:17%">商品コード</th><th>販売開始</th><th>販売終了</th><th>お届け日（から）</th><th>お届け日（まで）</th><th></th></tr>';
+    var h = '<table><tr><th style="width:15%">福袋（メモ）</th><th style="width:17%">商品コード</th><th>販売開始</th><th>販売終了</th><th>お届け日（から）</th><th>お届け日（まで）</th><th></th></tr>';
     BAGS.forEach(function (b, i) {
       var f = function (k, t, ph) { return '<td><input type="' + t + '" data-i="' + i + '" data-k="' + k + '" value="' + esc(b[k]) + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '></td>'; };
       h += '<tr>' + f('name', 'text', '例：リサイクル福袋') + f('codes', 'text', '複数はカンマ区切り') + f('start', 'datetime-local') + f('end', 'datetime-local') + f('from', 'date') + f('to', 'date') +
