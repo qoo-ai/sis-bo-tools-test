@@ -22,7 +22,7 @@
   var old = document.getElementById('sishb'); if (old) old.remove();
   var box = document.createElement('div'); box.id = 'sishb';
   box.innerHTML =
-    '<style>#sishb{position:fixed;right:12px;top:12px;z-index:2147483000;width:960px;max-width:calc(100vw - 24px);max-height:92vh;overflow:auto;background:#fff;border:2px solid ' + C1 + ';border-radius:10px;font:13px/1.6 sans-serif;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.2)}' +
+    '<style>#sishb{position:fixed;right:12px;top:12px;z-index:2147483000;width:820px;max-width:calc(100vw - 24px);max-height:92vh;overflow:auto;background:#fff;border:2px solid ' + C1 + ';border-radius:10px;font:13px/1.6 sans-serif;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.2)}' +
     '#sishb .hd{padding:8px 12px;background:' + C2 + ';font-weight:bold;display:flex;justify-content:space-between}#sishb .bd{padding:10px 12px}' +
     '#sishb table{border-collapse:collapse;width:100%;font-size:12px}#sishb td,#sishb th{border-bottom:1px solid #eee;padding:4px;text-align:left}' +
     '#sishb input{font-size:12px;padding:3px 4px;border:1px solid #ccc;border-radius:3px;box-sizing:border-box;width:100%}' +
@@ -199,7 +199,7 @@
       'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else go();})();\n';
   }
   function render() {
-    var h = '<table><tr><th style="width:15%">福袋（内部用）</th><th style="width:17%">商品コード</th><th>お届け日（から）</th><th>お届け日（まで）</th><th></th></tr>';
+    var h = '<table><tr><th style="width:22%">福袋（内部用）</th><th style="width:38%">商品コード</th><th style="width:18%">お届け日（から）</th><th style="width:18%">お届け日（まで）</th><th></th></tr>';
     BAGS.forEach(function (b, i) {
       var f = function (k, t, ph) { return '<td><input type="' + t + '" data-i="' + i + '" data-k="' + k + '" value="' + esc(b[k]) + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '></td>'; };
       h += '<tr>' + f('name', 'text', '例：リサイクル福袋') + f('codes', 'text', '複数はカンマ区切り') + f('from', 'date') + f('to', 'date') +
