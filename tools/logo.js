@@ -7,7 +7,7 @@
  */
 (function () {
   'use strict';
-  var VER = 'LOGO v1.0 (2026-11-23)';
+  var VER = 'ロゴ切替 v1.1 (2026-11-23)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var SHOP = STG ? 'https://shop.seesplanning.mercart-stg.net' : 'https://drugstores-shop.com';
@@ -145,7 +145,7 @@
   }
   function render() {
     var h = '<h4>いまの予定</h4>';
-    if (!S.periods.length) h += '<div class="mu">なし（いつもの sitelogo.png）</div>';
+    if (!S.periods.length) h += '<div class="mu">なし（いつものロゴ）</div>';
     else {
       h += '<table><tr><th>画像</th><th>表示期間</th><th>確認</th><th></th></tr>';
       S.periods.forEach(function (p, i) {
