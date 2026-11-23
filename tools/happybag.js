@@ -1,5 +1,6 @@
 /* SIS 福袋の配送日 — #SP-1
- * 福袋ごとに商品コード・販売期間・「お届け日（から〜まで）」を入れて［反映］→ 注文画面で、その福袋の配送希望日がお届け日の中だけになる
+ * 福袋ごとに商品コード・「お届け日（から〜まで）」を入れて［反映］→ 注文画面で、その福袋の配送希望日がお届け日の中だけになる
+ *  ・販売期間は商品登録の掲載期間（掲載開始・掲載終了）を読む。商品が購入グループ happy bag にないと止める
  *  ・注文画面のどの福袋かは商品コードで判定（注文画面の rowgoodsN の値。前方一致）。同じ時期に複数の福袋を売ってもよい
  * しくみ（使う人は知らなくてよい）：
  *  ・購入グループ「happy bag」（88888888）のリードタイム2・表示件数を、まだ販売が終わっていない全福袋の全注文日でお届け日が全部出る値にする
@@ -8,14 +9,14 @@
  */
 (function () {
   'use strict';
-  var VER = '福袋の配送日 v2.3 (2026-11-23)';
+  var VER = '福袋の配送日 v2.4 (2026-11-23)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
   var RULES = '88888888';
-  var KEY = 'sis_hb_bags_v2';
+  var KEY = 'sis_hb_bags_v3';
   var BAGS; try { BAGS = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { BAGS = []; }
-  if (!BAGS.length) BAGS.push({ name: '', codes: '', start: '', end: '', from: '', to: '' });
+  if (!BAGS.length) BAGS.push({ name: '', codes: '', from: '', to: '' });
   function save() { try { localStorage.setItem(KEY, JSON.stringify(BAGS)); } catch (e) {} }
 
   var old = document.getElementById('sishb'); if (old) old.remove();
@@ -29,7 +30,7 @@
     '#sishb button{padding:7px 14px;margin:10px 6px 0 0;border-radius:6px;border:1px solid #888;background:#f8f8f8;cursor:pointer}#sishb button.go{background:' + C1 + ';color:#fff;border:none;font-weight:bold}#sishb button:disabled{opacity:.45;cursor:not-allowed}' +
     '#sishb .del{border:none;background:none;color:#868e96;font-size:16px;cursor:pointer;padding:0 4px;margin:0}</style>' +
     '<div class="hd"><span>SIS 福袋の配送日（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
-    '<div class="bd"><div class="mu">福袋ごとに入れて［反映］。その福袋の注文画面で、選べる配送希望日が「お届け日」の中だけになる</div><div class="tb"></div>' +
+    '<div class="bd"><div class="mu">福袋ごとに入れて［反映］。販売期間は商品登録の掲載期間を使う。その福袋の注文画面で、選べる配送希望日が「お届け日」の中だけになる</div><div class="tb"></div>' +
     '<button class="add">＋ 福袋を足す</button><button class="go">反映</button><div class="msg"></div></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
@@ -151,26 +152,40 @@
     if (v('rules') !== RULES) throw new Error('福袋の購入グループ（' + RULES + '）が見つからない');
     return { f: f, lt2: v('leadtime2'), cnt: v('date_dispcount'), icon: v('icon1') };
   }
-  function check() { // 入力の確認と、全福袋をまかなう設定値
-    var bags = BAGS.filter(function (b) { return b.name || b.codes || b.start || b.end || b.from || b.to; });
+  async function periods() { // 販売期間は商品登録の掲載期間から読む
+    var G = new URLSearchParams([['table', 'tmpgoods'], ['rules', RULES], ['format', 'CSV'], ['header', '1'], ['export.x', '実行']]);
+    var q = parseCSV(new TextDecoder('shift_jis').decode(await (await fetch(BO + '/import/exp_goods.aspx', { method: 'POST', body: G, credentials: 'include' })).arrayBuffer()));
+    if (!q[0] || q[0][0] !== '商品コード') throw new Error('商品を読めない（ログイン切れの可能性）');
+    return q.slice(1).filter(function (r) { return r[2] === RULES; });
+  }
+  function endMs(s) { var t = tms(s); return /\d:\d/.test(s) ? t : t + 864e5; } // 日付だけならその日の終わりまで
+  async function check() { // 入力の確認と、全福袋をまかなう設定値
+    var bags = BAGS.filter(function (b) { return b.name || b.codes || b.from || b.to; });
     if (!bags.length) return { err: '福袋を入れる' };
+    var G = await periods();
     for (var b of bags) {
       var w = b.name || '名前のない行';
-      if (!b.name || !b.codes || !b.start || !b.end || !b.from || !b.to) return { err: w + '：空いている欄がある' };
-      if ([tms(b.start), tms(b.end), dnum(b.from), dnum(b.to)].some(isNaN)) return { err: w + '：日付の形を確認' };
-      if (tms(b.start) >= tms(b.end)) return { err: w + '：販売終了が販売開始より前' };
+      if (!b.name || !b.codes || !b.from || !b.to) return { err: w + '：空いている欄がある' };
+      if ([dnum(b.from), dnum(b.to)].some(isNaN)) return { err: w + '：日付の形を確認' };
       if (dnum(b.from) > dnum(b.to)) return { err: w + '：お届け日の「まで」が「から」より前' };
-      if (dnum(b.from) <= jstDay(tms(b.end) - 60000)) return { err: w + '：お届け日が販売終了より前' };
+      var s = [], e = [];
+      for (var c of String(b.codes).split(/[\s,、]+/).filter(Boolean)) {
+        var hit = G.filter(function (r) { return r[0] === c || r[0].indexOf(c + '-') === 0; });
+        if (!hit.length) return { err: w + '：' + c + ' が商品登録にない（購入グループを happy bag にする）' };
+        for (var r of hit) { if (!r[45] || !r[46]) return { err: w + '：' + r[0] + ' の掲載期間が空' }; s.push(tms(r[45])); e.push(endMs(r[46])); }
+      }
+      b.s = Math.min.apply(null, s); b.e = Math.max.apply(null, e);
+      if (dnum(b.from) <= jstDay(b.e - 60000)) return { err: w + '：お届け日が掲載終了より前' };
     }
-    var now = Date.now(), live = bags.filter(function (b) { return tms(b.end) > now; });
-    if (!live.length) return { err: '販売が終わっていない福袋がない' };
-    var lt2 = Math.min.apply(null, live.map(function (b) { return dnum(b.from) - jstDay(tms(b.end) - 60000) - 1; })); // どの最終注文日でも「から」の日が出る
-    var cnt = Math.max.apply(null, live.map(function (b) { return dnum(b.to) - Math.max(jstDay(tms(b.start)), jstDay(now)) - lt2; })); // どの初日でも「まで」の日が出る
+    var now = Date.now(), live = bags.filter(function (b) { return b.e > now; });
+    if (!live.length) return { err: '掲載中・掲載予定の福袋がない（商品登録の掲載期間を確認）' };
+    var lt2 = Math.min.apply(null, live.map(function (b) { return dnum(b.from) - jstDay(b.e - 60000) - 1; })); // どの最終注文日でも「から」の日が出る
+    var cnt = Math.max.apply(null, live.map(function (b) { return dnum(b.to) - Math.max(jstDay(b.s), jstDay(now)) - lt2; })); // どの初日でも「まで」の日が出る
     return { bags: bags, lt2: lt2, cnt: cnt };
   }
   function hbScript(bags, icon) {
     var R = bags.map(function (b) {
-      return { c: String(b.codes).split(/[\s,、]+/).filter(Boolean), e: tms(b.end), f: dstr(dnum(b.from)).replace(/\D/g, ''), t: dstr(dnum(b.to)).replace(/\D/g, ''), msg: '配送希望日は' + md(dnum(b.from)) + 'から' + md(dnum(b.to)) + 'の中からお選びください。' };
+      return { c: String(b.codes).split(/[\s,、]+/).filter(Boolean), e: b.e, f: dstr(dnum(b.from)).replace(/\D/g, ''), t: dstr(dnum(b.to)).replace(/\D/g, ''), msg: '配送希望日は' + md(dnum(b.from)) + 'から' + md(dnum(b.to)) + 'の中からお選びください。' };
     });
     var now = new Date();
     return '/* SIS 福袋の配送希望日（BOのツール「福袋の配送日」が作成 ' + now.getFullYear() + '/' + pad(now.getMonth() + 1) + '/' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + '。手で直さない） */\n' +
@@ -184,21 +199,21 @@
       'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else go();})();\n';
   }
   function render() {
-    var h = '<table><tr><th style="width:15%">福袋（内部用）</th><th style="width:17%">商品コード</th><th>販売開始</th><th>販売終了</th><th>お届け日（から）</th><th>お届け日（まで）</th><th></th></tr>';
+    var h = '<table><tr><th style="width:15%">福袋（内部用）</th><th style="width:17%">商品コード</th><th>お届け日（から）</th><th>お届け日（まで）</th><th></th></tr>';
     BAGS.forEach(function (b, i) {
       var f = function (k, t, ph) { return '<td><input type="' + t + '" data-i="' + i + '" data-k="' + k + '" value="' + esc(b[k]) + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '></td>'; };
-      h += '<tr>' + f('name', 'text', '例：リサイクル福袋') + f('codes', 'text', '複数はカンマ区切り') + f('start', 'datetime-local') + f('end', 'datetime-local') + f('from', 'date') + f('to', 'date') +
+      h += '<tr>' + f('name', 'text', '例：リサイクル福袋') + f('codes', 'text', '複数はカンマ区切り') + f('from', 'date') + f('to', 'date') +
         '<td><button class="del" data-i="' + i + '" title="この行を消す">×</button></td></tr>';
     });
     $('.tb').innerHTML = h + '</table>';
     [].slice.call(box.querySelectorAll('.tb input')).forEach(function (e) { e.onchange = function () { BAGS[+e.dataset.i][e.dataset.k] = e.value.trim(); save(); }; });
-    [].slice.call(box.querySelectorAll('.tb .del')).forEach(function (e) { e.onclick = function () { BAGS.splice(+e.dataset.i, 1); if (!BAGS.length) BAGS.push({ name: '', codes: '', start: '', end: '', from: '', to: '' }); save(); render(); }; });
+    [].slice.call(box.querySelectorAll('.tb .del')).forEach(function (e) { e.onclick = function () { BAGS.splice(+e.dataset.i, 1); if (!BAGS.length) BAGS.push({ name: '', codes: '', from: '', to: '' }); save(); render(); }; });
   }
-  $('.add').onclick = function () { BAGS.push({ name: '', codes: '', start: '', end: '', from: '', to: '' }); save(); render(); };
+  $('.add').onclick = function () { BAGS.push({ name: '', codes: '', from: '', to: '' }); save(); render(); };
   $('.go').onclick = async function () {
     var btn = $('.go'); btn.disabled = true; $('.msg').innerHTML = '<span class="mu">反映中…（1分ほど）</span>';
     try {
-      var p = check(); if (p.err) throw new Error(p.err);
+      var p = await check(); if (p.err) throw new Error(p.err);
       var g = await readGroup(), fd = fdOf(g.f);
       fd.set('use_delivery_date', '1'); fd.set('leadtime2', String(p.lt2)); fd.set('date_dispcount', String(p.cnt));
       fd.set('cmdUpdate', g.f.querySelector('[name=cmdUpdate]').value);
