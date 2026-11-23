@@ -2,8 +2,7 @@
  * ① 配送日：福袋ごとに「届く日（から〜まで）」を決めて［反映］
  *    ・購入グループ（happy bag）のリードタイム・表示件数を、次に売る福袋の全注文日でその期間が選べる値に自動計算して更新
  *    ・店舗の /js/usr/sis_hb.js を書き出す（注文画面で期間外の日付を消し、案内文を出す）
- *      order.js・order_sb.js に読み込みの1行が入っていること（設置は一度だけ。本番はメルカート確認後）
- *    ・JSなし（order.jsに入れられない間）：今日〜次の反映日の注文で期間内の日付だけが出る値にする。販売中は平日ごとに［反映］
+ *    ・注文画面のヘッダー（COMMON_ORDER_HEADER のPC・スマホ）に sis_hb.js の読み込みを入れる（テンプレート取込。何度押しても1つだけ）
  * ② クーポン：販売終了後に［読み込む］→［作成］
  *    ・注文（キャンセル除く）から会員ごとに買った福袋と個数を数え、券種ごとに「n枚目」のユニーククーポンと会員グループを作る
  *    ・同じ人数のn枚目はグループを1つにまとめる（例：2027福袋_3000円1-5）。2個買った人は6枚目以降で自動的に増える
@@ -135,15 +134,6 @@
     var b = bags[0], d1 = Math.max(jstDay(tms(b.start)), jstDay(now)), d2 = jstDay(tms(b.end) - 60000), F = dnum(b.from), T = dnum(b.to);
     if ([d1, d2, F, T].some(isNaN)) return { err: b.name + 'の日付を確認' };
     if (F > T) return { err: b.name + '：届く日の「から」が「まで」より後' };
-    if (CFG.nojs) { // JSなし：今日から次の反映日までの注文で、出る日付が必ず「から〜まで」の中に収まる値（日が進むと出る日付も後ろへずれるため、期間を次の反映日の分だけ狭める）
-      var t0 = Math.max(jstDay(now), d1), l0 = F - t0 - 1;
-      if (l0 < 0) return { err: b.name + '：届く日の「から」が今日より前' };
-      var nx = dnum(CFG.nextRun); if (isNaN(nx) || nx <= t0) { nx = t0 + 1; while ([0, 6].indexOf(new Date(nx * 864e5).getUTCDay()) >= 0) nx++; } // 既定：次の平日
-      var t1 = Math.min(nx, d2), c0 = T - t1 - l0; // 反映日の朝までの注文も前の値のまま、として数える
-      if (c0 < 1) return { err: '次の反映日（' + dstr(nx) + '）が遠すぎる。もっと早い日にする' };
-      return { bag: b, next: bags[1] || null, nojs: true, nx: dstr(nx), end: t1 >= d2, t0: dstr(t0), t1: dstr(t1), lt2: l0, cnt: c0,
-        first: [dstr(t0 + l0 + 1), dstr(t1 + l0 + 1)], last: [dstr(t0 + l0 + c0), dstr(t1 + l0 + c0)] };
-    }
     var lt2 = F - d2 - 1; // 最終注文日でも「から」の日が最初に出る
     if (lt2 < 0) return { err: b.name + '：販売終了日より前に届く日がある' };
     var cnt = T - d1 - lt2; // 最初の注文日でも「まで」の日まで出る
@@ -201,6 +191,43 @@
       document.body.appendChild(fr);
     });
   }
+  /* ---------- 注文画面に読み込みを入れる（テンプレート取込。バナー反映と同じ入出力） ---------- */
+  async function tplExport() {
+    var G = new URLSearchParams([['table', 'tmptemplate'], ['format', 'CSV'], ['header', '1'], ['export.x', '実行']]);
+    var b = await (await fetch(BO + '/import/exp_template.aspx', { method: 'POST', body: G, credentials: 'include' })).arrayBuffer();
+    var q = parseCSV(new TextDecoder('shift_jis').decode(b));
+    if (!q[0] || q[0][1] !== 'テンプレート名' || q[0].length !== 12) throw new Error('テンプレートを読めない（ログイン切れの可能性）');
+    return q;
+  }
+  async function tplImport(head, rows, tag) {
+    var text = [head].concat(rows).map(function (r) { return r.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n') + '\r\n';
+    var name = 'SIS_' + tag + '_' + Date.now() + '.csv', fd = new FormData();
+    fd.append('table', 'tmptemplate'); fd.append('txtFile', new File([sjis(text)], name, { type: 'text/csv' })); fd.append('header', '1'); fd.append('format', 'CSV'); fd.append('cmdUpload', '取込');
+    var t = await (await fetch(BO + '/import/imp_template.aspx', { method: 'POST', body: fd, credentials: 'include' })).text();
+    if (!/受付/.test(t)) throw new Error('テンプレートの取込を受け付けてもらえない');
+    log('テンプレート取込を送信（' + rows.length + 'か所）');
+    for (var i = 0; i < 36; i++) {
+      await sleep(5000);
+      try { var j = await (await fetch(BO + '/fuctionloggetapi.aspx?number=10&batch_id=ImpTemplateSetting', { credentials: 'include', headers: { 'Content-Type': 'application/json; charset=utf-8' } })).json();
+        var me = (j || []).find(function (x) { return x && x['取込ファイル名'] === name; });
+        if (me && /success/i.test(String(me['状態']))) { log('取込完了'); return; }
+        if (me && /error|fail|失敗|エラー|異常/i.test(String(me['状態']))) throw new Error('テンプレート取込に失敗：' + me['状態']);
+      } catch (e) { if (/失敗/.test(e.message)) throw e; }
+    }
+    throw new Error('3分待っても取込の結果が出ない（テンプレートインポートの処理状況を確認）');
+  }
+  var HB = /<!--SISHB-->[\s\S]*?<!--\/SISHB-->/;
+  async function loader() { // 注文画面のヘッダー（PC・スマホ）に sis_hb.js の読み込みを1つだけ入れる。版を変えて古いキャッシュを使わせない
+    var q = await tplExport(), v = Date.now().toString(36);
+    var tag = '<!--SISHB--><script src="/js/usr/sis_hb.js?v=' + v + '" charset="utf-8"></script><!--/SISHB-->';
+    var rows = q.slice(1).filter(function (r) { return /^(PC|SB)$/.test(r[0]) && r[1] === 'COMMON_ORDER_HEADER'; }).map(function (r) {
+      var nr = r.slice(); [5, 6].forEach(function (k) { var t = nr[k] || ''; if (k === 6 && !t) return; nr[k] = HB.test(t) ? t.replace(HB, tag) : t + tag; }); return nr;
+    });
+    if (rows.length !== 2) throw new Error('注文画面のヘッダーテンプレート（PC・スマホ）が見つからない');
+    await tplImport(q[0], rows, 'happybag');
+    var ok = (await tplExport()).slice(1).filter(function (r) { return /^(PC|SB)$/.test(r[0]) && r[1] === 'COMMON_ORDER_HEADER'; }).every(function (r) { return (r[5] || '').indexOf(tag) >= 0; });
+    if (!ok) throw new Error('注文画面のヘッダーに読み込みが入っていない。テンプレート管理で確認');
+  }
   async function renderD(msg) {
     var h = '<div style="margin-top:6px">購入グループ <input type="text" class="rid" value="' + esc(CFG.rules) + '" style="width:90px"> <span class="gst mu">読み込み中…</span></div>' +
       '<table class="bt"><tr><th>福袋</th><th>販売開始</th><th>販売終了</th><th>届く日（から）</th><th>（まで）</th><th>希望なし時</th><th>商品コード</th></tr>';
@@ -208,12 +235,12 @@
       h += '<tr>' + ['name', 'start', 'end', 'from', 'to', 'nopref', 'codes'].map(function (k) { return '<td><input type="text" data-i="' + i + '" data-k="' + k + '" value="' + esc(b[k]) + '"></td>'; }).join('') + '</tr>';
     });
     h += '</table><div class="mu">商品コード：空なら販売期間で判定</div><div class="pl"></div>' +
-      '<label style="margin-right:10px"><input type="checkbox" class="nojs"' + (CFG.nojs ? ' checked' : '') + '> JSなし</label><button class="dgo go">反映</button><button class="add">行を足す</button><div class="dmsg">' + (msg || '') + '</div>';
+      '<button class="dgo go">反映</button><button class="add">行を足す</button><div class="dmsg">' + (msg || '') + '</div>';
     $('.pd').innerHTML = h;
     [].slice.call($('.pd').querySelectorAll('.bt input')).forEach(function (e) { e.onchange = function () { CFG.bags[+e.dataset.i][e.dataset.k] = e.value.trim(); save(); showPlan(); }; });
     $('.rid').onchange = function () { CFG.rules = $('.rid').value.trim(); save(); renderD(); };
     $('.add').onclick = function () { CFG.bags.push({ name: '', start: '', end: '', from: '', to: '', nopref: '', codes: '' }); save(); renderD(); };
-    $('.dgo').onclick = applyD; $('.nojs').onchange = function () { CFG.nojs = $('.nojs').checked; CFG.nextRun = ''; save(); showPlan(); };
+    $('.dgo').onclick = applyD;
     showPlan();
     try {
       var g = await readGroup(), js = await fileRow('js/usr/', 'sis_hb.js');
@@ -226,11 +253,6 @@
   function showPlan() {
     var p = plan(Date.now()), el = $('.pl'); if (!el) return;
     if (p.err) { el.innerHTML = '<div class="ng">' + esc(p.err) + '</div>'; return; }
-    if (p.nojs) { el.innerHTML = '<h4>反映する値（' + esc(p.bag.name) + '・JSなし）</h4><table><tr><td>リードタイム</td><td><b>' + p.lt2 + '日</b></td><td>表示件数</td><td><b>' + p.cnt + '件</b></td></tr>' +
-      '<tr><td>' + p.t0 + 'の注文</td><td colspan="3">' + p.first[0] + '〜' + p.last[0] + ' が出る</td></tr><tr><td>' + p.t1 + 'の注文</td><td colspan="3">' + p.first[1] + '〜' + p.last[1] + ' が出る</td></tr>' +
-      '<tr><td>次の反映日</td><td colspan="3"><input type="text" class="nx" value="' + p.nx + '" style="width:100px"></td></tr></table>' +
-      (p.end ? '<div class="ok">販売終了まで、これで足りる（次の反映は不要）</div>' : '<div class="wa">' + p.nx + 'の午前中に、もう一度［反映］（遅れると期間より後の日付が出る）</div>'); 
-      $('.nx').onchange = function () { CFG.nextRun = $('.nx').value.trim(); save(); showPlan(); }; return; }
     el.innerHTML = '<h4>反映する値（' + esc(p.bag.name) + '）</h4><table><tr><td>リードタイム</td><td><b>' + p.lt2 + '日</b></td><td>表示件数</td><td><b>' + p.cnt + '件</b></td></tr>' +
       '<tr><td>初日の注文</td><td colspan="3">' + p.first[0] + '〜' + p.last[0] + ' が出る → ' + esc(p.bag.from) + '〜' + esc(p.bag.to) + ' だけ残す</td></tr>' +
       '<tr><td>最終日の注文</td><td colspan="3">' + p.first[1] + '〜' + p.last[1] + ' が出る → ' + esc(p.bag.from) + '〜' + esc(p.bag.to) + ' だけ残す</td></tr></table>' +
@@ -247,8 +269,9 @@
       var t = new DOMParser().parseFromString(await (await fetch(BO + '/rules/detail.aspx?Rules=' + encodeURIComponent(CFG.rules), { method: 'POST', body: fd, credentials: 'include' })).text(), 'text/html').body.textContent.replace(/\s+/g, ' ');
       var err = (t.match(/[^ ]{0,30}(入力して|できません|不正|エラー)[^ ]{0,30}/) || [''])[0]; if (err) throw new Error('購入グループを更新できない：' + err);
       var chk = await readGroup(); if (chk.lt2 !== String(p.lt2) || chk.cnt !== String(p.cnt)) throw new Error('購入グループの値が変わっていない（' + chk.lt2 + '日・' + chk.cnt + '件）');
-      if (!p.nojs) { var js = hbScript(); log('sis_hb.js を書き出し（' + js.length + '文字）'); await upload('js/usr/', 'sis_hb.js', js); }
-      await renderD('<div class="ok">反映しました：リードタイム ' + p.lt2 + '日・表示 ' + p.cnt + '件' + (p.nojs ? '' : '／sis_hb.js 更新') + '。注文画面で日付を確認</div>');
+      var js = hbScript(); log('sis_hb.js を書き出し（' + js.length + '文字）'); await upload('js/usr/', 'sis_hb.js', js);
+      await loader();
+      await renderD('<div class="ok">反映しました：リードタイム ' + p.lt2 + '日・表示 ' + p.cnt + '件／注文画面の日付の絞り込みを更新</div>');
     } catch (e) { log('止めました：' + e.message); $('.dmsg').innerHTML = '<div class="ng">止めました：' + esc(e.message) + '</div>'; btn.disabled = false; }
   }
 

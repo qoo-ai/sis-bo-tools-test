@@ -24,7 +24,8 @@ var TOOLS=[
  {id:"member", name:"会員ランク特典（月初）", desc:"毎月月初に「一般クーポン4種」「誕生日クーポン5種」「メール3種」を送付する", where:'bo', grp:'test', on:true, path:'tools/member.js'},
  {id:"novelty", name:"ノベルティの開始・終了", desc:"品番・条件・期間 → ノベルティ商品の取込／キャンペーン入力／コメント付与・撤去（#SP-1V）", where:'bo', grp:'test', on:true, path:'tools/novelty.js'},
  {id:"sanrio", name:"サンリオ掲載終了日延長（1回限り）", desc:"サンリオ14件の掲載終了日を2027/12/01に（在庫・状態はそのまま）。［取込］の手前まで", where:'bo', grp:'test', on:true, path:'tools/sanrio_end.js'},
- {id:"happybag", name:"ハッピーバッグ", desc:"福袋の配送希望日（購入グループ＋注文画面）とお年玉クーポン付与（購入者→会員グループ→ユニーククーポン→枚数照合）", where:'bo', grp:'test', on:true, path:'tools/happybag.js'}
+ {id:"happybag", name:"ハッピーバッグ", desc:"福袋の配送希望日（購入グループ＋注文画面）とお年玉クーポン付与（購入者→会員グループ→ユニーククーポン→枚数照合）", where:'bo', grp:'test', on:true, path:'tools/happybag.js'},
+ {id:"logo", name:"ロゴ切替", desc:"ロゴ画像と表示期間を入れて反映。期間中だけサイトロゴが変わり、終わると元に戻る", where:'bo', grp:'test', on:true, path:'tools/logo.js'}
 ];
 var D=document;
 function bar(msg,bg){var d=D.createElement('div');d.textContent=msg;d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483647;padding:12px;background:'+(bg||'#344054')+';color:#fff;font:15px/1.5 sans-serif;text-align:center';D.body.appendChild(d);setTimeout(function(){d.remove();},8000);}
