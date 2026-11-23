@@ -1,5 +1,6 @@
 /* SIS 福袋の配送日 — #SP-1
- * 福袋ごとに販売期間と「お届け日（から〜まで）」を入れて［反映］→ 注文画面で、その福袋の配送希望日がお届け日の中だけになる
+ * 福袋ごとに商品コード・販売期間・「お届け日（から〜まで）」を入れて［反映］→ 注文画面で、その福袋の配送希望日がお届け日の中だけになる
+ *  ・注文画面のどの福袋かは商品コードで判定（注文画面の rowgoodsN の値。前方一致）。同じ時期に複数の福袋を売ってもよい
  * しくみ（使う人は知らなくてよい）：
  *  ・購入グループ「happy bag」（88888888）のリードタイム2・表示件数を、まだ販売が終わっていない全福袋の全注文日でお届け日が全部出る値にする
  *  ・/js/usr/sis_hb.js を書き出し、注文画面のヘッダー（COMMON_ORDER_HEADER のPC・スマホ）に読み込みを入れる（テンプレート取込。何度押しても1つだけ）
@@ -7,20 +8,20 @@
  */
 (function () {
   'use strict';
-  var VER = '福袋の配送日 v2.0 (2026-11-23)';
+  var VER = '福袋の配送日 v2.1 (2026-11-23)';
   var BO = location.pathname.split('/').slice(0, 2).join('/');
   var STG = /mercart-stg/.test(location.hostname);
   var C1 = STG ? '#2b8a3e' : '#d9480f', C2 = STG ? '#ebfbee' : '#fff4e6';
   var RULES = '88888888';
   var KEY = 'sis_hb_bags_v2';
   var BAGS; try { BAGS = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { BAGS = []; }
-  if (!BAGS.length) BAGS.push({ name: '', start: '', end: '', from: '', to: '' });
+  if (!BAGS.length) BAGS.push({ name: '', codes: '', start: '', end: '', from: '', to: '' });
   function save() { try { localStorage.setItem(KEY, JSON.stringify(BAGS)); } catch (e) {} }
 
   var old = document.getElementById('sishb'); if (old) old.remove();
   var box = document.createElement('div'); box.id = 'sishb';
   box.innerHTML =
-    '<style>#sishb{position:fixed;right:12px;top:12px;z-index:2147483000;width:820px;max-width:calc(100vw - 24px);max-height:92vh;overflow:auto;background:#fff;border:2px solid ' + C1 + ';border-radius:10px;font:13px/1.6 sans-serif;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.2)}' +
+    '<style>#sishb{position:fixed;right:12px;top:12px;z-index:2147483000;width:960px;max-width:calc(100vw - 24px);max-height:92vh;overflow:auto;background:#fff;border:2px solid ' + C1 + ';border-radius:10px;font:13px/1.6 sans-serif;color:#222;box-shadow:0 4px 16px rgba(0,0,0,.2)}' +
     '#sishb .hd{padding:8px 12px;background:' + C2 + ';font-weight:bold;display:flex;justify-content:space-between}#sishb .bd{padding:10px 12px}' +
     '#sishb table{border-collapse:collapse;width:100%;font-size:12px}#sishb td,#sishb th{border-bottom:1px solid #eee;padding:4px;text-align:left}' +
     '#sishb input{font-size:12px;padding:3px 4px;border:1px solid #ccc;border-radius:3px;box-sizing:border-box;width:100%}' +
@@ -28,7 +29,7 @@
     '#sishb button{padding:7px 14px;margin:10px 6px 0 0;border-radius:6px;border:1px solid #888;background:#f8f8f8;cursor:pointer}#sishb button.go{background:' + C1 + ';color:#fff;border:none;font-weight:bold}#sishb button:disabled{opacity:.45;cursor:not-allowed}' +
     '#sishb .del{border:none;background:none;color:#868e96;font-size:16px;cursor:pointer;padding:0 4px;margin:0}</style>' +
     '<div class="hd"><span>SIS 福袋の配送日（' + (STG ? 'stg 検証環境' : '本番') + '）</span><span title="' + VER + '"><a href="#" class="x" style="color:#222;text-decoration:none">×</a></span></div>' +
-    '<div class="bd"><div class="mu">福袋ごとに入れて［反映］。注文画面で選べる配送希望日が「お届け日」の中だけになる</div><div class="tb"></div>' +
+    '<div class="bd"><div class="mu">福袋ごとに入れて［反映］。その福袋の注文画面で、選べる配送希望日が「お届け日」の中だけになる</div><div class="tb"></div>' +
     '<button class="add">＋ 福袋を足す</button><button class="go">反映</button><div class="msg"></div></div>';
   document.body.appendChild(box);
   var $ = function (s) { return box.querySelector(s); };
@@ -151,11 +152,11 @@
     return { f: f, lt2: v('leadtime2'), cnt: v('date_dispcount'), icon: v('icon1') };
   }
   function check() { // 入力の確認と、全福袋をまかなう設定値
-    var bags = BAGS.filter(function (b) { return b.name || b.start || b.end || b.from || b.to; });
+    var bags = BAGS.filter(function (b) { return b.name || b.codes || b.start || b.end || b.from || b.to; });
     if (!bags.length) return { err: '福袋を入れる' };
     for (var b of bags) {
       var w = b.name || '名前のない行';
-      if (!b.name || !b.start || !b.end || !b.from || !b.to) return { err: w + '：空いている欄がある' };
+      if (!b.name || !b.codes || !b.start || !b.end || !b.from || !b.to) return { err: w + '：空いている欄がある' };
       if ([tms(b.start), tms(b.end), dnum(b.from), dnum(b.to)].some(isNaN)) return { err: w + '：日付の形を確認' };
       if (tms(b.start) >= tms(b.end)) return { err: w + '：販売終了が販売開始より前' };
       if (dnum(b.from) > dnum(b.to)) return { err: w + '：お届け日の「まで」が「から」より前' };
@@ -169,13 +170,13 @@
   }
   function hbScript(bags, icon) {
     var R = bags.map(function (b) {
-      return { e: tms(b.end), f: dstr(dnum(b.from)).replace(/\D/g, ''), t: dstr(dnum(b.to)).replace(/\D/g, ''), msg: '配送希望日は' + md(dnum(b.from)) + 'から' + md(dnum(b.to)) + 'の中からお選びください。' };
+      return { c: String(b.codes).split(/[\s,、]+/).filter(Boolean), e: tms(b.end), f: dstr(dnum(b.from)).replace(/\D/g, ''), t: dstr(dnum(b.to)).replace(/\D/g, ''), msg: '配送希望日は' + md(dnum(b.from)) + 'から' + md(dnum(b.to)) + 'の中からお選びください。' };
     });
     var now = new Date();
     return '/* SIS 福袋の配送希望日（BOのツール「福袋の配送日」が作成 ' + now.getFullYear() + '/' + pad(now.getMonth() + 1) + '/' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + '。手で直さない） */\n' +
       '(function(){var R=' + JSON.stringify(R) + ',ICON=' + JSON.stringify('/img/icon/' + (icon || 'happy') + '.') + ',DT=/(\\d{4})\\D(\\d{1,2})\\D(\\d{1,2})/;\n' +
-      'function pick(){var n=Date.now(),a=R.filter(function(r){return n<r.e;}).sort(function(x,y){return x.e-y.e;});return a[0]||null;}\n' +
-      'function run(){if(!/\\/order\\//i.test(location.pathname))return;var r=pick();if(!r||!document.querySelector(\'img[src*="\'+ICON+\'"]\'))return;\n' +
+      'function pick(){var g=[].slice.call(document.querySelectorAll(\'input[name^="rowgoods"]\')).map(function(e){return e.value;}),h=g.length?"":document.body.innerText,m=R.filter(function(r){return r.c.some(function(c){return g.length?g.some(function(v){return v.indexOf(c)===0;}):h.indexOf(c)>=0;});});if(!m.length)return null;if(m.length===1)return m[0];var f=m.map(function(r){return r.f;}).sort().pop(),t=m.map(function(r){return r.t;}).sort()[0];return f<=t?{f:f,t:t,msg:m[0].msg}:m[0];}\n' +
+      'function run(){if(!/\\/order\\//i.test(location.pathname))return;var r=pick();if(!r)return;\n' +
       '[].slice.call(document.querySelectorAll("select")).forEach(function(s){var d=[].slice.call(s.options).filter(function(x){return DT.test(x.text);});if(d.length<2||s.getAttribute("data-sis-hb")===r.f+r.t)return;s.setAttribute("data-sis-hb",r.f+r.t);\n' +
       'd.forEach(function(x){var m=x.text.match(DT),v=m[1]+("0"+m[2]).slice(-2)+("0"+m[3]).slice(-2);if(v<r.f||v>r.t){if(x.selected)s.selectedIndex=0;s.removeChild(x);}});\n' +
       'if(!s.parentNode.querySelector(".sis-hb-note")){var p=document.createElement("p");p.className="sis-hb-note";p.style.cssText="color:#c00;font-size:12px;margin:4px 0;";p.textContent=r.msg;s.parentNode.insertBefore(p,s);}});}\n' +
@@ -183,17 +184,17 @@
       'if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else go();})();\n';
   }
   function render() {
-    var h = '<table><tr><th style="width:24%">福袋</th><th>販売開始</th><th>販売終了</th><th>お届け日（から）</th><th>お届け日（まで）</th><th></th></tr>';
+    var h = '<table><tr><th style="width:15%">福袋</th><th style="width:17%">商品コード</th><th>販売開始</th><th>販売終了</th><th>お届け日（から）</th><th>お届け日（まで）</th><th></th></tr>';
     BAGS.forEach(function (b, i) {
       var f = function (k, t, ph) { return '<td><input type="' + t + '" data-i="' + i + '" data-k="' + k + '" value="' + esc(b[k]) + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '></td>'; };
-      h += '<tr>' + f('name', 'text', '例：リサイクル福袋') + f('start', 'datetime-local') + f('end', 'datetime-local') + f('from', 'date') + f('to', 'date') +
+      h += '<tr>' + f('name', 'text', '例：リサイクル福袋') + f('codes', 'text', '複数はカンマ区切り') + f('start', 'datetime-local') + f('end', 'datetime-local') + f('from', 'date') + f('to', 'date') +
         '<td><button class="del" data-i="' + i + '" title="この行を消す">×</button></td></tr>';
     });
     $('.tb').innerHTML = h + '</table>';
     [].slice.call(box.querySelectorAll('.tb input')).forEach(function (e) { e.onchange = function () { BAGS[+e.dataset.i][e.dataset.k] = e.value.trim(); save(); }; });
-    [].slice.call(box.querySelectorAll('.tb .del')).forEach(function (e) { e.onclick = function () { BAGS.splice(+e.dataset.i, 1); if (!BAGS.length) BAGS.push({ name: '', start: '', end: '', from: '', to: '' }); save(); render(); }; });
+    [].slice.call(box.querySelectorAll('.tb .del')).forEach(function (e) { e.onclick = function () { BAGS.splice(+e.dataset.i, 1); if (!BAGS.length) BAGS.push({ name: '', codes: '', start: '', end: '', from: '', to: '' }); save(); render(); }; });
   }
-  $('.add').onclick = function () { BAGS.push({ name: '', start: '', end: '', from: '', to: '' }); save(); render(); };
+  $('.add').onclick = function () { BAGS.push({ name: '', codes: '', start: '', end: '', from: '', to: '' }); save(); render(); };
   $('.go').onclick = async function () {
     var btn = $('.go'); btn.disabled = true; $('.msg').innerHTML = '<span class="mu">反映中…（1分ほど）</span>';
     try {
