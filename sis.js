@@ -24,7 +24,7 @@ var TOOLS=[
  {id:"member", name:"会員ランク特典（月初）", desc:"毎月月初に「一般クーポン4種」「誕生日クーポン5種」「メール3種」を送付する", where:'bo', grp:'test', on:true, path:'tools/member.js'},
  {id:"novelty", name:"ノベルティの開始・終了", desc:"品番・条件・期間 → ノベルティ商品の取込／キャンペーン入力／コメント付与・撤去（#SP-1V）", where:'bo', grp:'test', on:true, path:'tools/novelty.js'},
  {id:"sanrio", name:"サンリオ掲載終了日延長（1回限り）", desc:"サンリオ14件の掲載終了日を2027/12/01に（在庫・状態はそのまま）。［取込］の手前まで", where:'bo', grp:'test', on:true, path:'tools/sanrio_end.js'},
- {id:"happybag", name:"福袋の配送日", desc:"福袋ごとに販売期間とお届け日を入れて反映。注文画面で選べる配送希望日がお届け日の中だけになる", where:'bo', grp:'test', on:true, path:'tools/happybag.js'},
+ {id:"happybag", name:"福袋の配送日", desc:"福袋ごとに商品コードとお届け日を入れて反映。注文画面で選べる配送希望日がお届け日の中だけになる", where:'bo', grp:'test', on:true, path:'tools/happybag.js'},
  {id:"logo", name:"ロゴ切替", desc:"ロゴ画像と表示期間を入れて反映。期間中だけサイトロゴが変わり、終わると元に戻る", where:'bo', grp:'test', on:true, path:'tools/logo.js'},
  {id:"buyercoupon", name:"購入者クーポン", desc:"決めた商品を買った会員に、1つごとに決めた枚数のクーポンを配る（例：福袋のお年玉クーポン）", where:'bo', grp:'test', on:true, path:'tools/buyercoupon.js'}
 ];
