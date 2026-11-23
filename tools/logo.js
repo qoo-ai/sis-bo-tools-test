@@ -163,7 +163,8 @@
     if (!f) return;
     if (!/^[A-Za-z0-9_\-.]+\.(png|jpe?g|gif)$/i.test(f.name)) { $('.pv').innerHTML = '<span class="ng">ファイル名は半角英数字にする（例 sitelogo_xmas.png）</span>'; S.file = null; return; }
     if (/^sitelogo\.png$/i.test(f.name)) { $('.pv').innerHTML = '<span class="ng">sitelogo.png 以外の名前にする（元のロゴを上書きしない）</span>'; S.file = null; return; }
-    var u = URL.createObjectURL(f), im = new Image(); im.onload = function () { $('.pv').innerHTML = '<img class="th" src="' + u + '"> <span class="mu">' + im.naturalWidth + '×' + im.naturalHeight + '</span>'; }; im.src = u;
+    $('.pv').innerHTML = '<span class="mu">' + Math.round(f.size / 1024) + 'KB</span>';
+    var rd = new FileReader(); rd.onload = function () { var im = new Image(); im.onload = function () { $('.pv').innerHTML = '<img class="th" src="' + rd.result + '"> <span class="mu">' + im.naturalWidth + '×' + im.naturalHeight + '</span>'; }; im.src = rd.result; }; rd.readAsDataURL(f);
   };
   $('.go').onclick = async function () {
     var btn = $('.go'); btn.disabled = true; $('.msg').innerHTML = '';
